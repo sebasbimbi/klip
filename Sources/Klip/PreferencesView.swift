@@ -1,0 +1,232 @@
+import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
+
+/// Puente ObservableObject para la API key (lee/escribe Keychain).
+@MainActor
+final class APIKeyModel: ObservableObject {
+    @Published private(set) var isConfigured = false
+    @Published private(set) var last4: String?
+    @Published var errorMessage: String?
+    @Published var savedOK = false
+
+    init() { refresh() }
+
+    func refresh() {
+        isConfigured = SecretStore.hasKey()
+        last4 = SecretStore.last4()
+    }
+
+    func save(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        SecretStore.set(trimmed); errorMessage = nil; savedOK = true
+        refresh()
+    }
+
+    func delete() {
+        SecretStore.delete(); errorMessage = nil; savedOK = false
+        refresh()
+    }
+}
+
+/// Ventana de Preferencias de Klip.
+struct PreferencesView: View {
+    @ObservedObject var settings = Settings.shared
+    var onHotKeyChange: (KeyCombo) -> Void
+    var onVoiceHotKeyChange: (KeyCombo) -> Void
+    var onMaxItemsChange: () -> Void
+
+    @StateObject private var apiKey = APIKeyModel()
+    @State private var draftKey = ""
+    @State private var showKey = false
+    @State private var launchAtLogin = LoginItem.shared.isEnabledOrPending
+    @State private var loginError: String?
+    @State private var accessibilityGranted = Paster.hasAccessibilityPermission
+
+    private let models = ["gpt-4o-mini-transcribe", "whisper-1"]
+    private let languages = ["es": "Español", "en": "Inglés", "": "Detectar automáticamente"]
+
+    private var appLogo: NSImage? {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let img = NSImage(contentsOf: url) { return img }
+        return NSApp.applicationIconImage
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            aboutHeader
+            Divider()
+            form
+        }
+        .frame(width: 500, height: 700)
+        .onAppear {
+            apiKey.refresh()
+            launchAtLogin = LoginItem.shared.isEnabledOrPending
+            accessibilityGranted = Paster.hasAccessibilityPermission
+        }
+    }
+
+    private var aboutHeader: some View {
+        HStack(spacing: 12) {
+            if let logo = appLogo {
+                Image(nsImage: logo).resizable().frame(width: 54, height: 54)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Klip").font(.title2).bold()
+                Text("v\(AppInfo.version) · Gestor de portapapeles para macOS")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    if let u = URL(string: AppInfo.repoURL) {
+                        Link(label: "chevron.left.forwardslash.chevron.right", text: "GitHub", url: u)
+                    }
+                    if let u = URL(string: AppInfo.issuesURL) {
+                        Link(label: "lightbulb", text: "Sugerencias", url: u)
+                    }
+                }
+                .font(.caption)
+            }
+            Spacer()
+        }
+        .padding(16)
+    }
+
+    private var form: some View {
+        Form {
+            Section("Idioma · Language") {
+                Picker("Idioma de la app", selection: $settings.uiLanguage) {
+                    Text("Español").tag("es")
+                    Text("English").tag("en")
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("General") {
+                Toggle("Abrir Klip al iniciar sesión", isOn: Binding(
+                    get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
+                if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
+                Toggle("Pegar automáticamente al elegir un elemento", isOn: $settings.autoPaste)
+                if settings.autoPaste && !accessibilityGranted {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text("Requiere permiso de Accesibilidad.").font(.caption)
+                        Button("Conceder…") { Paster.ensureAccessibilityPermission(prompt: true) }.font(.caption)
+                    }
+                }
+                Stepper("Máximo de elementos: \(settings.maxItems)",
+                        value: $settings.maxItems, in: 20...1000, step: 10)
+                    .onChange(of: settings.maxItems) { _, _ in onMaxItemsChange() }
+            }
+
+            Section("Atajos") {
+                HStack { Text("Mostrar historial:"); Spacer()
+                    HotKeyField(combo: $settings.combo, onChange: onHotKeyChange) }
+                HStack { Text("Grabar nota de voz:"); Spacer()
+                    HotKeyField(combo: $settings.voiceCombo, onChange: onVoiceHotKeyChange) }
+                Text("Pulsa el campo y teclea la combinación, o usa ⌄ para elegir una sugerida.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("OpenAI (voz y Markdown con IA)") {
+                HStack(spacing: 6) {
+                    if apiKey.isConfigured {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                        Text("Clave configurada")
+                        if let l4 = apiKey.last4 {
+                            Text("••••\(l4)").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text("Sin clave configurada").foregroundStyle(.secondary)
+                    }
+                }
+                HStack {
+                    if showKey { TextField("sk-…", text: $draftKey).textFieldStyle(.roundedBorder) }
+                    else { SecureField("sk-…", text: $draftKey).textFieldStyle(.roundedBorder) }
+                    Button { showKey.toggle() } label: { Image(systemName: showKey ? "eye.slash" : "eye") }
+                        .buttonStyle(.borderless)
+                }
+                HStack {
+                    Button("Guardar") { saveDraft() }
+                        .disabled(draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Borrar", role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
+                    if apiKey.savedOK { Label("Guardada", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
+                }
+                if let err = apiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
+                Text("Se guarda en un archivo local de la app (texto plano, como el historial). Nunca se sube al repositorio.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("Transcripción de voz") {
+                Picker("Modelo", selection: $settings.transcriptionModel) {
+                    ForEach(models, id: \.self) { Text($0).tag($0) }
+                }
+                Picker("Idioma del audio", selection: $settings.transcriptionLanguage) {
+                    ForEach(languages.sorted(by: { $0.value < $1.value }), id: \.key) { Text($1).tag($0) }
+                }
+            }
+
+            Section("Privacidad") {
+                Toggle("No guardar contraseñas ni datos sensibles", isOn: $settings.ignoreSensitive)
+                Text("Klip ignora el contenido que las apps marcan como confidencial (gestores de contraseñas, campos temporales). Los tokens y API keys sueltos se detectan y se guardan aparte como credenciales.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("Apps excluidas") {
+                if settings.excludedBundleIDs.isEmpty {
+                    Text("Ninguna. El contenido copiado en estas apps no se guardará.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(settings.excludedBundleIDs, id: \.self) { id in
+                    HStack {
+                        Text(id).font(.system(size: 12)); Spacer()
+                        Button(role: .destructive) { settings.removeExcludedApp(id) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
+                    }
+                }
+                Button { pickApp() } label: { Label("Añadir app…", systemImage: "plus") }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func saveDraft() { apiKey.save(draftKey); draftKey = ""; showKey = false }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        switch LoginItem.shared.toggle() {
+        case .success:
+            launchAtLogin = LoginItem.shared.isEnabledOrPending; loginError = nil
+        case .failure(let err):
+            if case .requiresApproval = err { LoginItem.shared.openSystemSettings() }
+            loginError = err.localizedDescription
+            launchAtLogin = LoginItem.shared.isEnabledOrPending
+        }
+    }
+
+    private func pickApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        NSApp.activate(ignoringOtherApps: true)
+        if panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier {
+            settings.addExcludedApp(id)
+        }
+    }
+}
+
+/// Enlace con icono que abre el navegador.
+private struct Link: View {
+    let label: String
+    let text: String
+    let url: URL
+    var body: some View {
+        Button {
+            NSWorkspace.shared.open(url)
+        } label: {
+            HStack(spacing: 3) { Image(systemName: label); Text(text) }
+        }
+        .buttonStyle(.link)
+    }
+}

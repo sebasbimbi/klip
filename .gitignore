@@ -1,0 +1,13 @@
+# Claude Code: configuración local personal (no compartir en git)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Swift / SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# Artefacto compilado (se genera con ./build.sh)
+*.app/
