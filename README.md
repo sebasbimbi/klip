@@ -2,11 +2,13 @@
 
 # 📋 Klip
 
-**Un gestor de portapapeles nativo para macOS — ligero, privado y con superpoderes.**
+**Tu portapapeles con superpoderes.** Todo lo que copias, a un atajo de distancia.
 
-Historial de todo lo que copias (texto e imágenes), búsqueda instantánea, OCR, notas de voz transcritas con IA, exportación a Markdown y más. Vive en la barra de menú y se abre con un atajo global.
+Historial de texto e imágenes · búsqueda instantánea · **notas de voz → texto** · **OCR** · Markdown · y más. Vive en la barra de menú, es ligero y privado.
 
-*Hecho en Swift nativo. Sin Electron. Sin telemetría. Tus datos se quedan en tu Mac.*
+🖥️ **macOS 14+** · 🪟 *Windows — próximamente* · 🆓 Gratis y open source · 🔒 Sin telemetría
+
+*Hecho en Swift nativo. Sin Electron. Tus datos se quedan en tu equipo.*
 
 </div>
 
@@ -107,6 +109,8 @@ Abre **Preferencias** (`⌘,` desde el menú de Klip):
 
 ## 🗺️ Hoja de ruta
 
+- [ ] **Versión para Windows** 🪟 (próximamente).
+- [ ] Traducir / resumir / limpiar texto con IA.
 - [ ] Colecciones / favoritos.
 - [ ] Sincronización opcional entre Macs.
 - [ ] Acciones rápidas por tipo (enlaces, colores, código).
