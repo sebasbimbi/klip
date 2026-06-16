@@ -49,7 +49,9 @@ cd klip
 Eso compila Klip, lo firma, lo copia a `/Applications`, lo lanza y registra el arranque al inicio.
 Verás el icono 📋 en la barra de menú. Pulsa **`⌘⇧E`** para abrir el historial.
 
-> La primera vez, macOS puede pedir aprobar el "ítem de inicio de sesión" en *Ajustes › General*. Para el **pegado automático**, concede Accesibilidad cuando se solicite (menú de Klip → *Activar pegado automático…*).
+> La primera vez, `install.sh` crea un **certificado de firma local** (`Klip Code Signing`) en tu Llavero para que la firma sea estable. Así macOS te pide los permisos (micrófono, accesibilidad) **una sola vez** y los recuerda entre actualizaciones, en lugar de volver a preguntar en cada reinstalación. Es local y reversible (puedes borrarlo desde *Acceso a Llaveros*).
+>
+> macOS puede pedir aprobar el "ítem de inicio de sesión" en *Ajustes › General*. Para el **pegado automático**, concede Accesibilidad cuando se solicite (menú de Klip → *Activar pegado automático…*).
 
 ### Compilar sin instalar
 
