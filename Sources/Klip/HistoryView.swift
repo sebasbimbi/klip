@@ -196,18 +196,40 @@ struct HistoryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: filter == .credential ? "key" : "doc.on.clipboard")
-                .font(.system(size: 34)).foregroundStyle(.secondary)
-            Text(!search.isEmpty || filter != .all
-                 ? (filter == .credential ? L10n.t("empty.cred") : L10n.t("empty.noresults"))
-                 : L10n.t("empty.title"))
-                .foregroundStyle(.secondary)
-            if search.isEmpty && filter == .all {
-                Text(L10n.t("empty.sub")).font(.system(size: 11)).foregroundStyle(.tertiary)
+        VStack(spacing: 12) {
+            if manager.items.isEmpty && search.isEmpty && filter == .all {
+                // Primer uso: bienvenida con los atajos reales (configurados) y un consejo.
+                if let logo = Self.appLogo {
+                    Image(nsImage: logo).resizable().frame(width: 46, height: 46).opacity(0.9)
+                }
+                Text(L10n.t("empty.title")).font(.system(size: 15, weight: .semibold))
+                Text(L10n.t("empty.sub")).font(.system(size: 12)).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 10) {
+                    kbdHint(settings.combo.displayString, L10n.t("hint.open"))
+                    kbdHint(settings.voiceCombo.displayString, L10n.t("rec.record"))
+                }
+                .padding(.top, 2)
+                Text(L10n.t("empty.hover")).font(.system(size: 11)).foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Image(systemName: filter == .credential ? "key" : "magnifyingglass")
+                    .font(.system(size: 30)).foregroundStyle(.secondary)
+                Text(filter == .credential ? L10n.t("empty.cred") : L10n.t("empty.noresults"))
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).padding(40)
+    }
+
+    private func kbdHint(_ keys: String, _ label: String) -> some View {
+        HStack(spacing: 5) {
+            Text(keys).font(.system(size: 11, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.12)))
+            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+        }
     }
 
     private var ocrBox: some View {
@@ -267,6 +289,16 @@ struct ItemRow: View {
         return af
     }
     private var isTranscribing: Bool { item.preview == ClipboardManager.voiceTranscribing }
+
+    /// URL si el elemento de texto es exactamente un enlace http(s) (para la acción "Abrir enlace").
+    private var linkURL: URL? {
+        guard item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
+              let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              t.hasPrefix("http://") || t.hasPrefix("https://"),
+              !t.contains(" "), !t.contains("\n"),
+              let u = URL(string: t), u.host != nil else { return nil }
+        return u
+    }
 
     private var displayedPreview: String {
         // El ojo alterna enmascarado/real (item.preview siempre está enmascarado para credenciales).
@@ -402,6 +434,9 @@ struct ItemRow: View {
                 iconButton("key.slash", L10n.t("row.unmarkcred")) { manager.toggleCredential(item) }
             } else {
                 iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
+                if let u = linkURL {
+                    iconButton("arrow.up.right.square", L10n.t("row.openlink")) { NSWorkspace.shared.open(u) }
+                }
                 iconButton("doc.richtext", L10n.t("row.markdown")) { onCopyMarkdown(item) }
                 iconButton("key", L10n.t("row.markcred")) { manager.toggleCredential(item) }
             }
