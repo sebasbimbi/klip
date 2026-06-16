@@ -51,7 +51,7 @@ final class OpenAIClient {
             append("\(value)\r\n")
         }
         append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"file\"; filename=\"\(audioURL.lastPathComponent)\"\r\n")
+        append("Content-Disposition: form-data; name=\"file\"; filename=\"\(Self.uploadFilename(for: audioURL))\"\r\n")
         append("Content-Type: \(Self.contentType(for: audioURL))\r\n\r\n")
         body.append(fileData)
         append("\r\n")
@@ -114,10 +114,18 @@ final class OpenAIClient {
         case "mp4", "m4a":          return "audio/mp4"
         case "wav":                 return "audio/wav"
         case "webm":                return "audio/webm"
-        case "ogg":                 return "audio/ogg"
+        case "ogg", "oga", "opus":  return "audio/ogg"
         case "flac":                return "audio/flac"
         default:                    return "application/octet-stream"
         }
+    }
+
+    /// OpenAI valida el formato por la extensión del nombre. WhatsApp graba en .opus (Ogg-Opus),
+    /// extensión que la API NO acepta, pero SÍ acepta el mismo contenedor como .ogg → lo renombramos.
+    private static func uploadFilename(for url: URL) -> String {
+        guard url.pathExtension.lowercased() == "opus" else { return url.lastPathComponent }
+        let base = url.deletingPathExtension().lastPathComponent
+        return base.isEmpty ? "audio.ogg" : base + ".ogg"
     }
 
     private static func checkHTTP(_ resp: URLResponse, _ data: Data) throws {

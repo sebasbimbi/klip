@@ -33,6 +33,7 @@ struct HistoryView: View {
     var onVoiceRecord: () -> Void
     var onShowGuide: () -> Void
     var onRename: (ClipboardItem) -> Void
+    var onRetryTranscription: (ClipboardItem) -> Void
 
     @State private var search = ""
     @FocusState private var searchFocused: Bool
@@ -180,7 +181,7 @@ struct HistoryView: View {
                                 manager: manager,
                                 onPick: onPick, onSaveImage: onSaveImage,
                                 onCopyMarkdown: onCopyMarkdown, onOCR: { runOCR(item) },
-                                onRename: onRename)
+                                onRename: onRename, onRetryTranscription: onRetryTranscription)
                             .id(item.id)
                         if ocrResultID == item.id { ocrBox }
                     }
@@ -247,6 +248,7 @@ struct ItemRow: View {
     var onCopyMarkdown: (ClipboardItem) -> Void
     var onOCR: () -> Void
     var onRename: (ClipboardItem) -> Void
+    var onRetryTranscription: (ClipboardItem) -> Void
 
     @State private var hovering = false
     @State private var revealed = false
@@ -264,6 +266,7 @@ struct ItemRow: View {
               Storage.shared.audioExists(fileName: af) else { return nil }
         return af
     }
+    private var isTranscribing: Bool { item.preview == ClipboardManager.voiceTranscribing }
 
     private var displayedPreview: String {
         // El ojo alterna enmascarado/real (item.preview siempre está enmascarado para credenciales).
@@ -365,7 +368,12 @@ struct ItemRow: View {
     }
 
     private var metadata: some View {
-        Text(Self.timeLabel(item.createdAt)).font(.system(size: 10)).foregroundStyle(.secondary)
+        HStack(spacing: 6) {
+            Text(Self.timeLabel(item.createdAt)).font(.system(size: 10)).foregroundStyle(.secondary)
+            if let af = voiceAudioFile {
+                VoicePlaybackInfo(fileName: af, duration: item.audioDuration)
+            }
+        }
     }
 
     private var actions: some View {
@@ -373,6 +381,9 @@ struct ItemRow: View {
             if item.isVoiceNote == true {
                 if let af = voiceAudioFile {
                     if hasText { VoicePlayButton(fileName: af, large: false) }
+                    else if !isTranscribing {   // nota fallida con audio: ofrecer reintentar
+                        iconButton("arrow.clockwise", L10n.t("voice.retry")) { onRetryTranscription(item) }
+                    }
                     iconButton("folder", L10n.t("voice.reveal")) {
                         NSWorkspace.shared.activateFileViewerSelecting([Storage.shared.audioURL(for: af)])
                     }
@@ -417,8 +428,38 @@ struct ItemRow: View {
     }
 }
 
-/// Botón ▶/⏹ de una nota de voz. Es la ÚNICA vista que observa AudioPlayer.shared, así un play/stop
-/// solo recalcula este botón (no todas las filas de la lista).
+/// Formatea segundos como m:ss (0:14, 1:05…) o h:mm:ss para audios largos subidos (1:02:03).
+func mmss(_ t: TimeInterval) -> String {
+    let s = max(0, Int(t.rounded()))
+    if s >= 3600 { return String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
+    return String(format: "%d:%02d", s / 60, s % 60)
+}
+
+/// Muestra la duración del audio y, mientras suena ESE archivo, el tiempo transcurrido + barra de progreso.
+/// Observa AudioPlayer.shared: todas las VoicePlaybackInfo visibles se reevalúan ~5/s mientras algo suena
+/// (aceptable porque el body es trivial y LazyVStack limita a las filas en pantalla).
+struct VoicePlaybackInfo: View {
+    let fileName: String
+    let duration: Double?
+    @ObservedObject private var audio = AudioPlayer.shared
+
+    var body: some View {
+        if audio.isPlaying(fileName) {
+            let total = audio.total > 0 ? audio.total : (duration ?? 0)
+            HStack(spacing: 5) {
+                Text("\(mmss(audio.elapsed)) / \(mmss(total))").monospacedDigit()
+                ProgressView(value: total > 0 ? min(1, audio.elapsed / total) : 0)
+                    .frame(width: 54).controlSize(.mini)
+            }
+            .font(.system(size: 10)).foregroundStyle(.secondary)
+        } else if let d = duration {
+            Text(mmss(d)).font(.system(size: 10)).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Botón ▶/⏹ de una nota de voz. Observa AudioPlayer.shared (igual que VoicePlaybackInfo): mantiene la
+/// observación fuera de ItemRow para no recalcular la fila entera en cada cambio de reproducción.
 struct VoicePlayButton: View {
     let fileName: String
     var large: Bool = false

@@ -12,7 +12,8 @@ struct UploadView: View {
 
     @State private var hovering = false
 
-    private let exts = ["m4a", "mp3", "wav", "mp4", "aac", "aiff", "flac", "ogg", "webm", "mpga", "mpeg", "m4b"]
+    private let exts = ["m4a", "mp3", "wav", "mp4", "aac", "aiff", "flac", "ogg", "oga", "opus",
+                        "webm", "mpga", "mpeg", "m4b"]
 
     var body: some View {
         VStack(spacing: 14) {
@@ -31,12 +32,21 @@ struct UploadView: View {
             default:
                 Text("Subir audio para transcribir").font(.headline)
                 dropZone
-                Text("Se transcriben en segundo plano y aparecen en el historial.\nFormatos: m4a, mp3, wav, mp4, flac…")
+                Text("Se transcriben en segundo plano y aparecen en el historial.\nFormatos: m4a, mp3, wav, mp4, opus, ogg, flac…")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                if recorder.transcribingCount > 0 {
+                    HStack(spacing: 7) {
+                        ProgressView().controlSize(.small)
+                        Text("Transcribiendo \(recorder.transcribingCount)… aparecerá\(recorder.transcribingCount == 1 ? "" : "n") en tu historial")
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                }
                 Button("Cerrar") { onClose() }
             }
         }
-        .frame(width: 380, height: 300).padding()
+        .frame(width: 380, height: 330).padding()
     }
 
     private var dropZone: some View {

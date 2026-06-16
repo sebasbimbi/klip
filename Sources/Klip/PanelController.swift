@@ -40,9 +40,10 @@ final class PanelController: NSObject, NSWindowDelegate {
     }
 
     private func buildPanel() {
-        recorder.onVoiceNoteStarted = { [weak self] fn in self?.manager.beginVoiceNote(audioFileName: fn) }
+        recorder.onVoiceNoteStarted = { [weak self] fn, dur in self?.manager.beginVoiceNote(audioFileName: fn, duration: dur) }
         recorder.onVoiceNoteTranscribed = { [weak self] id, text in self?.manager.finishVoiceNote(id: id, text: text) }
         recorder.onVoiceNoteFailed = { [weak self] id in self?.manager.failVoiceNote(id: id) }
+        recorder.onVoiceNoteRetrying = { [weak self] id in self?.manager.markVoiceNoteTranscribing(id: id) }
 
         let root = HistoryView(
             manager: manager,
@@ -56,7 +57,8 @@ final class PanelController: NSObject, NSWindowDelegate {
             onUploadAudio: { [weak self] in self?.uploadAudio() },
             onVoiceRecord: { [weak self] in self?.toggleVoiceRecording() },
             onShowGuide: { [weak self] in self?.showGuide() },
-            onRename: { [weak self] item in self?.renameItem(item) }
+            onRename: { [weak self] item in self?.renameItem(item) },
+            onRetryTranscription: { [weak self] item in self?.retryTranscription(item) }
         )
 
         let panel = KeyablePanel(
@@ -339,7 +341,11 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     private func chooseAudioFiles() {
         let p = NSOpenPanel()
-        p.allowedContentTypes = [.audio]
+        var types: [UTType] = [.audio]
+        for ext in ["opus", "oga"] {   // .opus de WhatsApp no siempre conforma a public.audio
+            if let t = UTType(filenameExtension: ext) { types.append(t) }
+        }
+        p.allowedContentTypes = types
         p.allowsMultipleSelection = true
         p.canChooseDirectories = false
         NSApp.activate(ignoringOtherApps: true)
@@ -349,11 +355,20 @@ final class PanelController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Manda los audios a transcribir (en 2º plano) y cierra la ventana de subida salvo que falte la API key.
+    /// Manda los audios a transcribir (en 2º plano). La ventana queda abierta mostrando el progreso
+    /// ("Transcribiendo N…"); el usuario la cierra cuando quiera (las notas aparecen en el historial).
     @MainActor
     private func submitAudioFiles(_ urls: [URL]) {
         recorder.transcribeFiles(urls)
-        if recorder.state != .missingAPIKey { uploadWindow?.orderOut(nil) }
+    }
+
+    /// Reintenta transcribir una nota de voz fallida (usa su audio guardado).
+    private func retryTranscription(_ item: ClipboardItem) {
+        guard let af = item.audioFileName, Storage.shared.audioExists(fileName: af) else { return }
+        // Evita un segundo reintento (doble-clic) mientras ya está en curso → no duplica la llamada a la API.
+        guard manager.items.first(where: { $0.id == item.id })?.preview != ClipboardManager.voiceTranscribing else { return }
+        guard OpenAIClient.shared.hasAPIKey else { onOpenPreferences?(); return }   // sin clave: ofrecer configurarla
+        MainActor.assumeIsolated { recorder.retry(itemID: item.id, audioFileName: af) }
     }
 
     /// Diálogo para ponerle (o cambiarle) el nombre a cualquier elemento. Buscable después.

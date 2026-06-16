@@ -159,12 +159,20 @@ final class ClipboardManager: ObservableObject {
 
     /// Crea el elemento de la nota de voz con su audio (placeholder "Transcribiendo…") y devuelve su id.
     @discardableResult
-    func beginVoiceNote(audioFileName: String?) -> UUID {
+    func beginVoiceNote(audioFileName: String?, duration: Double?) -> UUID {
         let item = ClipboardItem(kind: .text, preview: Self.voiceTranscribing,
-                                 isVoiceNote: true, audioFileName: audioFileName)
+                                 isVoiceNote: true, audioFileName: audioFileName, audioDuration: duration)
         items.insert(item, at: 0)
         trimAndSave()
         return item.id
+    }
+
+    /// Vuelve a marcar un elemento como "Transcribiendo…" (reintento de una nota fallida).
+    func markVoiceNoteTranscribing(id: UUID) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].text = nil
+        items[idx].preview = Self.voiceTranscribing
+        storage.saveItems(items)
     }
 
     /// Rellena la transcripción y la deja en el portapapeles, lista para pegar.

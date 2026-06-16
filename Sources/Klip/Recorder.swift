@@ -23,11 +23,13 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     /// El audio ya está guardado: crea el elemento de la nota de voz (placeholder) y devuelve su id.
     /// `audioFileName` puede ser nil si no se pudo guardar el archivo (la transcripción aún se guarda).
-    var onVoiceNoteStarted: ((String?) -> UUID?)?
+    var onVoiceNoteStarted: ((String?, Double?) -> UUID?)?
     /// Rellena la transcripción en el elemento ya creado.
     var onVoiceNoteTranscribed: ((UUID, String) -> Void)?
     /// La transcripción falló o no hubo voz: el elemento queda con el audio para reproducir/recuperar.
     var onVoiceNoteFailed: ((UUID) -> Void)?
+    /// Reintento: marca un elemento existente como "Transcribiendo…" otra vez.
+    var onVoiceNoteRetrying: ((UUID) -> Void)?
 
     // Detección de silencio (timer a 0.1 s): aviso a 2 min, corte a 3 min.
     private var silentTicks = 0
@@ -186,14 +188,28 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// No toca `state` (solo el contador), así no interfiere con una grabación nueva en curso.
     @MainActor
     private func enqueueTranscription(audioFileName: String?, transcribeURL: URL) {
-        let id = onVoiceNoteStarted?(audioFileName)
+        let duration = AudioPlayer.duration(of: transcribeURL)
+        let id = onVoiceNoteStarted?(audioFileName, duration)
+        transcribeInBackground(id: id, url: transcribeURL)
+    }
+
+    /// Reintenta transcribir el audio de un elemento que ya existe (nota fallida con su audio).
+    @MainActor
+    func retry(itemID: UUID, audioFileName: String) {
+        onVoiceNoteRetrying?(itemID)
+        transcribeInBackground(id: itemID, url: storage.audioURL(for: audioFileName))
+    }
+
+    /// Núcleo de la transcripción en 2º plano (común a grabar, subir y reintentar). No toca `state`.
+    @MainActor
+    private func transcribeInBackground(id: UUID?, url: URL) {
         transcribingCount += 1
         let model = Settings.shared.transcriptionModel       // leídos en MainActor (evita data race)
         let language = Settings.shared.transcriptionLanguage
         Task { @MainActor in
             defer { transcribingCount -= 1 }
             do {
-                let text = try await client.transcribe(audioURL: transcribeURL, language: language, model: model)
+                let text = try await client.transcribe(audioURL: url, language: language, model: model)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id) } }
                 else { if let id { onVoiceNoteTranscribed?(id, trimmed) } }

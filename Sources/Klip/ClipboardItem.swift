@@ -23,6 +23,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     var isVoiceNote: Bool?        // transcripción de nota de voz
     var isCredential: Bool?       // marcado como credencial (token/API key)
     var audioFileName: String?    // nota de voz: archivo de audio original guardado (m4a) para reproducir
+    var audioDuration: Double?    // duración del audio en segundos (para mostrar y la barra de progreso)
     var name: String?             // etiqueta puesta por el usuario (título buscable; aplica a cualquier elemento)
 
     init(id: UUID = UUID(),
@@ -38,6 +39,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
          isVoiceNote: Bool? = nil,
          isCredential: Bool? = nil,
          audioFileName: String? = nil,
+         audioDuration: Double? = nil,
          name: String? = nil) {
         self.id = id
         self.kind = kind
@@ -52,6 +54,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
         self.isVoiceNote = isVoiceNote
         self.isCredential = isCredential
         self.audioFileName = audioFileName
+        self.audioDuration = audioDuration
         self.name = name
     }
 
