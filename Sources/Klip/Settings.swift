@@ -97,6 +97,7 @@ final class Settings: ObservableObject {
         static let detectRem  = "detectRemoteSource"
         static let transModel = "transcriptionModel"
         static let transLang  = "transcriptionLanguage"
+        static let aiProv     = "aiProvider"
         static let keyCode2   = "voiceHotKeyCode"
         static let mods2      = "voiceHotKeyModifiers"
         static let uiLang     = "uiLanguage"
@@ -116,6 +117,8 @@ final class Settings: ObservableObject {
     @Published var detectRemoteSource: Bool { didSet { d.set(detectRemoteSource, forKey: K.detectRem) } }
     @Published var transcriptionModel: String { didSet { d.set(transcriptionModel, forKey: K.transModel) } }
     @Published var transcriptionLanguage: String { didSet { d.set(transcriptionLanguage, forKey: K.transLang) } }
+    /// Proveedor de IA para transcripción: "openai" o "gemini".
+    @Published var aiProvider: String { didSet { d.set(aiProvider, forKey: K.aiProv) } }
     @Published var voiceCombo: KeyCombo   { didSet {
         d.set(Int(voiceCombo.keyCode), forKey: K.keyCode2)
         d.set(Int(voiceCombo.carbonModifiers), forKey: K.mods2)
@@ -142,6 +145,7 @@ final class Settings: ObservableObject {
             K.detectRem: true,
             K.transModel: "gpt-4o-mini-transcribe",
             K.transLang: "es",
+            K.aiProv: "openai",
             K.keyCode2: Int(kVK_ANSI_I),
             K.mods2: Int(cmdKey | shiftKey),
             K.uiLang: "es"
@@ -158,6 +162,7 @@ final class Settings: ObservableObject {
         detectRemoteSource = d.object(forKey: K.detectRem) as? Bool ?? true
         transcriptionModel = d.string(forKey: K.transModel) ?? "gpt-4o-mini-transcribe"
         transcriptionLanguage = d.string(forKey: K.transLang) ?? "es"
+        aiProvider = d.string(forKey: K.aiProv) ?? "openai"
         voiceCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode2)),
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
         uiLanguage = d.string(forKey: K.uiLang) ?? "es"

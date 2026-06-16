@@ -181,7 +181,8 @@ struct HistoryView: View {
                                 manager: manager,
                                 onPick: onPick, onSaveImage: onSaveImage,
                                 onCopyMarkdown: onCopyMarkdown, onOCR: { runOCR(item) },
-                                onRename: onRename, onRetryTranscription: onRetryTranscription)
+                                onRename: onRename, onRetryTranscription: onRetryTranscription,
+                                searchTerm: search)
                             .id(item.id)
                         if ocrResultID == item.id { ocrBox }
                     }
@@ -271,6 +272,7 @@ struct ItemRow: View {
     var onOCR: () -> Void
     var onRename: (ClipboardItem) -> Void
     var onRetryTranscription: (ClipboardItem) -> Void
+    var searchTerm: String = ""
 
     @State private var hovering = false
     @State private var revealed = false
@@ -289,6 +291,30 @@ struct ItemRow: View {
         return af
     }
     private var isTranscribing: Bool { item.preview == ClipboardManager.voiceTranscribing }
+
+    /// Color si el texto del elemento es un hex (#RGB / #RRGGBB / #RRGGBBAA) → muestra una muestra.
+    private var swatchColor: NSColor? {
+        guard item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
+              let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        return NSColor(klipHex: t)
+    }
+
+    /// Resalta las coincidencias de búsqueda en un texto (fondo amarillo).
+    static func highlight(_ text: String, _ term: String) -> AttributedString {
+        let q = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return AttributedString(text) }
+        var result = AttributedString()
+        var idx = text.startIndex
+        while idx < text.endIndex, let r = text.range(of: q, options: .caseInsensitive, range: idx..<text.endIndex) {
+            result += AttributedString(String(text[idx..<r.lowerBound]))
+            var m = AttributedString(String(text[r.lowerBound..<r.upperBound]))
+            m.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.45)
+            result += m
+            idx = r.upperBound
+        }
+        result += AttributedString(String(text[idx...]))
+        return result
+    }
 
     /// URL si el elemento de texto es exactamente un enlace http(s) (para la acción "Abrir enlace").
     private var linkURL: URL? {
@@ -324,7 +350,7 @@ struct ItemRow: View {
 
     private var imageCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let fn = item.imageFileName, let img = Storage.shared.loadImage(fileName: fn) {
+            if let fn = item.imageFileName, let img = Storage.shared.cachedImage(fileName: fn) {
                 ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: img).resizable().aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity).frame(height: 150)
@@ -357,12 +383,12 @@ struct ItemRow: View {
             thumbnail
             VStack(alignment: .leading, spacing: 3) {
                 if let nm = customName {
-                    Text(nm).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                    Text(displayedPreview)
+                    Text(Self.highlight(nm, searchTerm)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Text(Self.highlight(displayedPreview, searchTerm))
                         .lineLimit(1).font(.system(size: 11, design: isCredential ? .monospaced : .default))
                         .foregroundStyle(.secondary)
                 } else {
-                    Text(displayedPreview)
+                    Text(Self.highlight(displayedPreview, searchTerm))
                         .lineLimit(2).font(.system(size: 13, design: isCredential ? .monospaced : .default))
                 }
                 metadata
@@ -392,6 +418,10 @@ struct ItemRow: View {
                     .frame(width: 46, height: 46).foregroundStyle(.purple)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.purple.opacity(0.12)))
             }
+        } else if let c = swatchColor {
+            RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: c))
+                .frame(width: 46, height: 46)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.15)))
         } else {
             Image(systemName: "doc.text").font(.system(size: 18))
                 .frame(width: 46, height: 46).foregroundStyle(.secondary)
@@ -426,6 +456,11 @@ struct ItemRow: View {
                 }
             } else if item.kind == .image {
                 iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
+                if let fn = item.imageFileName {
+                    iconButton("arrow.up.left.and.arrow.down.right", L10n.t("row.viewbig")) {
+                        NSWorkspace.shared.open(Storage.shared.imageURL(for: fn))
+                    }
+                }
                 iconButton("square.and.arrow.down", L10n.t("row.save")) { onSaveImage(item) }
                 iconButton("text.viewfinder", L10n.t("row.ocr")) { onOCR() }
             } else if isCredential {
@@ -460,6 +495,30 @@ struct ItemRow: View {
         else if cal.isDateInYesterday(date) { f.dateFormat = "'·' HH:mm" }
         else { f.dateFormat = "d MMM HH:mm" }
         return f.string(from: date)
+    }
+}
+
+extension NSColor {
+    /// Parsea un color hex (#RGB, #RRGGBB, #RRGGBBAA, con o sin #). nil si no es un hex válido.
+    convenience init?(klipHex raw: String) {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard [3, 6, 8].contains(s.count), s.allSatisfy({ $0.isHexDigit }) else { return nil }
+        func byte(_ sub: Substring) -> CGFloat { CGFloat(Int(sub, radix: 16) ?? 0) / 255.0 }
+        let chars = Array(s)
+        let r, g, b: CGFloat
+        var a: CGFloat = 1
+        if s.count == 3 {
+            r = byte(Substring(String(repeating: chars[0], count: 2)))
+            g = byte(Substring(String(repeating: chars[1], count: 2)))
+            b = byte(Substring(String(repeating: chars[2], count: 2)))
+        } else {
+            r = byte(s.prefix(2))
+            g = byte(s.dropFirst(2).prefix(2))
+            b = byte(s.dropFirst(4).prefix(2))
+            if s.count == 8 { a = byte(s.dropFirst(6).prefix(2)) }
+        }
+        self.init(srgbRed: r, green: g, blue: b, alpha: a)
     }
 }
 

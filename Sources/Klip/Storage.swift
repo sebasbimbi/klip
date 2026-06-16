@@ -47,7 +47,12 @@ final class Storage {
         guard let data = try? Data(contentsOf: itemsURL) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode([ClipboardItem].self, from: data)) ?? []
+        if let items = try? decoder.decode([ClipboardItem].self, from: data) { return items }
+        // Decodificación falló pero el archivo existe → respaldarlo antes de que algo lo sobrescriba.
+        if !data.isEmpty {
+            try? data.write(to: baseURL.appendingPathComponent("items.corrupt.json"), options: .atomic)
+        }
+        return []
     }
 
     func saveItems(_ items: [ClipboardItem]) {
@@ -75,7 +80,22 @@ final class Storage {
 
     func imageURL(for fileName: String) -> URL { imagesURL.appendingPathComponent(fileName) }
     func loadImage(fileName: String) -> NSImage? { NSImage(contentsOf: imageURL(for: fileName)) }
-    func deleteImage(fileName: String) { try? FileManager.default.removeItem(at: imageURL(for: fileName)) }
+    func deleteImage(fileName: String) {
+        imageCache.removeObject(forKey: fileName as NSString)
+        try? FileManager.default.removeItem(at: imageURL(for: fileName))
+    }
+
+    private let imageCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>(); c.countLimit = 60; return c
+    }()
+
+    /// Imagen cacheada en memoria: evita releer/decodificar del disco en cada render de la lista.
+    func cachedImage(fileName: String) -> NSImage? {
+        if let c = imageCache.object(forKey: fileName as NSString) { return c }
+        guard let img = loadImage(fileName: fileName) else { return nil }
+        imageCache.setObject(img, forKey: fileName as NSString)
+        return img
+    }
 
     func pngData(from image: NSImage) -> Data? {
         guard let tiff = image.tiffRepresentation,

@@ -2,30 +2,31 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Puente ObservableObject para la API key (lee/escribe Keychain).
+/// Puente ObservableObject para una API key (OpenAI o Gemini), guardada en archivo local 0600.
 @MainActor
 final class APIKeyModel: ObservableObject {
+    let key: SecretStore.Key
     @Published private(set) var isConfigured = false
     @Published private(set) var last4: String?
     @Published var errorMessage: String?
     @Published var savedOK = false
 
-    init() { refresh() }
+    init(_ key: SecretStore.Key = .openai) { self.key = key; refresh() }
 
     func refresh() {
-        isConfigured = SecretStore.hasKey()
-        last4 = SecretStore.last4()
+        isConfigured = SecretStore.hasKey(key)
+        last4 = SecretStore.last4(key)
     }
 
     func save(_ raw: String) {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        SecretStore.set(trimmed); errorMessage = nil; savedOK = true
+        SecretStore.set(trimmed, key); errorMessage = nil; savedOK = true
         refresh()
     }
 
     func delete() {
-        SecretStore.delete(); errorMessage = nil; savedOK = false
+        SecretStore.delete(key); errorMessage = nil; savedOK = false
         refresh()
     }
 }
@@ -37,9 +38,12 @@ struct PreferencesView: View {
     var onVoiceHotKeyChange: (KeyCombo) -> Void
     var onMaxItemsChange: () -> Void
 
-    @StateObject private var apiKey = APIKeyModel()
+    @StateObject private var apiKey = APIKeyModel(.openai)
+    @StateObject private var geminiKey = APIKeyModel(.gemini)
     @State private var draftKey = ""
     @State private var showKey = false
+    @State private var draftGeminiKey = ""
+    @State private var showGeminiKey = false
     @State private var launchAtLogin = LoginItem.shared.isEnabledOrPending
     @State private var loginError: String?
     @State private var accessibilityGranted = Paster.hasAccessibilityPermission
@@ -61,7 +65,7 @@ struct PreferencesView: View {
         }
         .frame(width: 500, height: 700)
         .onAppear {
-            apiKey.refresh()
+            apiKey.refresh(); geminiKey.refresh()
             launchAtLogin = LoginItem.shared.isEnabledOrPending
             accessibilityGranted = Paster.hasAccessibilityPermission
         }
@@ -127,19 +131,30 @@ struct PreferencesView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("OpenAI (voz y Markdown con IA)") {
-                HStack(spacing: 6) {
-                    if apiKey.isConfigured {
-                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
-                        Text("Clave configurada")
-                        if let l4 = apiKey.last4 {
-                            Text("••••\(l4)").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
-                        }
-                    } else {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("Sin clave configurada").foregroundStyle(.secondary)
-                    }
+            Section("Transcripción de voz") {
+                Picker("Proveedor", selection: $settings.aiProvider) {
+                    Text("OpenAI").tag("openai")
+                    Text("Google Gemini").tag("gemini")
                 }
+                .pickerStyle(.segmented)
+                if settings.aiProvider == "openai" {
+                    Picker("Modelo", selection: $settings.transcriptionModel) {
+                        ForEach(models, id: \.self) { Text($0).tag($0) }
+                    }
+                } else {
+                    LabeledContent("Modelo", value: "gemini-2.0-flash")
+                }
+                Picker("Idioma del audio", selection: $settings.transcriptionLanguage) {
+                    ForEach(languages.sorted(by: { $0.value < $1.value }), id: \.key) { Text($1).tag($0) }
+                }
+                Text(settings.aiProvider == "gemini"
+                     ? "Se usará tu clave de Google Gemini (abajo)."
+                     : "Se usará tu clave de OpenAI (abajo).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("OpenAI (clave para voz)") {
+                keyStatus(apiKey)
                 HStack {
                     if showKey { TextField("sk-…", text: $draftKey).textFieldStyle(.roundedBorder) }
                     else { SecureField("sk-…", text: $draftKey).textFieldStyle(.roundedBorder) }
@@ -147,23 +162,31 @@ struct PreferencesView: View {
                         .buttonStyle(.borderless)
                 }
                 HStack {
-                    Button("Guardar") { saveDraft() }
+                    Button("Guardar") { apiKey.save(draftKey); draftKey = ""; showKey = false }
                         .disabled(draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button("Borrar", role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
                     if apiKey.savedOK { Label("Guardada", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
                 }
                 if let err = apiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
-                Text("Se guarda en un archivo local de la app (texto plano, como el historial). Nunca se sube al repositorio.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Transcripción de voz") {
-                Picker("Modelo", selection: $settings.transcriptionModel) {
-                    ForEach(models, id: \.self) { Text($0).tag($0) }
+            Section("Google Gemini (clave para voz)") {
+                keyStatus(geminiKey)
+                HStack {
+                    if showGeminiKey { TextField("AIza…", text: $draftGeminiKey).textFieldStyle(.roundedBorder) }
+                    else { SecureField("AIza…", text: $draftGeminiKey).textFieldStyle(.roundedBorder) }
+                    Button { showGeminiKey.toggle() } label: { Image(systemName: showGeminiKey ? "eye.slash" : "eye") }
+                        .buttonStyle(.borderless)
                 }
-                Picker("Idioma del audio", selection: $settings.transcriptionLanguage) {
-                    ForEach(languages.sorted(by: { $0.value < $1.value }), id: \.key) { Text($1).tag($0) }
+                HStack {
+                    Button("Guardar") { geminiKey.save(draftGeminiKey); draftGeminiKey = ""; showGeminiKey = false }
+                        .disabled(draftGeminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Borrar", role: .destructive) { geminiKey.delete() }.disabled(!geminiKey.isConfigured)
+                    if geminiKey.savedOK { Label("Guardada", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
                 }
+                if let err = geminiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
+                Text("Obtén tu clave en aistudio.google.com. Se guarda en un archivo local 0600, nunca en el repositorio.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section("Privacidad") {
@@ -190,7 +213,21 @@ struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    private func saveDraft() { apiKey.save(draftKey); draftKey = ""; showKey = false }
+    @ViewBuilder
+    private func keyStatus(_ model: APIKeyModel) -> some View {
+        HStack(spacing: 6) {
+            if model.isConfigured {
+                Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                Text("Clave configurada")
+                if let l4 = model.last4 {
+                    Text("••••\(l4)").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                }
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text("Sin clave configurada").foregroundStyle(.secondary)
+            }
+        }
+    }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
         switch LoginItem.shared.toggle() {

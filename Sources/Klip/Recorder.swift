@@ -40,7 +40,6 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var recorder: AVAudioRecorder?
     private var meterTimer: Timer?
     private var currentFileName: String?
-    private let client = OpenAIClient.shared
     private let storage = Storage.shared
 
     /// Intención de grabar pendiente (cubre la ventana del permiso async).
@@ -67,7 +66,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         guard !isRecording else { return }
         startRequested = true
         Task { @MainActor in
-            guard client.hasAPIKey else { state = .missingAPIKey; startRequested = false; return }
+            guard AIProvider.hasKey else { state = .missingAPIKey; startRequested = false; return }
             guard await requestMicPermission() else {
                 state = .error("Permiso de micrófono denegado"); startRequested = false; return
             }
@@ -166,7 +165,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @MainActor
     func transcribeFiles(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-        guard client.hasAPIKey else { state = .missingAPIKey; return }
+        guard AIProvider.hasKey else { state = .missingAPIKey; return }
         for url in urls {
             let stored = storage.importAudio(from: url)                       // copia a audio/ (nil si falla)
             let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
@@ -209,7 +208,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         Task { @MainActor in
             defer { transcribingCount -= 1 }
             do {
-                let text = try await client.transcribe(audioURL: url, language: language, model: model)
+                let text = try await AIProvider.transcribe(audioURL: url, language: language, model: model)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id) } }
                 else { if let id { onVoiceNoteTranscribed?(id, trimmed) } }

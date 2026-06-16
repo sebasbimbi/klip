@@ -58,7 +58,7 @@ struct RecordingView: View {
         case .missingAPIKey:
             VStack(spacing: 12) {
                 Image(systemName: "key.slash").font(.system(size: 34)).foregroundStyle(.orange)
-                Text("Falta tu API key de OpenAI").font(.headline)
+                Text("Falta tu API key").font(.headline)
                 Text("Añádela en Preferencias para transcribir voz.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 HStack {

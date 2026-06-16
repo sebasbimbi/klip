@@ -367,7 +367,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         guard let af = item.audioFileName, Storage.shared.audioExists(fileName: af) else { return }
         // Evita un segundo reintento (doble-clic) mientras ya está en curso → no duplica la llamada a la API.
         guard manager.items.first(where: { $0.id == item.id })?.preview != ClipboardManager.voiceTranscribing else { return }
-        guard OpenAIClient.shared.hasAPIKey else { onOpenPreferences?(); return }   // sin clave: ofrecer configurarla
+        guard AIProvider.hasKey else { onOpenPreferences?(); return }   // sin clave: ofrecer configurarla
         MainActor.assumeIsolated { recorder.retry(itemID: item.id, audioFileName: af) }
     }
 

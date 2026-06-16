@@ -18,16 +18,19 @@ Historial de texto e imágenes · búsqueda instantánea · **notas de voz → t
 
 - 📋 **Historial automático** de texto **e imágenes/capturas** que copias.
 - ⌨️ **Atajo global `⌘⇧E`** (Cmd+Shift+E) para abrir el panel desde cualquier app. Configurable.
-- 🔎 **Búsqueda** instantánea y **navegación por teclado** (↑/↓, Enter, `⌘1`–`⌘9`).
+- 🔎 **Búsqueda** instantánea **con resaltado** de coincidencias y **navegación por teclado** (↑/↓, Enter, `⌘1`–`⌘9`, `Esc`). Filtros por tipo (texto, imágenes, voz, credenciales, fijados).
 - ⤵️ **Pegado automático**: eliges un elemento y se pega solo en la app activa.
-- 🖼️ **Imágenes**: previsualización grande, **guardar como archivo** y **extraer texto (OCR)** con el motor Vision de Apple (gratis, en el dispositivo).
-- 🎙️ **Notas de voz → texto**: grabas, paras, y OpenAI transcribe la nota completa **en segundo plano** (puedes grabar otra al instante). **El audio original se guarda** y puedes **reproducirlo desde Klip** (▶) o abrirlo en Finder — así no pierdes nada aunque la transcripción falle. También puedes **subir un archivo de audio** para transcribir.
+- 🖼️ **Imágenes**: previsualización grande (con miniaturas en caché para que vaya fluido), **abrir en grande**, **guardar como archivo** y **extraer texto (OCR)** con el motor Vision de Apple (gratis, en el dispositivo).
+- 🎙️ **Notas de voz → texto**: grabas, paras, y se transcribe la nota completa **en segundo plano** (puedes grabar otra al instante). **El audio original se guarda** con su **duración y barra de progreso**, lo **reproduces desde Klip** (▶) o lo abres en Finder, y puedes **reintentar (↻)** si la transcripción falla — así no pierdes nada. También puedes **subir un archivo** (m4a, mp3, wav, **.opus de WhatsApp**, ogg, flac…).
+- 🤖 **Elige tu motor de IA**: **OpenAI** o **Google Gemini** para la transcripción. Pones tu propia clave de cualquiera de los dos.
 - 🏷️ **Ponle nombre a todo**: etiqueta cualquier elemento (texto, imagen, voz o credencial) y **búscalo por ese nombre**. Ideal para tus credenciales: les pones un nombre y las encuentras al instante.
-- 📝 **Markdown**: copia cualquier elemento *como Markdown* o exporta **todo el historial** a Markdown (con conversión por IA opcional).
-- 🔑 **Mini gestor de credenciales**: detecta tokens y API keys al copiarlos, los guarda **aparte y enmascarados**, con su propio filtro 🔑.
-- 📌 **Fijar**, 🗑️ **eliminar**, y **hora exacta** de copiado en cada elemento.
-- 🔒 **Privacidad**: ignora contraseñas (contenido marcado como oculto) y permite **excluir apps**.
-- 🚀 **Arranque al iniciar sesión** opcional.
+- 🔗 **Acciones por tipo**: **abrir enlaces** (URLs), **muestra de color** para valores hex (`#1E90FF`).
+- 📝 **Markdown**: copia cualquier elemento *como Markdown* o exporta **todo el historial** a Markdown.
+- 🔑 **Mini gestor de credenciales**: detecta tokens y API keys al copiarlos, los guarda **aparte y enmascarados** (👁 para revelar/copiar), con su propio filtro 🔑.
+- 📌 **Fijar**, 🗑️ **eliminar** (con confirmación al **borrar todo**), y **hora exacta** de copiado en cada elemento.
+- 🔒 **Privacidad**: ignora contraseñas (contenido marcado como oculto), permite **excluir apps**, y guarda todo **localmente** con permisos `0600`.
+- 🔏 **Firma estable**: macOS te pide los permisos (micrófono…) **una sola vez** y los recuerda entre actualizaciones.
+- 🚀 **Arranque al iniciar sesión** opcional · 🌍 **Español / Inglés**.
 
 ## 🧰 Requisitos
 
@@ -81,16 +84,17 @@ swift run Klip    # ejecuta directamente
 
 Abre **Preferencias** (`⌘,` desde el menú de Klip):
 
-- **Atajo global** — graba la combinación que prefieras.
-- **OpenAI** — pega tu API key (se guarda en el Llavero). Necesaria para voz y Markdown por IA.
-- **Transcripción de voz** — modelo (`gpt-4o-mini-transcribe` o `whisper-1`) e idioma.
+- **Atajos** — graba las combinaciones que prefieras (panel y voz).
+- **Transcripción de voz** — elige **proveedor** (OpenAI o Google Gemini), modelo e idioma.
+- **OpenAI** — pega tu API key (`sk-…`). Se guarda en un archivo local `0600`.
+- **Google Gemini** — pega tu API key (`AIza…`, de [aistudio.google.com](https://aistudio.google.com)). Se guarda en un archivo local `0600`.
 - **Historial** — número máximo de elementos.
 - **Privacidad** — ignorar contraseñas/contenido sensible, excluir apps.
 
 ## 🔐 Privacidad
 
-- **Local primero**: tu historial vive en `~/Library/Application Support/Klip/` (`items.json` + `images/` + `audio/`). Nada sale de tu Mac salvo el audio que **tú** envías a OpenAI para transcribir.
-- **Sin secretos en el repo**: la API key se guarda en un **archivo local** (`~/Library/Application Support/Klip/openai.key`, permisos `0600`), jamás en el código ni en el repositorio.
+- **Local primero**: tu historial vive en `~/Library/Application Support/Klip/` (`items.json` + `images/` + `audio/`). Nada sale de tu Mac salvo el audio que **tú** envías al proveedor de IA que elijas (OpenAI o Gemini) para transcribir.
+- **Sin secretos en el repo**: las API keys se guardan en **archivos locales** (`openai.key`, `gemini.key`, permisos `0600`), jamás en el código ni en el repositorio.
 - El **historial** (`items.json`), las **imágenes** y el **audio** de las notas de voz se guardan solo en tu Mac con permisos `0600` (carpetas `0700`). El enmascarado de credenciales es visual; el contenido vive localmente como el resto del historial.
 - **Sin telemetría**.
 - Klip **ignora** el contenido marcado como oculto por los gestores de contraseñas, y puedes **excluir** apps concretas.
@@ -106,10 +110,11 @@ Abre **Preferencias** (`⌘,` desde el menú de Klip):
 | `PanelController.swift` / `HistoryView.swift` | Panel HUD y la interfaz (SwiftUI). |
 | `HotKey.swift` / `Settings.swift` | Atajo (Carbon) y preferencias (UserDefaults). |
 | `OCR.swift` | Extracción de texto con Vision. |
-| `Recorder.swift` / `OpenAIClient.swift` | Notas de voz y llamadas a OpenAI. |
-| `KeychainStore.swift` | Almacenamiento seguro de la API key. |
+| `Recorder.swift` / `AudioPlayer.swift` | Grabación, transcripción en 2º plano y reproducción de notas de voz. |
+| `OpenAIClient.swift` / `GeminiClient.swift` | Transcripción vía OpenAI o Google Gemini (proveedor seleccionable). |
+| `SecretStore.swift` | API keys en archivos locales `0600` (`openai.key`, `gemini.key`). |
 | `Paster.swift` / `LoginItem.swift` | Auto-pegado y arranque al inicio. |
-| `Markdownify.swift` | Conversión y exportación a Markdown. |
+| `Markdownify.swift` | Conversión y exportación a Markdown (local). |
 
 ## 🗺️ Hoja de ruta
 

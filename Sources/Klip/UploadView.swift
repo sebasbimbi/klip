@@ -20,7 +20,7 @@ struct UploadView: View {
             switch recorder.state {
             case .missingAPIKey:
                 Image(systemName: "key.slash").font(.system(size: 34)).foregroundStyle(.orange)
-                Text("Falta tu API key de OpenAI").font(.headline)
+                Text("Falta tu API key").font(.headline)
                 HStack {
                     Button("Cerrar") { onClose() }
                     Button("Abrir Preferencias") { onOpenPreferences(); onClose() }.buttonStyle(.borderedProminent)
