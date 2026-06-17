@@ -2,35 +2,67 @@
 
 # 📋 Klip
 
-**Tu portapapeles con superpoderes.** Todo lo que copias, a un atajo de distancia.
+**Tu portapapeles con superpoderes, nativo para Mac.** Todo lo que copias, a un atajo de distancia.
 
-Historial de texto e imágenes · búsqueda instantánea · **notas de voz → texto** · **OCR** · Markdown · y más. Vive en la barra de menú, es ligero y privado.
+Historial de texto e imágenes · búsqueda instantánea · **notas de voz → texto** (OpenAI o Gemini) · **OCR** · Markdown · y más. Vive en la barra de menú: ligero, rápido y privado.
 
-🖥️ **macOS 14+** · 🪟 *Windows — próximamente* · 🆓 Gratis y open source · 🔒 Sin telemetría
-
-*Hecho en Swift nativo. Sin Electron. Tus datos se quedan en tu equipo.*
+🆓 Gratis y open source (MIT) · 🔒 Sin telemetría · 🍎 Swift nativo (sin Electron)
 
 </div>
+
+> ### 🖥️ Por ahora, solo para Mac
+> Klip es una app **nativa de macOS** y requiere **macOS 14 (Sonoma) o superior** (Apple Silicon o Intel).
+> La versión para **Windows 🪟 llegará más adelante**. Tus datos se quedan en tu equipo.
 
 ---
 
 ## ✨ Funciones
 
-- 📋 **Historial automático** de texto **e imágenes/capturas** que copias.
-- ⌨️ **Atajo global `⌘⇧E`** (Cmd+Shift+E) para abrir el panel desde cualquier app. Configurable.
-- 🔎 **Búsqueda** instantánea **con resaltado** de coincidencias y **navegación por teclado** (↑/↓, Enter, `⌘1`–`⌘9`, `Esc`). Filtros por tipo (texto, imágenes, voz, credenciales, fijados).
-- ⤵️ **Pegado automático**: eliges un elemento y se pega solo en la app activa.
-- 🖼️ **Imágenes**: previsualización grande (con miniaturas en caché para que vaya fluido), **abrir en grande**, **guardar como archivo** y **extraer texto (OCR)** con el motor Vision de Apple (gratis, en el dispositivo).
-- 🎙️ **Notas de voz → texto**: grabas, paras, y se transcribe la nota completa **en segundo plano** (puedes grabar otra al instante). **El audio original se guarda** con su **duración y barra de progreso**, lo **reproduces desde Klip** (▶) o lo abres en Finder, y puedes **reintentar (↻)** si la transcripción falla — así no pierdes nada. También puedes **subir un archivo** (m4a, mp3, wav, **.opus de WhatsApp**, ogg, flac…).
-- 🤖 **Elige tu motor de IA**: **OpenAI** o **Google Gemini** para la transcripción. Pones tu propia clave de cualquiera de los dos.
-- 🏷️ **Ponle nombre a todo**: etiqueta cualquier elemento (texto, imagen, voz o credencial) y **búscalo por ese nombre**. Ideal para tus credenciales: les pones un nombre y las encuentras al instante.
-- 🔗 **Acciones por tipo**: **abrir enlaces** (URLs), **muestra de color** para valores hex (`#1E90FF`).
-- 📝 **Markdown**: copia cualquier elemento *como Markdown* o exporta **todo el historial** a Markdown.
-- 🔑 **Mini gestor de credenciales**: detecta tokens y API keys al copiarlos, los guarda **aparte y enmascarados** (👁 para revelar/copiar), con su propio filtro 🔑.
-- 📌 **Fijar**, 🗑️ **eliminar** (con confirmación al **borrar todo**), y **hora exacta** de copiado en cada elemento.
-- 🔒 **Privacidad**: ignora contraseñas (contenido marcado como oculto), permite **excluir apps**, y guarda todo **localmente** con permisos `0600`.
-- 🔏 **Firma estable**: macOS te pide los permisos (micrófono…) **una sola vez** y los recuerda entre actualizaciones.
-- 🚀 **Arranque al iniciar sesión** opcional · 🌍 **Español / Inglés**.
+### 📋 Portapapeles
+- **Historial automático** de **texto e imágenes/capturas**.
+- **Búsqueda** instantánea con **resaltado** de coincidencias + **navegación por teclado** (↑/↓, Enter, `⌘1`–`⌘9`, `Esc`).
+- **Filtros** por tipo: texto · imágenes · voz · credenciales · fijados.
+- **Pegado automático** en la app activa · **Fijar** 📌 · **Eliminar** 🗑️ (con confirmación al borrar todo).
+- **Fecha legible** en cada elemento: *"martes 04 de julio · 10:43"*, *"Hoy"*, *"Ayer"*.
+
+### 🖼️ Imágenes
+- Previsualización grande (miniaturas en caché para que el scroll vaya fluido), **abrir en grande** y **guardar como archivo**.
+- **OCR** (extraer texto de una imagen) con el motor **Vision** de Apple — gratis y en el dispositivo.
+
+### 🎙️ Notas de voz → texto
+- **Graba** o **sube un archivo** (m4a, mp3, wav, **.opus de WhatsApp**, ogg, flac…).
+- Se transcribe **en segundo plano** — puedes grabar otra al instante.
+- **El audio original se guarda** con **duración** y **barra de progreso**: lo reproduces (▶) o lo abres en Finder, y puedes **reintentar (↻)** si la transcripción falla.
+
+### 🤖 IA: tú eliges el motor
+- **OpenAI** o **Google Gemini** para la transcripción. Pones tu propia clave de cualquiera de los dos.
+
+### 🏷️ Organización
+- **Ponle nombre a cualquier elemento** y búscalo por ese nombre (ideal para tus credenciales).
+- **Acciones por tipo**: **abrir enlaces** 🔗 y **muestra de color** para valores hex (`#1E90FF`).
+- **Markdown**: copia un elemento *como Markdown* o exporta **todo el historial**.
+- **Mini gestor de credenciales** 🔑: detecta tokens y API keys al copiarlos, los guarda **enmascarados** (👁 para revelar/copiar), con su propio filtro.
+
+### 💾 Copia de seguridad
+- **Exportar / importar** todo el historial (imágenes y audio incluidos) en un `.zip`. **Nunca** incluye tus claves de API.
+
+### 🔒 Privacidad y sistema
+- Todo **local** con permisos `0600` · **sin telemetría** · ignora contraseñas y permite **excluir apps**.
+- **Firma estable**: macOS te pide los permisos (micrófono…) **una sola vez** y los recuerda entre actualizaciones.
+- **Arranque al iniciar sesión** opcional · 🌍 **Español / Inglés**.
+
+## ⌨️ Atajos
+
+| Atajo | Acción |
+|---|---|
+| `⌘⇧E` | Abrir el panel del historial |
+| `⌘⇧I` | Grabar una nota de voz |
+| `↑` / `↓` · `Enter` | Navegar y elegir un elemento |
+| `⌘1`–`⌘9` | Elegir (y pegar) el elemento Nº 1–9 |
+| `Esc` | Cerrar el panel |
+| `⌘⇧⌃4` | *(de macOS)* captura de pantalla al portapapeles → entra a Klip |
+
+> `⌘⇧E` y `⌘⇧I` son **configurables** en Preferencias.
 
 ## 🧰 Requisitos
 
@@ -118,12 +150,15 @@ Abre **Preferencias** (`⌘,` desde el menú de Klip):
 
 ## 🗺️ Hoja de ruta
 
-- [ ] **Versión para Windows** 🪟 (próximamente).
+**Por ahora Klip es solo para Mac.** Lo siguiente:
+
+- [ ] **Versión para Windows** 🪟 — el gran próximo paso.
+- [ ] Más acciones rápidas por tipo (código, correos, números).
 - [ ] Traducir / resumir / limpiar texto con IA.
-- [ ] Colecciones / favoritos.
-- [ ] Sincronización opcional entre Macs.
-- [ ] Acciones rápidas por tipo (enlaces, colores, código).
+- [ ] Colecciones / favoritos · sincronización opcional entre Macs.
 - [ ] Firma con Developer ID + notarización para distribución sin avisos.
+
+**Ya disponible:** historial texto+imágenes · OCR · notas de voz (OpenAI/Gemini) con audio guardado y reintento · nombrar y buscar · abrir enlaces y muestra de color · Markdown · exportar/importar · firma estable.
 
 ## 🤝 Contribuir
 
