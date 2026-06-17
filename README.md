@@ -10,7 +10,9 @@ Historial de texto e imágenes · búsqueda instantánea · **notas de voz → t
 
 <br/>
 
-<img src="docs/klip-preview.gif" alt="Klip en acción: panel del historial con una credencial nombrada, una nota de voz reproduciéndose, una imagen y un enlace" width="470"/>
+<img src="docs/klip-preview.gif" alt="Klip en acción: recortar una zona de la pantalla, que aparezca en Klip y extraer su texto con OCR; y grabar una nota de voz que se transcribe sola" width="500"/>
+
+<sub>Recorta una zona → aparece en Klip → extrae el texto (OCR) · y graba una nota de voz que se transcribe sola.</sub>
 
 </div>
 
