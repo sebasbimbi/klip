@@ -56,6 +56,17 @@ final class ClipboardManager: ObservableObject {
         timer = t
     }
 
+    /// Pausa el monitoreo del portapapeles (p. ej. durante un import: evita escribir en el mismo
+    /// directorio que la importación en segundo plano). Llamar en el hilo principal.
+    func pauseMonitoring() { timer?.invalidate(); timer = nil }
+
+    /// Reanuda el monitoreo. Reancla lastChangeCount para no capturar lo copiado durante la pausa.
+    func resumeMonitoring() {
+        guard timer == nil else { return }
+        lastChangeCount = NSPasteboard.general.changeCount
+        start()
+    }
+
     private func poll() {
         let pb = NSPasteboard.general
         guard pb.changeCount != lastChangeCount else { return }

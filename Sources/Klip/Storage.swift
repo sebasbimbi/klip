@@ -185,10 +185,16 @@ final class Storage {
 
         let newImages = root.appendingPathComponent("images")
         let newAudio = root.appendingPathComponent("audio")
-        let bakItems = baseURL.appendingPathComponent("items.json.importbak")
-        let bakImages = baseURL.appendingPathComponent("images.importbak")
-        let bakAudio = baseURL.appendingPathComponent("audio.importbak")
-        [bakItems, bakImages, bakAudio].forEach { try? fm.removeItem(at: $0) }   // restos de un intento previo
+        // Respaldos con nombre único por intento → un residuo de un import abortado nunca colisiona
+        // con el moveItem de abajo (evita restaurar un .bak rancio sobre el original intacto).
+        let token = UUID().uuidString
+        let bakItems = baseURL.appendingPathComponent("items.json.\(token).importbak")
+        let bakImages = baseURL.appendingPathComponent("images.\(token).importbak")
+        let bakAudio = baseURL.appendingPathComponent("audio.\(token).importbak")
+        // Limpiar residuos de imports abortados anteriores (no colisionan con los de este intento).
+        if let leftovers = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) {
+            for f in leftovers where f.lastPathComponent.hasSuffix(".importbak") { try? fm.removeItem(at: f) }
+        }
 
         // Restaura un destino desde su respaldo (solo si el respaldo existe → original a salvo).
         func restore(_ live: URL, _ bak: URL) {

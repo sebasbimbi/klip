@@ -225,12 +225,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let ok = alert.addButton(withTitle: L10n.t("import.confirm")); ok.hasDestructiveAction = true
             let cancel = alert.addButton(withTitle: L10n.t("common.cancel")); cancel.keyEquivalent = "\u{1b}"
             guard alert.runModal() == .alertFirstButtonReturn else { return }
+            self.manager.pauseMonitoring()   // que el poll no escriba en el store durante el import
             DispatchQueue.global(qos: .userInitiated).async {   // ditto + copia pesada: fuera de main
                 do {
                     let items = try Storage.shared.importBackup(from: url)
-                    DispatchQueue.main.async { self.manager.reload(items) }
+                    DispatchQueue.main.async { self.manager.reload(items); self.manager.resumeMonitoring() }
                 } catch {
-                    DispatchQueue.main.async { self.showAlert(L10n.t("import.fail"), error.localizedDescription) }
+                    DispatchQueue.main.async { self.showAlert(L10n.t("import.fail"), error.localizedDescription); self.manager.resumeMonitoring() }
                 }
             }
         }
