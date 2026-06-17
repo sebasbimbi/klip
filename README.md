@@ -10,7 +10,7 @@ Historial de texto e imágenes · búsqueda instantánea · **notas de voz → t
 
 <br/>
 
-<img src="docs/klip-preview.png" alt="Vista previa del panel de Klip: historial con credencial, nota de voz, imagen y enlace" width="470"/>
+<img src="docs/klip-preview.gif" alt="Klip en acción: panel del historial con una credencial nombrada, una nota de voz reproduciéndose, una imagen y un enlace" width="470"/>
 
 </div>
 
