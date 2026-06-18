@@ -34,6 +34,8 @@ struct HistoryView: View {
     var onShowGuide: () -> Void
     var onRename: (ClipboardItem) -> Void
     var onRetryTranscription: (ClipboardItem) -> Void
+    var onSaveAsFile: (ClipboardItem) -> Void
+    var onCopyAsCode: (ClipboardItem) -> Void
 
     @State private var search = ""
     @FocusState private var searchFocused: Bool
@@ -188,6 +190,7 @@ struct HistoryView: View {
                                 onPick: onPick, onSaveImage: onSaveImage,
                                 onCopyMarkdown: onCopyMarkdown, onOCR: { runOCR(item) },
                                 onRename: onRename, onRetryTranscription: onRetryTranscription,
+                                onSaveAsFile: onSaveAsFile, onCopyAsCode: onCopyAsCode,
                                 searchTerm: search)
                             .id(item.id)
                         if ocrResultID == item.id { ocrBox }
@@ -278,6 +281,8 @@ struct ItemRow: View {
     var onOCR: () -> Void
     var onRename: (ClipboardItem) -> Void
     var onRetryTranscription: (ClipboardItem) -> Void
+    var onSaveAsFile: (ClipboardItem) -> Void
+    var onCopyAsCode: (ClipboardItem) -> Void
     var searchTerm: String = ""
 
     @State private var hovering = false
@@ -478,8 +483,14 @@ struct ItemRow: View {
                 if let u = linkURL {
                     iconButton("arrow.up.right.square", L10n.t("row.openlink")) { NSWorkspace.shared.open(u) }
                 }
-                iconButton("doc.richtext", L10n.t("row.markdown")) { onCopyMarkdown(item) }
-                iconButton("key", L10n.t("row.markcred")) { manager.toggleCredential(item) }
+                Menu {
+                    Button { onCopyAsCode(item) } label: { Label(L10n.t("row.code"), systemImage: "chevron.left.forwardslash.chevron.right") }
+                    Button { onCopyMarkdown(item) } label: { Label(L10n.t("row.markdown"), systemImage: "doc.richtext") }
+                    Button { onSaveAsFile(item) } label: { Label(L10n.t("row.savefile"), systemImage: "square.and.arrow.down") }
+                    Divider()
+                    Button { manager.toggleCredential(item) } label: { Label(L10n.t("row.markcred"), systemImage: "key") }
+                } label: { Image(systemName: "ellipsis.circle").font(.system(size: 12)) }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(L10n.t("act.more"))
             }
             iconButton("pencil", L10n.t("row.rename")) { onRename(item) }
             iconButton(item.pinned ? "pin.slash" : "pin", L10n.t(item.pinned ? "row.unpin" : "row.pin")) {

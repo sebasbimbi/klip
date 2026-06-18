@@ -58,7 +58,9 @@ final class PanelController: NSObject, NSWindowDelegate {
             onVoiceRecord: { [weak self] in self?.toggleVoiceRecording() },
             onShowGuide: { [weak self] in self?.showGuide() },
             onRename: { [weak self] item in self?.renameItem(item) },
-            onRetryTranscription: { [weak self] item in self?.retryTranscription(item) }
+            onRetryTranscription: { [weak self] item in self?.retryTranscription(item) },
+            onSaveAsFile: { [weak self] item in self?.saveTextAsFile(item) },
+            onCopyAsCode: { [weak self] item in self?.copyAsCode(of: item) }
         )
 
         let panel = KeyablePanel(
@@ -247,6 +249,33 @@ final class PanelController: NSObject, NSWindowDelegate {
         manager.setClipboardText(md)
         hide(restoreFocus: false)
         pasteOrRestore(target)
+    }
+
+    /// Copia el texto envuelto en un bloque de código Markdown (``` ```), listo para pegar en un chat de IA.
+    private func copyAsCode(of item: ClipboardItem) {
+        guard let t = item.text, !t.isEmpty else { return }
+        let target = previousApp
+        manager.setClipboardText("```\n\(t)\n```")
+        hide(restoreFocus: false)
+        pasteOrRestore(target)
+    }
+
+    /// Guarda el texto del elemento como archivo (.txt/.md) para arrastrarlo a una herramienta de IA
+    /// cuando el chat no acepta pegarlo (textos/logs muy grandes).
+    private func saveTextAsFile(_ item: ClipboardItem) {
+        guard let t = item.text, !t.isEmpty else { return }
+        let sp = NSSavePanel()
+        var types: [UTType] = [.plainText]
+        if let md = UTType(filenameExtension: "md") { types.append(md) }
+        sp.allowedContentTypes = types
+        sp.nameFieldStringValue = (item.name?.isEmpty == false ? item.name! : "klip-texto") + ".txt"
+        sp.canCreateDirectories = true
+        isSavingImage = true   // reutiliza el guard de "hay un panel modal abierto" (no cerrar el panel)
+        NSApp.activate(ignoringOtherApps: true)
+        sp.begin { [weak self] resp in
+            if resp == .OK, let url = sp.url { try? t.data(using: .utf8)?.write(to: url, options: .atomic) }
+            self?.isSavingImage = false
+        }
     }
 
     /// Atajo global de voz: abre el popup dedicado de grabación y alterna grabar/detener.

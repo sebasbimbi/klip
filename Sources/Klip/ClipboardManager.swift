@@ -273,6 +273,7 @@ final class ClipboardManager: ObservableObject {
     func delete(_ item: ClipboardItem) {
         if item.kind == .image, let f = item.imageFileName { storage.deleteImage(fileName: f) }
         if let af = item.audioFileName { AudioPlayer.shared.stopIfPlaying(af); storage.deleteAudio(fileName: af) }
+        voicePasteGuards.removeValue(forKey: item.id)
         items.removeAll { $0.id == item.id }
         storage.saveItems(items)
     }
@@ -285,6 +286,7 @@ final class ClipboardManager: ObservableObject {
 
     func clearAll() {
         AudioPlayer.shared.stop()
+        voicePasteGuards.removeAll()
         for it in items {
             if it.kind == .image, let f = it.imageFileName { storage.deleteImage(fileName: f) }
             if let af = it.audioFileName { storage.deleteAudio(fileName: af) }

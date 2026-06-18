@@ -270,6 +270,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     func audioRecorderDidFinishRecording(_ r: AVAudioRecorder, successfully ok: Bool) {
         Task { @MainActor in
+            removeDeviceListener()   // garantiza quitar el listener también si el delegado se dispara solo
             finishing = false
             recorder = nil
             guard let name = currentFileName else { return }   // cancelado: no es error, solo salir
@@ -278,4 +279,6 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             ingest(audioFileName: name)   // conserva el .m4a y transcribe
         }
     }
+
+    deinit { removeDeviceListener() }   // red de seguridad (no toca @MainActor: solo CoreAudio + la var)
 }
