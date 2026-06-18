@@ -41,14 +41,16 @@ final class CaptureOverlayController {
         guard rect.width >= 4, rect.height >= 4 else { dismiss(nil); return }
         let scale = shot.scale
         let viewH = shot.screen.frame.height
+        let imgBounds = CGRect(x: 0, y: 0, width: shot.cgImage.width, height: shot.cgImage.height)
         let px = CGRect(
             x: rect.minX * scale,
             y: (viewH - rect.maxY) * scale,        // flip Y: Cocoa (abajo) → CGImage (arriba)
             width: rect.width * scale,
             height: rect.height * scale
-        ).integral
+        ).integral.intersection(imgBounds)         // clamp: selección al borde no debe exceder el bitmap
 
-        guard let cropped = shot.cgImage.cropping(to: px) else { dismiss(nil); return }
+        guard !px.isNull, px.width >= 1, px.height >= 1,
+              let cropped = shot.cgImage.cropping(to: px) else { dismiss(nil); return }
         let image = NSImage(cgImage: cropped, size: NSSize(width: rect.width, height: rect.height))
         dismiss(image)
     }

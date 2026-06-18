@@ -75,7 +75,7 @@ struct Annotation {
         let path = NSBezierPath()
         path.lineWidth = width
         path.lineJoinStyle = .round
-        path.lineCapStyle = .round
+        path.lineCapStyle = round ? .square : .round   // marcador: cap cuadrado (trazo de resaltador)
         path.move(to: pts[0])
         for p in pts.dropFirst() { path.line(to: p) }
         path.stroke()

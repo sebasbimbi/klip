@@ -85,13 +85,18 @@ final class AnnotationCanvasView: NSView {
     private func commitActiveText() {
         guard let field = activeTextField else { return }
         let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let origin = field.frame.origin
+        let frame = field.frame
+        let font = field.font ?? NSFont.systemFont(ofSize: 14, weight: .semibold)
         activeTextField = nil
         field.removeFromSuperview()
         guard !text.isEmpty else { return }
+        // El texto del NSTextField queda centrado verticalmente y con un inset del bezel (~4px).
+        // Alineamos el origen de dibujo (borde inferior del glifo) para que coincida al confirmar.
+        let lineHeight = font.ascender - font.descender
+        let drawY = frame.minY + (frame.height - lineHeight) / 2
         annotations.append(Annotation(tool: .text, color: currentColor,
                                       lineWidth: currentLineWidth,
-                                      points: [CGPoint(x: origin.x + 2, y: origin.y + 4)], text: text))
+                                      points: [CGPoint(x: frame.minX + 4, y: drawY)], text: text))
         needsDisplay = true
     }
 

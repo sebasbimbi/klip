@@ -43,7 +43,10 @@ enum ScreenCapturer {
             throw CaptureError.noDisplay
         }
 
-        let filter = SCContentFilter(display: scd, excludingWindows: [])
+        // Excluir las ventanas de la propia Klip (panel/overlay) para que no salgan en la captura.
+        let ownBundleID = Bundle.main.bundleIdentifier
+        let ownApps = content.applications.filter { $0.bundleIdentifier == ownBundleID }
+        let filter = SCContentFilter(display: scd, excludingApplications: ownApps, exceptingWindows: [])
         let config = SCStreamConfiguration()
         // Píxeles físicos = puntos × escala (correcto en Retina).
         config.width  = Int(screen.frame.width  * screen.backingScaleFactor)
