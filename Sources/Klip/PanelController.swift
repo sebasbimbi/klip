@@ -21,6 +21,8 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     /// Lo inyecta AppDelegate para abrir Preferencias desde el panel (estado sin API key).
     var onOpenPreferences: (() -> Void)?
+    /// Lo inyecta AppDelegate para disparar el nuevo Klip Snap desde el botón de cámara del panel.
+    var onCaptureAnnotate: (() -> Void)?
 
     private var keyMonitor: Any?
     private var localClickMonitor: Any?
@@ -36,7 +38,6 @@ final class PanelController: NSObject, NSWindowDelegate {
     private var recordingPanel: NSPanel?
     private var guideWindow: NSWindow?
     private var uploadWindow: NSWindow?
-    private var annotationWindow: NSWindow?
 
     init(manager: ClipboardManager, statusItem: NSStatusItem?) {
         self.manager = manager
@@ -67,7 +68,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             onRetryTranscription: { [weak self] item in self?.retryTranscription(item) },
             onSaveAsFile: { [weak self] item in self?.saveTextAsFile(item) },
             onCopyAsCode: { [weak self] item in self?.copyAsCode(of: item) },
-            onCaptureAnnotate: { [weak self] in self?.captureAndAnnotate(fullScreen: false) },
+            onCaptureAnnotate: { [weak self] in self?.onCaptureAnnotate?() },
             onCombinePDF: { [weak self] items in self?.combineSelectedToPDF(items) },
             onExportZip: { [weak self] items in self?.exportSelectedZip(items) },
             onAssignCollection: { [weak self] items in self?.assignSelectedToCollection(items) }
@@ -296,45 +297,6 @@ final class PanelController: NSObject, NSWindowDelegate {
             if resp == .OK, let url = sp.url { try? t.data(using: .utf8)?.write(to: url, options: .atomic) }
             self?.modalCount -= 1
         }
-    }
-
-    // MARK: - Captura + anotación (vibe coders)
-
-    /// Captura una zona (selector nativo) o la pantalla completa y abre el editor de anotación.
-    func captureAndAnnotate(fullScreen: Bool) {
-        hide(restoreFocus: false)
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("klipcap-\(UUID().uuidString).png")
-        DispatchQueue.global(qos: .userInitiated).async {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-            p.arguments = fullScreen ? ["-m", tmp.path] : ["-i", "-o", tmp.path]
-            try? p.run(); p.waitUntilExit()
-            let img = (try? Data(contentsOf: tmp)).flatMap { NSImage(data: $0) }   // carga completa antes de borrar
-            try? FileManager.default.removeItem(at: tmp)
-            DispatchQueue.main.async {
-                guard let img else { return }   // el usuario canceló o faltó permiso de grabación de pantalla
-                self.showAnnotationWindow(image: img)
-            }
-        }
-    }
-
-    private func showAnnotationWindow(image: NSImage) {
-        let view = AnnotationView(
-            image: image,
-            onAddToKlip: { [weak self] img in self?.manager.addCapturedImage(img) },
-            onClose: { [weak self] in self?.annotationWindow?.close() })
-        let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0,
-                                width: min(960, image.size.width + 40),
-                                height: min(720, image.size.height + 96)),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        w.title = "Anotar captura"
-        w.isReleasedWhenClosed = false
-        w.contentView = NSHostingView(rootView: view)
-        w.center()
-        annotationWindow = w
-        NSApp.activate(ignoringOtherApps: true)
-        w.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - Combinar / exportar selección
