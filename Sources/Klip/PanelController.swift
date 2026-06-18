@@ -31,6 +31,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private var recordingPanel: NSPanel?
     private var guideWindow: NSWindow?
     private var uploadWindow: NSWindow?
+    private var annotationWindow: NSWindow?
 
     init(manager: ClipboardManager, statusItem: NSStatusItem?) {
         self.manager = manager
@@ -60,7 +61,11 @@ final class PanelController: NSObject, NSWindowDelegate {
             onRename: { [weak self] item in self?.renameItem(item) },
             onRetryTranscription: { [weak self] item in self?.retryTranscription(item) },
             onSaveAsFile: { [weak self] item in self?.saveTextAsFile(item) },
-            onCopyAsCode: { [weak self] item in self?.copyAsCode(of: item) }
+            onCopyAsCode: { [weak self] item in self?.copyAsCode(of: item) },
+            onCaptureAnnotate: { [weak self] in self?.captureAndAnnotate(fullScreen: false) },
+            onCombinePDF: { [weak self] items in self?.combineSelectedToPDF(items) },
+            onExportZip: { [weak self] items in self?.exportSelectedZip(items) },
+            onAssignCollection: { [weak self] items in self?.assignSelectedToCollection(items) }
         )
 
         let panel = KeyablePanel(
@@ -276,6 +281,103 @@ final class PanelController: NSObject, NSWindowDelegate {
             if resp == .OK, let url = sp.url { try? t.data(using: .utf8)?.write(to: url, options: .atomic) }
             self?.isSavingImage = false
         }
+    }
+
+    // MARK: - Captura + anotación (vibe coders)
+
+    /// Captura una zona (selector nativo) o la pantalla completa y abre el editor de anotación.
+    func captureAndAnnotate(fullScreen: Bool) {
+        hide(restoreFocus: false)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("klipcap-\(UUID().uuidString).png")
+        DispatchQueue.global(qos: .userInitiated).async {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            p.arguments = fullScreen ? ["-m", tmp.path] : ["-i", "-o", tmp.path]
+            try? p.run(); p.waitUntilExit()
+            let img = (try? Data(contentsOf: tmp)).flatMap { NSImage(data: $0) }   // carga completa antes de borrar
+            try? FileManager.default.removeItem(at: tmp)
+            DispatchQueue.main.async {
+                guard let img else { return }   // el usuario canceló o faltó permiso de grabación de pantalla
+                self.showAnnotationWindow(image: img)
+            }
+        }
+    }
+
+    private func showAnnotationWindow(image: NSImage) {
+        let view = AnnotationView(
+            image: image,
+            onAddToKlip: { [weak self] img in self?.manager.addCapturedImage(img) },
+            onClose: { [weak self] in self?.annotationWindow?.close() })
+        let w = NSWindow(
+            contentRect: NSRect(x: 0, y: 0,
+                                width: min(960, image.size.width + 40),
+                                height: min(720, image.size.height + 96)),
+            styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+        w.title = "Anotar captura"
+        w.isReleasedWhenClosed = false
+        w.contentView = NSHostingView(rootView: view)
+        w.center()
+        annotationWindow = w
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: - Combinar / exportar selección
+
+    func combineSelectedToPDF(_ items: [ClipboardItem]) {
+        guard !items.isEmpty else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let data = Storage.shared.combinedPDF(from: items)
+            DispatchQueue.main.async {
+                guard let data else { return }
+                let sp = NSSavePanel()
+                sp.allowedContentTypes = [.pdf]
+                sp.nameFieldStringValue = "klip.pdf"
+                sp.canCreateDirectories = true
+                self.isSavingImage = true
+                NSApp.activate(ignoringOtherApps: true)
+                sp.begin { resp in
+                    if resp == .OK, let url = sp.url { try? data.write(to: url, options: .atomic) }
+                    self.isSavingImage = false
+                }
+            }
+        }
+    }
+
+    func exportSelectedZip(_ items: [ClipboardItem]) {
+        guard !items.isEmpty else { return }
+        let sp = NSSavePanel()
+        sp.allowedContentTypes = [.zip]
+        sp.nameFieldStringValue = "klip-seleccion.zip"
+        sp.canCreateDirectories = true
+        isSavingImage = true
+        NSApp.activate(ignoringOtherApps: true)
+        sp.begin { [weak self] resp in
+            self?.isSavingImage = false
+            guard resp == .OK, let url = sp.url else { return }
+            DispatchQueue.global(qos: .userInitiated).async { try? Storage.shared.exportItemsZip(items, to: url) }
+        }
+    }
+
+    func assignSelectedToCollection(_ items: [ClipboardItem]) {
+        guard !items.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "Añadir a colección"
+        alert.informativeText = "Nombre de la colección (déjalo vacío para quitar de su colección)."
+        alert.addButton(withTitle: "Aceptar")
+        let cancel = alert.addButton(withTitle: L10n.t("common.cancel")); cancel.keyEquivalent = "\u{1b}"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = items.first?.collection ?? ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        isRenaming = true
+        NSApp.activate(ignoringOtherApps: true)
+        let resp = alert.runModal()
+        isRenaming = false
+        if resp == .alertFirstButtonReturn {
+            manager.assignCollection(Set(items.map { $0.id }), to: field.stringValue)
+        }
+        if panel.isVisible { panel.makeKeyAndOrderFront(nil); selection.focusToken &+= 1 }
     }
 
     /// Atajo global de voz: abre el popup dedicado de grabación y alterna grabar/detener.

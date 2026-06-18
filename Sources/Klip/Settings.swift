@@ -100,6 +100,8 @@ final class Settings: ObservableObject {
         static let aiProv     = "aiProvider"
         static let keyCode2   = "voiceHotKeyCode"
         static let mods2      = "voiceHotKeyModifiers"
+        static let keyCode3   = "captureHotKeyCode"
+        static let mods3      = "captureHotKeyModifiers"
         static let uiLang     = "uiLanguage"
     }
 
@@ -122,6 +124,10 @@ final class Settings: ObservableObject {
     @Published var voiceCombo: KeyCombo   { didSet {
         d.set(Int(voiceCombo.keyCode), forKey: K.keyCode2)
         d.set(Int(voiceCombo.carbonModifiers), forKey: K.mods2)
+    } }
+    @Published var captureCombo: KeyCombo { didSet {
+        d.set(Int(captureCombo.keyCode), forKey: K.keyCode3)
+        d.set(Int(captureCombo.carbonModifiers), forKey: K.mods3)
     } }
     @Published var uiLanguage: String     { didSet { d.set(uiLanguage, forKey: K.uiLang) } }
 
@@ -148,6 +154,8 @@ final class Settings: ObservableObject {
             K.aiProv: "openai",
             K.keyCode2: Int(kVK_ANSI_I),
             K.mods2: Int(cmdKey | shiftKey),
+            K.keyCode3: Int(kVK_ANSI_2),
+            K.mods3: Int(cmdKey | shiftKey),
             K.uiLang: "es"
         ])
         maxItems = d.integer(forKey: K.maxItems)
@@ -165,6 +173,8 @@ final class Settings: ObservableObject {
         aiProvider = d.string(forKey: K.aiProv) ?? "openai"
         voiceCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode2)),
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
+        captureCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode3)),
+                                carbonModifiers: UInt32(d.integer(forKey: K.mods3)))
         uiLanguage = d.string(forKey: K.uiLang) ?? "es"
     }
 

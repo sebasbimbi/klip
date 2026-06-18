@@ -36,10 +36,17 @@ struct HistoryView: View {
     var onRetryTranscription: (ClipboardItem) -> Void
     var onSaveAsFile: (ClipboardItem) -> Void
     var onCopyAsCode: (ClipboardItem) -> Void
+    var onCaptureAnnotate: () -> Void
+    var onCombinePDF: ([ClipboardItem]) -> Void
+    var onExportZip: ([ClipboardItem]) -> Void
+    var onAssignCollection: ([ClipboardItem]) -> Void
 
     @State private var search = ""
     @FocusState private var searchFocused: Bool
     @State private var filter: HistoryFilter = .all
+    @State private var collectionFilter: String?
+    @State private var selecting = false
+    @State private var selectedBatch: Set<UUID> = []
     @State private var ocrResultID: UUID?
     @State private var ocrText = ""
     @State private var ocrRunning = false
@@ -67,6 +74,7 @@ struct HistoryView: View {
 
     private var filtered: [ClipboardItem] {
         var base = sortedItems.filter { matches($0, filter) }
+        if let cf = collectionFilter { base = base.filter { $0.collection == cf } }
         guard !search.isEmpty else { return base }
         let q = search.lowercased()
         base = base.filter {
@@ -83,15 +91,18 @@ struct HistoryView: View {
             if !manager.items.isEmpty { filterRow }
             Divider()
             if filtered.isEmpty { emptyState } else { list }
+            if selecting { batchBar }
         }
         .frame(minWidth: 420, minHeight: 460)
         .background(Color.clear)
         .onAppear { syncVisible(); searchFocused = true }
         .onChange(of: search) { _, _ in syncVisible() }
         .onChange(of: filter) { _, _ in syncVisible() }
+        .onChange(of: collectionFilter) { _, _ in syncVisible() }
         .onChange(of: manager.items) { _, _ in syncVisible() }
         .onChange(of: selection.openToken) { _, _ in
-            search = ""; filter = .all
+            search = ""; filter = .all; collectionFilter = nil
+            selecting = false; selectedBatch = []
             selection.updateVisible(sortedItems.map(\.id))
             selection.selectedIndex = sortedItems.isEmpty ? -1 : 0
             searchFocused = true
@@ -121,6 +132,13 @@ struct HistoryView: View {
                 }
                 // Iconos de acción: tamaño uniforme y separación holgada para que no se encimen.
                 HStack(spacing: 15) {
+                    Button { toggleSelecting() } label: {
+                        Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
+                            .foregroundStyle(selecting ? Color.accentColor : .primary)
+                    }
+                    .buttonStyle(.borderless).help(L10n.t("sel.toggle"))
+                    Button { onCaptureAnnotate() } label: { Image(systemName: "camera.viewfinder") }
+                        .buttonStyle(.borderless).help(L10n.t("capture.annotate"))
                     Button { onVoiceRecord() } label: {
                         Image(systemName: recorder.state == .recording ? "mic.fill" : "mic")
                             .foregroundStyle(recorder.state == .recording ? .red : .primary)
@@ -160,22 +178,66 @@ struct HistoryView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(HistoryFilter.allCases) { f in
-                    let sel = filter == f
-                    Button { filter = f } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: f.icon).font(.system(size: 10))
-                            Text(L10n.t(f.labelKey)).font(.system(size: 11))
-                        }
-                        .padding(.horizontal, 9).padding(.vertical, 4)
-                        .background(Capsule().fill(sel ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.06)))
-                        .overlay(Capsule().stroke(sel ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1))
+                    chip(L10n.t(f.labelKey), icon: f.icon, selected: filter == f && collectionFilter == nil) {
+                        filter = f; collectionFilter = nil
                     }
-                    .buttonStyle(.plain)
+                }
+                ForEach(manager.collections, id: \.self) { name in
+                    chip(name, icon: "folder", selected: collectionFilter == name) {
+                        collectionFilter = (collectionFilter == name ? nil : name)
+                    }
                 }
             }
             .padding(.horizontal, 12)
         }
         .padding(.bottom, 8)
+    }
+
+    private func chip(_ text: String, icon: String, selected: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 10))
+                Text(text).font(.system(size: 11))
+            }
+            .padding(.horizontal, 9).padding(.vertical, 4)
+            .background(Capsule().fill(selected ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.06)))
+            .overlay(Capsule().stroke(selected ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Selección por lote (vibe coders)
+
+    private func toggleSelecting() {
+        selecting.toggle()
+        if !selecting { selectedBatch = [] }
+    }
+    private func toggleCheck(_ id: UUID) {
+        if selectedBatch.contains(id) { selectedBatch.remove(id) } else { selectedBatch.insert(id) }
+    }
+    private var batchItems: [ClipboardItem] { manager.items.filter { selectedBatch.contains($0.id) } }
+
+    private var batchBar: some View {
+        HStack(spacing: 8) {
+            Text("\(selectedBatch.count) sel.").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+            Spacer()
+            batchButton("doc.richtext", "PDF") { onCombinePDF(batchItems) }
+            batchButton("doc.zipper", "ZIP") { onExportZip(batchItems) }
+            batchButton("folder.badge.plus", L10n.t("sel.collection")) { onAssignCollection(batchItems) }
+            Button(L10n.t("sel.done")) { selecting = false; selectedBatch = [] }
+                .font(.system(size: 12))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .overlay(Divider(), alignment: .top)
+    }
+
+    private func batchButton(_ icon: String, _ label: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) { Image(systemName: icon); Text(label).font(.system(size: 11)) }
+        }
+        .controlSize(.small)
+        .disabled(selectedBatch.isEmpty)
     }
 
     private var list: some View {
@@ -191,7 +253,9 @@ struct HistoryView: View {
                                 onCopyMarkdown: onCopyMarkdown, onOCR: { runOCR(item) },
                                 onRename: onRename, onRetryTranscription: onRetryTranscription,
                                 onSaveAsFile: onSaveAsFile, onCopyAsCode: onCopyAsCode,
-                                searchTerm: search)
+                                searchTerm: search,
+                                selecting: selecting, isChecked: selectedBatch.contains(item.id),
+                                onToggleCheck: { toggleCheck(item.id) })
                             .id(item.id)
                         if ocrResultID == item.id { ocrBox }
                     }
@@ -284,6 +348,9 @@ struct ItemRow: View {
     var onSaveAsFile: (ClipboardItem) -> Void
     var onCopyAsCode: (ClipboardItem) -> Void
     var searchTerm: String = ""
+    var selecting: Bool = false
+    var isChecked: Bool = false
+    var onToggleCheck: () -> Void = {}
 
     @State private var hovering = false
     @State private var revealed = false
@@ -344,18 +411,25 @@ struct ItemRow: View {
     }
 
     var body: some View {
-        Group {
-            if item.kind == .image { imageCard } else { standardRow }
+        HStack(spacing: 8) {
+            if selecting {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18)).foregroundStyle(isChecked ? Color.accentColor : .secondary)
+                    .padding(.leading, 6)
+            }
+            Group {
+                if item.kind == .image { imageCard } else { standardRow }
+            }
         }
         .background(RoundedRectangle(cornerRadius: 8)
-            .fill(isSelected ? Color.accentColor.opacity(0.20)
+            .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.20)
                   : (hovering ? Color.primary.opacity(0.07) : Color.clear)))
         .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke(isSelected ? Color.accentColor.opacity(0.6)
+            .stroke(isSelected && !selecting ? Color.accentColor.opacity(0.6)
                     : (isCredential ? Color.yellow.opacity(0.4) : Color.clear), lineWidth: 1))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { onPick(item) }
+        .onTapGesture { if selecting { onToggleCheck() } else { onPick(item) } }
         .onChange(of: resetToken) { _, _ in revealed = false }   // re-enmascarar al reabrir el panel
     }
 

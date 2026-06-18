@@ -301,6 +301,29 @@ final class ClipboardManager: ObservableObject {
         trimAndSave()   // re-evaluar el recorte al desfijar (puede exceder maxItems)
     }
 
+    // MARK: - Captura anotada y colecciones (vibe coders)
+
+    /// Añade una imagen (captura anotada) al historial como un elemento de imagen.
+    func addCapturedImage(_ image: NSImage, name: String? = nil) {
+        let fileName = "\(UUID().uuidString).png"
+        storage.saveImage(image, fileName: fileName)
+        let size = image.size
+        let preview = "Captura · \(Int(size.width))×\(Int(size.height))"
+        items.insert(ClipboardItem(kind: .image, imageFileName: fileName, preview: preview, name: name), at: 0)
+        trimAndSave()
+    }
+
+    /// Asigna (o quita, con nombre vacío) una colección a varios elementos.
+    func assignCollection(_ ids: Set<UUID>, to name: String?) {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        for idx in items.indices where ids.contains(items[idx].id) { items[idx].collection = value }
+        storage.saveItems(items)
+    }
+
+    /// Nombres de colecciones existentes (para los filtros).
+    var collections: [String] { Array(Set(items.compactMap { $0.collection })).sorted() }
+
     /// Pone (o quita) la etiqueta/nombre de un elemento. El nombre es buscable y se muestra como título.
     func rename(_ item: ClipboardItem, to name: String) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }

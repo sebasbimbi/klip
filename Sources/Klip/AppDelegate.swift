@@ -13,8 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var panelController: PanelController!
     private var hotKey: HotKey?
     private var voiceHotKey: HotKey?
+    private var captureHotKey: HotKey?
     private var lastGoodCombo = Settings.shared.combo
     private var lastGoodVoiceCombo = Settings.shared.voiceCombo
+    private var lastGoodCaptureCombo = Settings.shared.captureCombo
     private var prefsController: PreferencesWindowController?
     private var launchItem: NSMenuItem?
     private var cancellables = Set<AnyCancellable>()
@@ -41,6 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      action: #selector(showPanel), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("rec.record"))   \(Settings.shared.voiceCombo.displayString)",
                      action: #selector(startVoice), keyEquivalent: "")
+        menu.addItem(withTitle: "\(L10n.t("capture.annotate"))   \(Settings.shared.captureCombo.displayString)",
+                     action: #selector(captureAnnotate), keyEquivalent: "")
+        menu.addItem(withTitle: L10n.t("capture.full"), action: #selector(captureAnnotateFull), keyEquivalent: "")
         menu.addItem(.separator())
         let recents = NSMenuItem(title: "Recientes", action: nil, keyEquivalent: "")
         recentsMenu.delegate = self
@@ -74,6 +79,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         voiceHotKey = HotKey(keyCode: v.keyCode, modifiers: v.carbonModifiers, id: 2) { [weak self] in
             self?.panelController.toggleVoiceRecording()
         }
+        let cap = Settings.shared.captureCombo
+        captureHotKey = HotKey(keyCode: cap.keyCode, modifiers: cap.carbonModifiers, id: 3) { [weak self] in
+            self?.panelController.captureAndAnnotate(fullScreen: false)
+        }
+    }
+
+    private func applyCaptureHotKey(_ combo: KeyCombo) {
+        if captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true {
+            lastGoodCaptureCombo = combo
+        } else {
+            NSSound.beep(); Settings.shared.captureCombo = lastGoodCaptureCombo
+        }
+        buildMenu()
     }
 
     private func applyHotKey(_ combo: KeyCombo) {
@@ -146,6 +164,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showPanel() { panelController.show() }
     @objc private func startVoice() { panelController.toggleVoiceRecording() }
+    @objc private func captureAnnotate() { panelController.captureAndAnnotate(fullScreen: false) }
+    @objc private func captureAnnotateFull() { panelController.captureAndAnnotate(fullScreen: true) }
     @objc private func showGuideMenu() { panelController.showGuide() }
 
     @objc private func openPreferences() {
@@ -153,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             prefsController = PreferencesWindowController(
                 onHotKeyChange: { [weak self] combo in self?.applyHotKey(combo) },
                 onVoiceHotKeyChange: { [weak self] combo in self?.applyVoiceHotKey(combo) },
+                onCaptureHotKeyChange: { [weak self] combo in self?.applyCaptureHotKey(combo) },
                 onMaxItemsChange: { [weak self] in self?.manager.applyMaxItems() })
         }
         prefsController?.show()
