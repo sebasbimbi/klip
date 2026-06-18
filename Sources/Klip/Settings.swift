@@ -22,6 +22,9 @@ struct KeyCombo: Equatable {
     /// Atajo de voz por defecto: ⌘⇧I (Cmd+Shift+I).
     static let defaultVoiceCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_I),
                                             carbonModifiers: UInt32(cmdKey | shiftKey))
+    /// Atajo de captura por defecto: ⌘⇧2 (Cmd+Shift+2).
+    static let defaultCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_2),
+                                              carbonModifiers: UInt32(cmdKey | shiftKey))
 
     var isValid: Bool { carbonModifiers != 0 }
 
@@ -64,6 +67,7 @@ struct KeyCombo: Equatable {
         KeyCombo(keyCode: UInt32(kVK_ANSI_I), carbonModifiers: UInt32(cmdKey | shiftKey)),   // ⌘⇧I
         KeyCombo(keyCode: UInt32(kVK_ANSI_Y), carbonModifiers: UInt32(cmdKey | shiftKey)),   // ⌘⇧Y
         KeyCombo(keyCode: UInt32(kVK_ANSI_M), carbonModifiers: UInt32(cmdKey | shiftKey)),   // ⌘⇧M
+        KeyCombo(keyCode: UInt32(kVK_ANSI_2), carbonModifiers: UInt32(cmdKey | shiftKey)),   // ⌘⇧2 (captura)
         KeyCombo(keyCode: UInt32(kVK_Space),  carbonModifiers: UInt32(optionKey)),           // ⌥Espacio
         KeyCombo(keyCode: UInt32(kVK_Space),  carbonModifiers: UInt32(optionKey | shiftKey)) // ⌥⇧Espacio
     ]

@@ -25,7 +25,12 @@ final class PanelController: NSObject, NSWindowDelegate {
     private var keyMonitor: Any?
     private var localClickMonitor: Any?
     private var globalClickMonitor: Any?
-    private var isSavingImage = false
+    /// Nº de paneles modales (guardar/abrir) activos. Mientras sea > 0 el panel no se cierra al perder
+    /// el foco. Es un contador (no un bool) para que dos paneles solapados no se pisen el estado.
+    private var modalCount = 0
+    private var isModalActive: Bool { modalCount > 0 }
+    /// Evita lanzar una segunda exportación (PDF/ZIP) mientras una está en curso.
+    private var exportInFlight = false
     private var isRenaming = false
     private let cornerRadius: CGFloat = 12
     private var recordingPanel: NSPanel?
@@ -143,7 +148,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             matching: [.leftMouseDown, .rightMouseDown]) { e in e }
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            guard let self, !self.isSavingImage, !self.isRenaming, !self.recorder.isRecording else { return }
+            guard let self, !self.isModalActive, !self.isRenaming, !self.recorder.isRecording else { return }
             self.hide(restoreFocus: false)
         }
     }
@@ -166,6 +171,16 @@ final class PanelController: NSObject, NSWindowDelegate {
                 hide(restoreFocus: true)                         // no cerrar mientras transcribe
             }
             return nil
+        }
+
+        // En modo multi-selección por lote, el teclado NO pega/cierra (rompería el lote en curso): solo
+        // navega con flechas; ⌘1-9 / Return no hacen pick. El ratón sigue marcando (onToggleCheck).
+        if selection.selecting {
+            switch event.keyCode {
+            case 125: selection.moveDown(); return nil   // ↓
+            case 126: selection.moveUp();   return nil   // ↑
+            default:  return event                       // deja escribir en la búsqueda
+            }
         }
 
         // ⌘1..⌘9 → selección rápida + pegar (solo si existe ese índice).
@@ -275,11 +290,11 @@ final class PanelController: NSObject, NSWindowDelegate {
         sp.allowedContentTypes = types
         sp.nameFieldStringValue = (item.name?.isEmpty == false ? item.name! : "klip-texto") + ".txt"
         sp.canCreateDirectories = true
-        isSavingImage = true   // reutiliza el guard de "hay un panel modal abierto" (no cerrar el panel)
+        modalCount += 1   // guard de "hay un panel modal abierto" (no cerrar el panel detrás)
         NSApp.activate(ignoringOtherApps: true)
         sp.begin { [weak self] resp in
             if resp == .OK, let url = sp.url { try? t.data(using: .utf8)?.write(to: url, options: .atomic) }
-            self?.isSavingImage = false
+            self?.modalCount -= 1
         }
     }
 
@@ -325,38 +340,63 @@ final class PanelController: NSObject, NSWindowDelegate {
     // MARK: - Combinar / exportar selección
 
     func combineSelectedToPDF(_ items: [ClipboardItem]) {
-        guard !items.isEmpty else { return }
+        guard !items.isEmpty, !exportInFlight else { return }   // no solapar exportaciones
+        exportInFlight = true
+        modalCount += 1   // protege el panel durante toda la generación + guardado (cierra el hueco de carrera)
         DispatchQueue.global(qos: .userInitiated).async {
-            let data = Storage.shared.combinedPDF(from: items)
+            let result = Storage.shared.combinedPDF(from: items)
             DispatchQueue.main.async {
-                guard let data else { return }
+                guard let result else {   // nada exportable: avisar en vez de "el botón no hace nada"
+                    self.modalCount -= 1; self.exportInFlight = false
+                    self.showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info"))
+                    return
+                }
                 let sp = NSSavePanel()
                 sp.allowedContentTypes = [.pdf]
                 sp.nameFieldStringValue = "klip.pdf"
                 sp.canCreateDirectories = true
-                self.isSavingImage = true
+                if result.exported < items.count {
+                    sp.message = String(format: L10n.t("export.partial"), result.exported, items.count)
+                }
                 NSApp.activate(ignoringOtherApps: true)
                 sp.begin { resp in
-                    if resp == .OK, let url = sp.url { try? data.write(to: url, options: .atomic) }
-                    self.isSavingImage = false
+                    if resp == .OK, let url = sp.url { try? result.data.write(to: url, options: .atomic) }
+                    self.modalCount -= 1; self.exportInFlight = false
                 }
             }
         }
     }
 
     func exportSelectedZip(_ items: [ClipboardItem]) {
-        guard !items.isEmpty else { return }
+        guard !items.isEmpty, !exportInFlight else { return }
+        let exportable = Storage.shared.zipExportableCount(items)
+        guard exportable > 0 else { showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info")); return }
+        exportInFlight = true
         let sp = NSSavePanel()
         sp.allowedContentTypes = [.zip]
         sp.nameFieldStringValue = "klip-seleccion.zip"
         sp.canCreateDirectories = true
-        isSavingImage = true
+        if exportable < items.count {
+            sp.message = String(format: L10n.t("export.partial"), exportable, items.count)
+        }
+        modalCount += 1
         NSApp.activate(ignoringOtherApps: true)
         sp.begin { [weak self] resp in
-            self?.isSavingImage = false
-            guard resp == .OK, let url = sp.url else { return }
-            DispatchQueue.global(qos: .userInitiated).async { try? Storage.shared.exportItemsZip(items, to: url) }
+            guard let self else { return }
+            self.modalCount -= 1
+            guard resp == .OK, let url = sp.url else { self.exportInFlight = false; return }
+            DispatchQueue.global(qos: .userInitiated).async {
+                try? Storage.shared.exportItemsZip(items, to: url)
+                DispatchQueue.main.async { self.exportInFlight = false }
+            }
         }
+    }
+
+    private func showAlert(_ title: String, _ info: String) {
+        let a = NSAlert(); a.messageText = title; a.informativeText = info
+        a.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
     }
 
     func assignSelectedToCollection(_ items: [ClipboardItem]) {
@@ -367,7 +407,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         alert.addButton(withTitle: "Aceptar")
         let cancel = alert.addButton(withTitle: L10n.t("common.cancel")); cancel.keyEquivalent = "\u{1b}"
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.stringValue = items.first?.collection ?? ""
+        // Precargar solo si TODOS comparten la misma colección; si difieren, dejar vacío (no sobreescribir
+        // con una colección arbitraria del lote heterogéneo).
+        let current = Set(items.map { $0.collection ?? "" })
+        field.stringValue = current.count == 1 ? (current.first ?? "") : ""
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         isRenaming = true
@@ -536,20 +579,20 @@ final class PanelController: NSObject, NSWindowDelegate {
         sp.allowedContentTypes = [.png]
         sp.nameFieldStringValue = "captura.png"
         sp.canCreateDirectories = true
-        isSavingImage = true
+        modalCount += 1
         NSApp.activate(ignoringOtherApps: true)
         sp.begin { [weak self] resp in
             if resp == .OK, let url = sp.url { try? png.write(to: url, options: .atomic) }
-            self?.isSavingImage = false
+            self?.modalCount -= 1
         }
     }
 
     // MARK: - NSWindowDelegate (respaldo de cierre al perder el foco)
 
     func windowDidResignKey(_ notification: Notification) {
-        guard !isSavingImage, !isRenaming, !recorder.isRecording else { return }
+        guard !isModalActive, !isRenaming, !recorder.isRecording else { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.panel.isVisible, !self.isSavingImage, !self.isRenaming,
+            guard let self, self.panel.isVisible, !self.isModalActive, !self.isRenaming,
                   !self.recorder.isRecording, !self.panel.isKeyWindow else { return }
             self.hide(restoreFocus: false)
         }

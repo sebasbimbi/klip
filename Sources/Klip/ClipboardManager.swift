@@ -148,7 +148,7 @@ final class ClipboardManager: ObservableObject {
     private func addImage(_ image: NSImage, source: CaptureSource, remote: Bool) {
         let fileName = "\(UUID().uuidString).png"
         storage.saveImage(image, fileName: fileName)
-        let size = image.size
+        let size = image.pixelDimensions
         let preview = "Imagen · \(Int(size.width))×\(Int(size.height))"
         items.insert(ClipboardItem(kind: .image, imageFileName: fileName, preview: preview,
                                    sourceName: source.name, sourceBundleID: source.bundleID,
@@ -307,7 +307,7 @@ final class ClipboardManager: ObservableObject {
     func addCapturedImage(_ image: NSImage, name: String? = nil) {
         let fileName = "\(UUID().uuidString).png"
         storage.saveImage(image, fileName: fileName)
-        let size = image.size
+        let size = image.pixelDimensions
         let preview = "Captura · \(Int(size.width))×\(Int(size.height))"
         items.insert(ClipboardItem(kind: .image, imageFileName: fileName, preview: preview, name: name), at: 0)
         trimAndSave()

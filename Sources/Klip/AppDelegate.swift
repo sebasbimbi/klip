@@ -70,45 +70,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
     }
 
-    private func setupHotKeys() {
-        let c = Settings.shared.combo
+    private func makePanelHotKey(_ c: KeyCombo) {
         hotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 1) { [weak self] in
             self?.panelController.toggle()
         }
-        let v = Settings.shared.voiceCombo
-        voiceHotKey = HotKey(keyCode: v.keyCode, modifiers: v.carbonModifiers, id: 2) { [weak self] in
+    }
+    private func makeVoiceHotKey(_ c: KeyCombo) {
+        voiceHotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 2) { [weak self] in
             self?.panelController.toggleVoiceRecording()
         }
-        let cap = Settings.shared.captureCombo
-        captureHotKey = HotKey(keyCode: cap.keyCode, modifiers: cap.carbonModifiers, id: 3) { [weak self] in
+    }
+    private func makeCaptureHotKey(_ c: KeyCombo) {
+        captureHotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 3) { [weak self] in
             self?.panelController.captureAndAnnotate(fullScreen: false)
         }
     }
 
-    private func applyCaptureHotKey(_ combo: KeyCombo) {
-        if captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true {
-            lastGoodCaptureCombo = combo
-        } else {
-            NSSound.beep(); Settings.shared.captureCombo = lastGoodCaptureCombo
+    private func setupHotKeys() {
+        makePanelHotKey(Settings.shared.combo)
+        makeVoiceHotKey(Settings.shared.voiceCombo)
+        makeCaptureHotKey(Settings.shared.captureCombo)
+        // Si una combinación persistida colisiona con otra al arrancar (HotKey.init devuelve nil), el
+        // atajo quedaría muerto toda la sesión. Recuperar con su atajo por defecto para no perderlo.
+        if hotKey == nil, Settings.shared.combo != .defaultCombo {
+            Settings.shared.combo = .defaultCombo; lastGoodCombo = .defaultCombo; makePanelHotKey(.defaultCombo)
         }
+        if voiceHotKey == nil, Settings.shared.voiceCombo != .defaultVoiceCombo {
+            Settings.shared.voiceCombo = .defaultVoiceCombo; lastGoodVoiceCombo = .defaultVoiceCombo; makeVoiceHotKey(.defaultVoiceCombo)
+        }
+        if captureHotKey == nil, Settings.shared.captureCombo != .defaultCaptureCombo {
+            Settings.shared.captureCombo = .defaultCaptureCombo; lastGoodCaptureCombo = .defaultCaptureCombo; makeCaptureHotKey(.defaultCaptureCombo)
+        }
+    }
+
+    private func applyCaptureHotKey(_ combo: KeyCombo) {
+        let ok: Bool
+        if captureHotKey == nil { makeCaptureHotKey(combo); ok = (captureHotKey != nil) }   // estaba muerto: re-crear
+        else { ok = captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodCaptureCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.captureCombo = lastGoodCaptureCombo }
         buildMenu()
     }
 
     private func applyHotKey(_ combo: KeyCombo) {
-        if hotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true {
-            lastGoodCombo = combo
-        } else {
-            NSSound.beep(); Settings.shared.combo = lastGoodCombo   // colisión: revertir
-        }
+        let ok: Bool
+        if hotKey == nil { makePanelHotKey(combo); ok = (hotKey != nil) }
+        else { ok = hotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.combo = lastGoodCombo }   // colisión: revertir
         buildMenu()
     }
 
     private func applyVoiceHotKey(_ combo: KeyCombo) {
-        if voiceHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true {
-            lastGoodVoiceCombo = combo
-        } else {
-            NSSound.beep(); Settings.shared.voiceCombo = lastGoodVoiceCombo
-        }
+        let ok: Bool
+        if voiceHotKey == nil { makeVoiceHotKey(combo); ok = (voiceHotKey != nil) }
+        else { ok = voiceHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodVoiceCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.voiceCombo = lastGoodVoiceCombo }
         buildMenu()
     }
 

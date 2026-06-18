@@ -99,7 +99,19 @@ struct HistoryView: View {
         .onChange(of: search) { _, _ in syncVisible() }
         .onChange(of: filter) { _, _ in syncVisible() }
         .onChange(of: collectionFilter) { _, _ in syncVisible() }
-        .onChange(of: manager.items) { _, _ in syncVisible() }
+        .onChange(of: manager.items) { _, _ in
+            // Si la colección filtrada dejó de existir (se borró/renombró su último elemento), soltar el
+            // filtro: si no, la lista quedaría falsamente vacía sin chip visible para limpiarlo.
+            if let cf = collectionFilter, !manager.collections.contains(cf) { collectionFilter = nil }
+            // Quitar del lote los ids que ya no existen (p. ej. auto-recorte por maxItems al entrar clips
+            // nuevos): mantiene el contador "N sel." sincronizado con lo que realmente se exportará.
+            if !selectedBatch.isEmpty {
+                let pruned = selectedBatch.intersection(Set(manager.items.map(\.id)))
+                if pruned.count != selectedBatch.count { selectedBatch = pruned }
+            }
+            syncVisible()
+        }
+        .onChange(of: selecting) { _, newValue in selection.selecting = newValue }
         .onChange(of: selection.openToken) { _, _ in
             search = ""; filter = .all; collectionFilter = nil
             selecting = false; selectedBatch = []
@@ -184,7 +196,11 @@ struct HistoryView: View {
                 }
                 ForEach(manager.collections, id: \.self) { name in
                     chip(name, icon: "folder", selected: collectionFilter == name) {
-                        collectionFilter = (collectionFilter == name ? nil : name)
+                        let now = (collectionFilter == name ? nil : name)
+                        collectionFilter = now
+                        // Al activar una colección, soltar el filtro de tipo: si no, un `.image` (u otro)
+                        // invisible seguiría ocultando elementos de la colección sin que ningún chip lo muestre.
+                        if now != nil { filter = .all }
                     }
                 }
             }
@@ -215,7 +231,10 @@ struct HistoryView: View {
     private func toggleCheck(_ id: UUID) {
         if selectedBatch.contains(id) { selectedBatch.remove(id) } else { selectedBatch.insert(id) }
     }
-    private var batchItems: [ClipboardItem] { manager.items.filter { selectedBatch.contains($0.id) } }
+    // Orden VISIBLE (fijados primero, luego por fecha) — no el de inserción de manager.items — para que
+    // el PDF/ZIP salga en el mismo orden en que el usuario ve y marca los elementos. Incluye elementos
+    // seleccionados aunque un cambio de filtro los haya ocultado de `filtered`.
+    private var batchItems: [ClipboardItem] { sortedItems.filter { selectedBatch.contains($0.id) } }
 
     private var batchBar: some View {
         HStack(spacing: 8) {
@@ -442,7 +461,7 @@ struct ItemRow: View {
                         .background(Color.primary.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
-                    Text("\(Int(img.size.width))×\(Int(img.size.height))")
+                    Text({ let p = img.pixelDimensions; return "\(Int(p.width))×\(Int(p.height))" }())
                         .font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
                         .padding(.horizontal, 5).padding(.vertical, 2)
                         .background(.ultraThinMaterial, in: Capsule())
@@ -456,7 +475,7 @@ struct ItemRow: View {
                 HStack(spacing: 6) {
                     metadata
                     Spacer(minLength: 4)
-                    if hovering { actions } else if item.pinned { pinDot }
+                    if hovering && !selecting { actions } else if item.pinned { pinDot }
                 }
             }
         }
@@ -479,7 +498,7 @@ struct ItemRow: View {
                 metadata
             }
             Spacer(minLength: 4)
-            if hovering { actions }
+            if hovering && !selecting { actions }
             else if isCredential { Image(systemName: "key.fill").foregroundStyle(.yellow).font(.system(size: 10)) }
             else if item.pinned { pinDot }
         }

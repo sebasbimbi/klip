@@ -78,6 +78,10 @@ enum L10n {
         "import.confirm": "Importar",
         "export.fail": "No se pudo exportar la copia",
         "import.fail": "No se pudo importar la copia",
+        "export.empty.title": "Nada que exportar",
+        "export.empty.info": "Ningún elemento seleccionado tiene contenido exportable. Las notas de voz aún transcribiéndose no cuentan.",
+        "export.partial": "Se exportarán %d de %d elementos (los demás no tienen contenido exportable).",
+        "hotkey.inuse": "Esa combinación ya está en uso por otro atajo de Klip.",
         "common.cancel": "Cancelar",
         "badge.remote": "Otro dispositivo"
     ]
@@ -151,6 +155,10 @@ enum L10n {
         "import.confirm": "Import",
         "export.fail": "Couldn't export the backup",
         "import.fail": "Couldn't import the backup",
+        "export.empty.title": "Nothing to export",
+        "export.empty.info": "None of the selected items have exportable content. Voice notes still transcribing don't count.",
+        "export.partial": "%d of %d items will be exported (the rest have no exportable content).",
+        "hotkey.inuse": "That combination is already used by another Klip shortcut.",
         "common.cancel": "Cancel",
         "badge.remote": "Other device"
     ]

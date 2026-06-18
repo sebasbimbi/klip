@@ -138,13 +138,44 @@ final class AnnotationCanvasNSView: NSView {
     func undo() { if !annotations.isEmpty { annotations.removeLast(); needsDisplay = true } }
     func clearAll() { annotations.removeAll(); needsDisplay = true }
 
-    /// Aplana imagen + anotaciones en un NSImage a resolución de pantalla (retina).
+    /// Aplana imagen + anotaciones a la resolución REAL de la captura (sus píxeles físicos), no a la
+    /// escala de la pantalla donde quede la ventana. Antes se usaba cacheDisplay, que degradaba la
+    /// captura a la mitad de resolución si la ventana caía en un monitor 1x y resampleaba siempre.
     func flattened() -> NSImage? {
-        guard let rep = bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
-        cacheDisplay(in: bounds, to: rep)
-        let out = NSImage(size: bounds.size)
+        let pointSize = bounds.size
+        guard pointSize.width > 0, pointSize.height > 0 else { return nil }
+        let px = image.pixelDimensions            // píxeles físicos de la captura original
+        let pxW = max(1, Int(px.width.rounded()))
+        let pxH = max(1, Int(px.height.rounded()))
+
+        // Imagen lógica (en puntos) con orientación top-left, igual que el NSView (isFlipped=true).
+        let logical = NSImage(size: pointSize, flipped: true) { [weak self] rect in
+            guard let self else { return false }
+            self.image.draw(in: rect)
+            for a in self.annotations { self.render(a) }
+            return true
+        }
+        // Rasterizar esa imagen a un rep del tamaño en píxeles reales (el handler se reejecuta a esa escala).
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: pxW, pixelsHigh: pxH,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = pointSize
+        guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        logical.draw(in: NSRect(origin: .zero, size: pointSize))
+        NSGraphicsContext.restoreGraphicsState()
+        let out = NSImage(size: pointSize)
         out.addRepresentation(rep)
         return out
+    }
+
+    /// PNG de la imagen aplanada, codificado directo del rep (sin round-trip por TIFF).
+    func flattenedPNG() -> Data? {
+        guard let img = flattened(),
+              let rep = img.representations.first as? NSBitmapImageRep else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 }
 
@@ -243,9 +274,7 @@ struct AnnotationView: View {
         let pb = NSPasteboard.general; pb.clearContents(); pb.writeObjects([img])
     }
     private func save() {
-        guard let img = handle.view?.flattened(),
-              let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]) else { return }
+        guard let png = handle.view?.flattenedPNG() else { return }
         let sp = NSSavePanel()
         sp.allowedContentTypes = [.png]
         sp.nameFieldStringValue = "klip-anotacion.png"
