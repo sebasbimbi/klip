@@ -1,9 +1,9 @@
 import Foundation
 import AVFoundation
 
-/// Reproductor sencillo para escuchar las notas de voz guardadas (una a la vez).
-/// `playingFileName` permite a la UI mostrar el botón ▶/⏹ del elemento que suena;
-/// `elapsed`/`total` alimentan la barra de progreso de la fila que suena.
+/// Simple player to listen to saved voice notes (one at a time).
+/// `playingFileName` lets the UI show the ▶/⏹ button on the item that's playing;
+/// `elapsed`/`total` feed the progress bar of the row that's playing.
 final class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     static let shared = AudioPlayer()
 
@@ -15,13 +15,13 @@ final class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func isPlaying(_ fileName: String) -> Bool { playingFileName == fileName }
 
-    /// Duración (segundos) de un audio local, sin reproducirlo. nil si no se puede leer.
+    /// Duration (seconds) of a local audio, without playing it. nil if it can't be read.
     static func duration(of url: URL) -> Double? {
         guard let p = try? AVAudioPlayer(contentsOf: url) else { return nil }
         return p.duration > 0 ? p.duration : nil
     }
 
-    /// Alterna: si ya suena ese archivo, lo detiene; si no, lo reproduce (deteniendo cualquier otro).
+    /// Toggles: if that file is already playing, stops it; otherwise plays it (stopping any other).
     func toggle(fileName: String) {
         if playingFileName == fileName { stop() } else { play(fileName: fileName) }
     }
@@ -48,7 +48,7 @@ final class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         elapsed = 0; total = 0
     }
 
-    /// Detiene solo si justo está sonando ese archivo (p. ej. al eliminarlo del historial).
+    /// Stops only if that file happens to be playing (e.g. when deleting it from history).
     func stopIfPlaying(_ fileName: String) {
         if playingFileName == fileName { stop() }
     }
@@ -73,7 +73,7 @@ final class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         clear(if: player)
     }
 
-    /// Limpia solo si el que terminó sigue siendo el reproductor actual (evita cortar una reproducción nueva).
+    /// Cleans up only if the one that finished is still the current player (avoids cutting off a new playback).
     private func clear(if finished: AVAudioPlayer) {
         DispatchQueue.main.async { [weak self] in
             guard let self, finished === self.player else { return }

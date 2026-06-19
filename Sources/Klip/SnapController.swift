@@ -1,14 +1,14 @@
 import AppKit
 
-/// Orquesta el flujo de captura "Klip Snap": permiso → captura del display bajo el cursor →
-/// overlay de selección → editor de anotaciones → historial de Klip.
+/// Orchestrates the "Klip Snap" capture flow: permission → capture the display under the cursor →
+/// selection overlay → annotation editor → Klip history.
 final class SnapController {
     private let manager: ClipboardManager
     private var overlay: CaptureOverlayController?
     private var editor: SnapEditorController?
     private var inProgress = false
 
-    /// Se invoca tras añadir una captura al historial (para revelar el panel: el item "vuela" a Klip).
+    /// Invoked after adding a capture to the history (to reveal the panel: the item "flies" to Klip).
     var onCaptured: (() -> Void)?
 
     init(manager: ClipboardManager) {
@@ -16,7 +16,7 @@ final class SnapController {
         ScreenCapturer.warmUp()
     }
 
-    /// Punto de entrada (atajo o menú).
+    /// Entry point (shortcut or menu).
     func start() {
         guard !inProgress else { return }
 
@@ -33,7 +33,7 @@ final class SnapController {
                 self.inProgress = false
                 self.presentOverlay(shot)
             } catch CaptureError.noPermission {
-                self.inProgress = false          // liberar ANTES del modal (evita reentrancia del runloop)
+                self.inProgress = false          // release BEFORE the modal (avoids runloop reentrancy)
                 self.promptForPermission()
             } catch {
                 self.inProgress = false
@@ -57,7 +57,7 @@ final class SnapController {
     private func openEditor(with image: NSImage) {
         let editor = SnapEditorController(image: image) { [weak self] result in
             self?.editor = nil
-            guard let self, let result else { return }   // nil = cerrado sin guardar
+            guard let self, let result else { return }   // nil = closed without saving
             self.manager.addAnnotatedScreenshot(result, copyToClipboard: true)
             self.onCaptured?()
         }
@@ -65,14 +65,14 @@ final class SnapController {
         editor.present()
     }
 
-    /// Sin permiso de Grabación de pantalla. La PRIMERA vez dejamos solo el prompt nativo del sistema
-    /// (`requestPermission`); en intentos posteriores (cuando el prompt nativo ya no reaparece) mostramos
-    /// nuestra guía con acceso directo a Ajustes. Así nunca se solapan los dos mensajes.
+    /// No Screen Recording permission. The FIRST time we only show the native system prompt
+    /// (`requestPermission`); on later attempts (when the native prompt no longer reappears) we show
+    /// our own guide with a shortcut to Settings. This way the two messages never overlap.
     private func promptForPermission() {
         let askedKey = "klip.askedScreenRecording"
         if !UserDefaults.standard.bool(forKey: askedKey) {
             UserDefaults.standard.set(true, forKey: askedKey)
-            ScreenCapturer.requestPermission()   // solo el prompt nativo la primera vez
+            ScreenCapturer.requestPermission()   // only the native prompt the first time
             return
         }
         let alert = NSAlert()

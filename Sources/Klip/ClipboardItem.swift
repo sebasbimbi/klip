@@ -1,12 +1,12 @@
 import Foundation
 
-/// Tipo de elemento guardado en el historial del portapapeles.
+/// Type of item stored in the clipboard history.
 enum ClipboardKind: String, Codable {
     case text
     case image
 }
 
-/// Un elemento del historial del portapapeles (texto o imagen).
+/// An item in the clipboard history (text or image).
 struct ClipboardItem: Identifiable, Codable, Equatable {
     let id: UUID
     var kind: ClipboardKind
@@ -16,16 +16,16 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     var createdAt: Date
     var pinned: Bool
 
-    // Campos nuevos (Optional => el items.json antiguo decodifica sin error: quedan nil).
+    // New fields (Optional => the old items.json decodes without error: they stay nil).
     var sourceName: String?       // "Google Chrome", "Notas"…
     var sourceBundleID: String?   // "com.google.Chrome"
-    var isRemote: Bool?           // heurística: "otro dispositivo Apple"
-    var isVoiceNote: Bool?        // transcripción de nota de voz
-    var isCredential: Bool?       // marcado como credencial (token/API key)
-    var audioFileName: String?    // nota de voz: archivo de audio original guardado (m4a) para reproducir
-    var audioDuration: Double?    // duración del audio en segundos (para mostrar y la barra de progreso)
-    var name: String?             // etiqueta puesta por el usuario (título buscable; aplica a cualquier elemento)
-    var collection: String?       // nombre de la colección a la que pertenece (agrupar lotes de contexto)
+    var isRemote: Bool?           // heuristic: "another Apple device"
+    var isVoiceNote: Bool?        // voice note transcription
+    var isCredential: Bool?       // marked as a credential (token/API key)
+    var audioFileName: String?    // voice note: original audio file saved (m4a) for playback
+    var audioDuration: Double?    // audio duration in seconds (for display and the progress bar)
+    var name: String?             // user-set label (searchable title; applies to any item)
+    var collection: String?       // name of the collection it belongs to (groups batches of context)
 
     init(id: UUID = UUID(),
          kind: ClipboardKind,
@@ -61,9 +61,9 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
         self.collection = collection
     }
 
-    // == completo: SwiftUI lo usa para decidir si re-renderiza una fila. Debe reflejar también
-    // text/preview/audioFileName para que la nota de voz se actualice al pasar de "Transcribiendo…"
-    // a su texto final (y al guardarse su audio).
+    // Full ==: SwiftUI uses it to decide whether to re-render a row. It must also reflect
+    // text/preview/audioFileName so the voice note updates when it goes from "Transcribiendo…"
+    // to its final text (and when its audio is saved).
     static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
         lhs.id == rhs.id && lhs.pinned == rhs.pinned && lhs.createdAt == rhs.createdAt
             && lhs.isCredential == rhs.isCredential && lhs.isVoiceNote == rhs.isVoiceNote

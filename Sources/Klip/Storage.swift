@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import PDFKit
 
-/// Persistencia en disco: metadatos del historial (JSON), imágenes (PNG) y audio temporal (m4a).
+/// On-disk persistence: history metadata (JSON), images (PNG), and temporary audio (m4a).
 final class Storage {
     static let shared = Storage()
 
@@ -19,7 +19,7 @@ final class Storage {
         let newBase = appSupport.appendingPathComponent("Klip", isDirectory: true)
         let oldBase = appSupport.appendingPathComponent("PastaClip", isDirectory: true)
 
-        // Migración: si existe la carpeta vieja y aún no la nueva, mover entera (rename atómico).
+        // Migration: if the old folder exists and the new one does not yet, move it whole (atomic rename).
         if fm.fileExists(atPath: oldBase.path), !fm.fileExists(atPath: newBase.path) {
             do { try fm.moveItem(at: oldBase, to: newBase) }
             catch { try? fm.copyItem(at: oldBase, to: newBase) }
@@ -31,25 +31,25 @@ final class Storage {
         itemsURL = baseURL.appendingPathComponent("items.json")
         try? fm.createDirectory(at: imagesURL, withIntermediateDirectories: true)
         try? fm.createDirectory(at: audioBaseURL, withIntermediateDirectories: true)
-        // Igual que items.json (0600): el store contiene datos personales (texto, voz, imágenes).
+        // Same as items.json (0600): the store contains personal data (text, voice, images).
         Self.restrict(baseURL.path, 0o700)
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
     }
 
-    /// Restringe un archivo/carpeta al propietario (privacidad consistente con items.json).
+    /// Restricts a file/folder to the owner (privacy consistent with items.json).
     static func restrict(_ path: String, _ perms: Int) {
         try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
     }
 
-    // MARK: - Historial (metadatos)
+    // MARK: - History (metadata)
 
     func loadItems() -> [ClipboardItem] {
         guard let data = try? Data(contentsOf: itemsURL) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         if let items = try? decoder.decode([ClipboardItem].self, from: data) { return items }
-        // Decodificación falló pero el archivo existe → respaldarlo antes de que algo lo sobrescriba.
+        // Decoding failed but the file exists → back it up before anything overwrites it.
         if !data.isEmpty {
             try? data.write(to: baseURL.appendingPathComponent("items.corrupt.json"), options: .atomic)
         }
@@ -62,11 +62,11 @@ final class Storage {
         encoder.outputFormatting = [.prettyPrinted]
         guard let data = try? encoder.encode(items) else { return }
         try? data.write(to: itemsURL, options: .atomic)
-        // El historial puede contener credenciales en texto: restringir a solo el usuario.
+        // The history may contain credentials in plain text: restrict to the user only.
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: itemsURL.path)
     }
 
-    // MARK: - Imágenes
+    // MARK: - Images
 
     @discardableResult
     func saveImage(_ image: NSImage, fileName: String) -> URL? {
@@ -90,7 +90,7 @@ final class Storage {
         let c = NSCache<NSString, NSImage>(); c.countLimit = 60; return c
     }()
 
-    /// Imagen cacheada en memoria: evita releer/decodificar del disco en cada render de la lista.
+    /// In-memory cached image: avoids re-reading/decoding from disk on every list render.
     func cachedImage(fileName: String) -> NSImage? {
         if let c = imageCache.object(forKey: fileName as NSString) { return c }
         guard let img = loadImage(fileName: fileName) else { return nil }
@@ -99,8 +99,8 @@ final class Storage {
     }
 
     func pngData(from image: NSImage) -> Data? {
-        // Si la imagen ya tiene un bitmap, codificar PNG directo desde el rep de mayor resolución
-        // (evita el round-trip por TIFF, que duplica memoria con capturas grandes).
+        // If the image already has a bitmap, encode PNG directly from the highest-resolution rep
+        // (avoids the round-trip through TIFF, which doubles memory for large captures).
         if let rep = image.representations.compactMap({ $0 as? NSBitmapImageRep })
             .max(by: { $0.pixelsWide < $1.pixelsWide }),
            let png = rep.representation(using: .png, properties: [:]) {
@@ -111,17 +111,17 @@ final class Storage {
         return rep.representation(using: .png, properties: [:])
     }
 
-    // MARK: - Audio (notas de voz: se conserva el original junto a la transcripción)
+    // MARK: - Audio (voice notes: the original is kept alongside the transcription)
 
     func audioURL(for fileName: String) -> URL { audioBaseURL.appendingPathComponent(fileName) }
     func deleteAudio(fileName: String) { try? FileManager.default.removeItem(at: audioURL(for: fileName)) }
     func audioExists(fileName: String) -> Bool { FileManager.default.fileExists(atPath: audioURL(for: fileName).path) }
 
-    /// Restringe a 0600 un audio de nota de voz (lo crea AVAudioRecorder con el umask por defecto).
+    /// Restricts a voice note audio file to 0600 (AVAudioRecorder creates it with the default umask).
     func protectAudio(fileName: String) { Self.restrict(audioURL(for: fileName).path, 0o600) }
 
-    /// Copia un audio externo (subido por el usuario) a nuestro almacén y devuelve el nombre nuevo,
-    /// para poder reproducirlo y conservarlo aunque el archivo original se mueva o borre.
+    /// Copies an external audio file (uploaded by the user) into our store and returns the new name,
+    /// so it can be played and kept even if the original file is moved or deleted.
     func importAudio(from url: URL) -> String? {
         let ext = url.pathExtension.isEmpty ? "m4a" : url.pathExtension
         let name = "\(UUID().uuidString).\(ext)"
@@ -133,7 +133,7 @@ final class Storage {
         } catch { return nil }
     }
 
-    /// Borra archivos de audio/imágenes que ya no referencia ningún elemento (huérfanos por crash, etc.).
+    /// Deletes audio/image files no longer referenced by any item (orphaned by a crash, etc.).
     func pruneOrphans(referencedAudio: Set<String>, referencedImages: Set<String>) {
         prune(dir: audioBaseURL, keep: referencedAudio)
         prune(dir: imagesURL, keep: referencedImages)
@@ -147,9 +147,9 @@ final class Storage {
         }
     }
 
-    // MARK: - Copia de seguridad (exportar / importar)
+    // MARK: - Backup (export / import)
 
-    /// Exporta el historial (items.json + imágenes + audio) a un .zip. NO incluye las API keys.
+    /// Exports the history (items.json + images + audio) to a .zip. Does NOT include the API keys.
     func exportBackup(to dest: URL) throws {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("KlipExport-\(UUID().uuidString)", isDirectory: true)
@@ -169,10 +169,10 @@ final class Storage {
         try Self.runDitto(["-c", "-k", "--keepParent", stage.path, dest.path])
     }
 
-    /// Importa una copia .zip y REEMPLAZA el historial actual, de forma **transaccional**:
-    /// valida el backup, mueve lo actual a `.importbak`, copia lo nuevo y, ante CUALQUIER fallo,
-    /// restaura desde el respaldo → nunca se pierde el historial existente. Devuelve los elementos.
-    /// (Pesado: ejecútalo fuera del hilo principal.)
+    /// Imports a .zip backup and REPLACES the current history, **transactionally**:
+    /// validates the backup, moves the current data to `.importbak`, copies the new data and, on ANY failure,
+    /// restores from the backup → the existing history is never lost. Returns the items.
+    /// (Heavy: run it off the main thread.)
     func importBackup(from src: URL) throws -> [ClipboardItem] {
         let fm = FileManager.default
         let tmp = fm.temporaryDirectory.appendingPathComponent("KlipImport-\(UUID().uuidString)", isDirectory: true)
@@ -183,7 +183,7 @@ final class Storage {
         guard let root = Self.findBackupRoot(in: tmp) else {
             throw Self.err("El archivo no es una copia de seguridad de Klip (falta items.json).")
         }
-        // Validar que el items.json del backup decodifica ANTES de tocar nada (no importar basura).
+        // Validate that the backup's items.json decodes BEFORE touching anything (don't import garbage).
         let newItemsFile = root.appendingPathComponent("items.json")
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         guard let data = try? Data(contentsOf: newItemsFile),
@@ -193,43 +193,43 @@ final class Storage {
 
         let newImages = root.appendingPathComponent("images")
         let newAudio = root.appendingPathComponent("audio")
-        // Respaldos con nombre único por intento → un residuo de un import abortado nunca colisiona
-        // con el moveItem de abajo (evita restaurar un .bak rancio sobre el original intacto).
+        // Backups with a unique name per attempt → leftovers from an aborted import never collide
+        // with the moveItem below (avoids restoring a stale .bak over the intact original).
         let token = UUID().uuidString
         let bakItems = baseURL.appendingPathComponent("items.json.\(token).importbak")
         let bakImages = baseURL.appendingPathComponent("images.\(token).importbak")
         let bakAudio = baseURL.appendingPathComponent("audio.\(token).importbak")
-        // Limpiar residuos de imports abortados anteriores (no colisionan con los de este intento).
+        // Clean up leftovers from earlier aborted imports (they don't collide with this attempt's).
         if let leftovers = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) {
             for f in leftovers where f.lastPathComponent.hasSuffix(".importbak") { try? fm.removeItem(at: f) }
         }
 
-        // Restaura un destino desde su respaldo (solo si el respaldo existe → original a salvo).
+        // Restores a destination from its backup (only if the backup exists → original is safe).
         func restore(_ live: URL, _ bak: URL) {
-            guard fm.fileExists(atPath: bak.path) else { return }   // sin bak: el live es el original intacto
+            guard fm.fileExists(atPath: bak.path) else { return }   // no bak: the live copy is the intact original
             try? fm.removeItem(at: live)
             try? fm.moveItem(at: bak, to: live)
         }
 
         do {
-            // Mover lo actual a .bak (renames atómicos en el mismo volumen).
+            // Move the current data to .bak (atomic renames within the same volume).
             if fm.fileExists(atPath: itemsURL.path)     { try fm.moveItem(at: itemsURL, to: bakItems) }
             if fm.fileExists(atPath: imagesURL.path)    { try fm.moveItem(at: imagesURL, to: bakImages) }
             if fm.fileExists(atPath: audioBaseURL.path) { try fm.moveItem(at: audioBaseURL, to: bakAudio) }
-            // Colocar lo nuevo.
+            // Put the new data in place.
             try fm.copyItem(at: newItemsFile, to: itemsURL)
             if fm.fileExists(atPath: newImages.path) { try fm.copyItem(at: newImages, to: imagesURL) }
             else { try fm.createDirectory(at: imagesURL, withIntermediateDirectories: true) }
             if fm.fileExists(atPath: newAudio.path) { try fm.copyItem(at: newAudio, to: audioBaseURL) }
             else { try fm.createDirectory(at: audioBaseURL, withIntermediateDirectories: true) }
         } catch {
-            restore(itemsURL, bakItems)        // rollback: deja el historial como estaba
+            restore(itemsURL, bakItems)        // rollback: leaves the history as it was
             restore(imagesURL, bakImages)
             restore(audioBaseURL, bakAudio)
             throw error
         }
 
-        [bakItems, bakImages, bakAudio].forEach { try? fm.removeItem(at: $0) }   // éxito: limpiar respaldos
+        [bakItems, bakImages, bakAudio].forEach { try? fm.removeItem(at: $0) }   // success: clean up backups
         Self.restrict(itemsURL.path, 0o600)
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
@@ -241,7 +241,7 @@ final class Storage {
         NSError(domain: "Klip", code: 1, userInfo: [NSLocalizedDescriptionKey: msg])
     }
 
-    /// Localiza la carpeta del backup que contiene items.json (keepParent → .../Klip/items.json).
+    /// Locates the backup folder that contains items.json (keepParent → .../Klip/items.json).
     private static func findBackupRoot(in dir: URL) -> URL? {
         let fm = FileManager.default
         if fm.fileExists(atPath: dir.appendingPathComponent("items.json").path) { return dir }
@@ -264,12 +264,12 @@ final class Storage {
         }
     }
 
-    // MARK: - Combinar / exportar selección (vibe coders)
+    // MARK: - Combine / export selection (vibe coders)
 
-    /// Combina varios elementos en un PDF (una página por elemento): imágenes como página de imagen,
-    /// textos como página de texto. Para subir varias capturas/notas de una sola vez a una IA.
-    /// Devuelve los datos y cuántas páginas se generaron (puede ser menos que items.count si algún
-    /// elemento no tenía contenido exportable). nil si no se pudo generar ninguna página.
+    /// Combines several items into a PDF (one page per item): images as an image page,
+    /// text as a text page. For uploading several captures/notes to an AI all at once.
+    /// Returns the data and how many pages were generated (may be fewer than items.count if some
+    /// item had no exportable content). nil if no page could be generated.
     func combinedPDF(from items: [ClipboardItem]) -> (data: Data, exported: Int)? {
         let doc = PDFDocument()
         var idx = 0
@@ -283,11 +283,11 @@ final class Storage {
         return (data, idx)
     }
 
-    /// Renderiza un texto en una "página" (imagen tamaño carta) con márgenes, para incrustar en el PDF.
-    /// Usa un drawingHandler (seguro fuera del hilo principal) en vez de lockFocus, ya que combinedPDF
-    /// se ejecuta en una cola de fondo.
+    /// Renders text into a "page" (letter-size image) with margins, to embed in the PDF.
+    /// Uses a drawingHandler (thread-safe off the main thread) instead of lockFocus, since combinedPDF
+    /// runs on a background queue.
     private static func pageImage(forText text: String) -> NSImage {
-        let pageW: CGFloat = 612, margin: CGFloat = 40   // US Letter a 72 dpi
+        let pageW: CGFloat = 612, margin: CGFloat = 40   // US Letter at 72 dpi
         let style = NSMutableParagraphStyle(); style.lineSpacing = 3
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
@@ -306,7 +306,7 @@ final class Storage {
         }
     }
 
-    /// Cuántos de los elementos tienen contenido que exportar a ZIP (imagen en disco, audio, o texto).
+    /// How many of the items have content to export to ZIP (image on disk, audio, or text).
     func zipExportableCount(_ items: [ClipboardItem]) -> Int {
         let fm = FileManager.default
         return items.reduce(0) { acc, it in
@@ -317,7 +317,7 @@ final class Storage {
         }
     }
 
-    /// Exporta los elementos seleccionados a un .zip (imágenes PNG, textos .txt, audios). Para subir el lote junto.
+    /// Exports the selected items to a .zip (PNG images, .txt text, audio). For uploading the batch together.
     func exportItemsZip(_ items: [ClipboardItem], to dest: URL) throws {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("KlipSel-\(UUID().uuidString)", isDirectory: true)
@@ -342,8 +342,8 @@ final class Storage {
 }
 
 extension NSImage {
-    /// Dimensiones REALES en píxeles (no en puntos): toma el rep de mayor resolución. En pantallas
-    /// retina, `size` viene en puntos (la mitad), así que esto es lo que el usuario espera ver.
+    /// REAL dimensions in pixels (not points): takes the highest-resolution rep. On retina
+    /// displays, `size` comes in points (half), so this is what the user expects to see.
     var pixelDimensions: NSSize {
         var w = 0, h = 0
         for r in representations { w = max(w, r.pixelsWide); h = max(h, r.pixelsHigh) }

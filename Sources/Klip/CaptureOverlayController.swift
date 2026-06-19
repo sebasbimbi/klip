@@ -1,7 +1,7 @@
 import AppKit
 
-/// Ventana sin borde a pantalla completa que muestra la captura congelada y atenuada, y deja
-/// al usuario arrastrar una región. Al soltar, recorta y entrega un NSImage de la zona elegida.
+/// Borderless full-screen window that shows the frozen, dimmed capture and lets
+/// the user drag out a region. On release, it crops and returns an NSImage of the chosen area.
 final class CaptureOverlayController {
     private var window: NSWindow?
     private let shot: DisplayShot
@@ -35,8 +35,8 @@ final class CaptureOverlayController {
         self.window = win
     }
 
-    /// Convierte la selección (puntos, origen abajo-izquierda de la vista) a píxeles del bitmap
-    /// (origen arriba-izquierda) y recorta el CGImage.
+    /// Converts the selection (points, bottom-left origin of the view) to bitmap pixels
+    /// (top-left origin) and crops the CGImage.
     private func finish(selectionInView rect: NSRect) {
         guard rect.width >= 4, rect.height >= 4 else { dismiss(nil); return }
         let scale = shot.scale
@@ -44,10 +44,10 @@ final class CaptureOverlayController {
         let imgBounds = CGRect(x: 0, y: 0, width: shot.cgImage.width, height: shot.cgImage.height)
         let px = CGRect(
             x: rect.minX * scale,
-            y: (viewH - rect.maxY) * scale,        // flip Y: Cocoa (abajo) → CGImage (arriba)
+            y: (viewH - rect.maxY) * scale,        // flip Y: Cocoa (bottom) → CGImage (top)
             width: rect.width * scale,
             height: rect.height * scale
-        ).integral.intersection(imgBounds)         // clamp: selección al borde no debe exceder el bitmap
+        ).integral.intersection(imgBounds)         // clamp: a selection at the edge must not exceed the bitmap
 
         guard !px.isNull, px.width >= 1, px.height >= 1,
               let cropped = shot.cgImage.cropping(to: px) else { dismiss(nil); return }
@@ -62,7 +62,7 @@ final class CaptureOverlayController {
     }
 }
 
-/// Vista que dibuja la captura congelada, la atenuación, la selección y el badge de dimensiones.
+/// View that draws the frozen capture, the dimming, the selection, and the dimensions badge.
 private final class CaptureOverlayView: NSView {
     private let shot: DisplayShot
     private let onSelect: (NSRect) -> Void
@@ -86,22 +86,22 @@ private final class CaptureOverlayView: NSView {
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
 
     override func draw(_ dirtyRect: NSRect) {
-        // Fondo: la captura congelada.
+        // Background: the frozen capture.
         bgImage.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
 
-        // Atenuación general.
+        // Overall dimming.
         NSColor.black.withAlphaComponent(0.45).setFill()
         bounds.fill()
 
         guard currentRect.width > 0, currentRect.height > 0 else {
-            drawHint()   // aún no hay selección: explicar qué hacer
+            drawHint()   // no selection yet: explain what to do
             return
         }
 
-        // "Agujero": vuelve a pintar la zona seleccionada sin atenuar.
+        // "Hole": repaint the selected area without dimming.
         bgImage.draw(in: currentRect, from: pixelSourceRect(for: currentRect), operation: .copy, fraction: 1)
 
-        // Borde de la selección.
+        // Selection border.
         NSColor.controlAccentColor.setStroke()
         let border = NSBezierPath(rect: currentRect.insetBy(dx: -0.5, dy: -0.5))
         border.lineWidth = 1.5
@@ -110,10 +110,10 @@ private final class CaptureOverlayView: NSView {
         drawDimensionBadge(for: currentRect)
     }
 
-    /// Rect fuente (en puntos de la imagen, origen abajo-izquierda) correspondiente a la zona de la vista.
+    /// Source rect (in image points, bottom-left origin) corresponding to the view area.
     private func pixelSourceRect(for rect: NSRect) -> NSRect { rect }
 
-    /// Indicación centrada mientras el usuario aún no ha arrastrado nada (para que el overlay se entienda).
+    /// Centered hint shown while the user hasn't dragged anything yet (so the overlay is self-explanatory).
     private func drawHint() {
         let text = L10n.t("capture.hint")
         let attrs: [NSAttributedString.Key: Any] = [
@@ -142,7 +142,7 @@ private final class CaptureOverlayView: NSView {
         let pad: CGFloat = 6
         var badge = NSRect(x: rect.minX, y: rect.maxY + 6,
                            width: textSize.width + pad * 2, height: textSize.height + pad)
-        // Si no cabe arriba, colócalo dentro/abajo.
+        // If it doesn't fit above, place it inside/below.
         if badge.maxY > bounds.maxY { badge.origin.y = rect.minY - badge.height - 6 }
         if badge.minY < bounds.minY { badge.origin.y = rect.minY + 6 }
         badge.origin.x = max(bounds.minX, min(badge.origin.x, bounds.maxX - badge.width))
@@ -152,7 +152,7 @@ private final class CaptureOverlayView: NSView {
         (label as NSString).draw(at: NSPoint(x: badge.minX + pad, y: badge.minY + pad / 2), withAttributes: attrs)
     }
 
-    // MARK: - Ratón
+    // MARK: - Mouse
 
     override func mouseDown(with event: NSEvent) {
         startPoint = convert(event.locationInWindow, from: nil)

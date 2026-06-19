@@ -1,7 +1,7 @@
 import AppKit
 
-/// Ventana del editor de capturas: toolbar de herramientas + lienzo. Al copiar/guardar entrega
-/// la imagen anotada; al cerrar sin guardar entrega nil.
+/// Snapshot editor window: tool toolbar + canvas. On copy/save it returns the annotated image;
+/// on close without saving it returns nil.
 final class SnapEditorController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let canvas: AnnotationCanvasView
@@ -10,7 +10,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     private var colorButtons: [NSButton] = []
     private var colorIndex = 0
     private var lastToolWasMarker = false
-    /// Paleta para dibujo normal y paleta de tonos de resaltador (se usa con el marcador).
+    /// Palette for normal drawing and a palette of highlighter tones (used with the marker).
     private let normalColors: [NSColor] = [.systemRed, .systemBlue, .black, .white]
     private let markerColors: [NSColor] = [.systemYellow, .systemGreen, .systemPink, .systemOrange]
     private var palette: [NSColor] { canvas.currentTool == .marker ? markerColors : normalColors }
@@ -25,11 +25,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     func present() {
         let imgSize = canvas.bounds.size
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
-        let minBarWidth: CGFloat = 780   // ancho mínimo para que la toolbar no se encime
+        let minBarWidth: CGFloat = 780   // minimum width so the toolbar doesn't overlap itself
         let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 52
         let scale = min(1, min(maxW / imgSize.width, maxH / imgSize.height))
         let contentW = max(minBarWidth, imgSize.width * scale)
-        let contentH = imgSize.height * scale + 52   // 52 = barra de herramientas
+        let contentH = imgSize.height * scale + 52   // 52 = toolbar
 
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: contentW, height: contentH),
                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -41,7 +41,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         let content = NSView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH))
 
-        // Lienzo dentro de un scroll view (por si la captura es grande).
+        // Canvas inside a scroll view (in case the capture is large).
         let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH - 52))
         scroll.autoresizingMask = [.width, .height]
         scroll.hasVerticalScroller = true
@@ -59,9 +59,9 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         win.makeFirstResponder(canvas)
-        canvas.currentLineWidth = 4   // trazo por defecto más grueso (más visible)
+        canvas.currentLineWidth = 4   // thicker default stroke (more visible)
         selectTool(.arrow)
-        // Al seleccionar/deseleccionar un texto, reflejar su color en la paleta de la toolbar.
+        // When selecting/deselecting a text, reflect its color in the toolbar palette.
         canvas.onSelectionChange = { [weak self] in self?.syncColorSelectionFromCanvas() }
         self.window = win
     }
@@ -75,7 +75,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         bar.state = .active
         let size: CGFloat = 30
 
-        // Grupo izquierdo: herramientas + color + grosor + deshacer.
+        // Left group: tools + color + thickness + undo.
         let leading = NSStackView()
         leading.orientation = .horizontal
         leading.spacing = 4
@@ -92,7 +92,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         leading.addArrangedSubview(separator())
 
-        // Colores: 4 presets (cambian a tonos de resaltador con el marcador) + "más" para el resto.
+        // Colors: 4 presets (they switch to highlighter tones with the marker) + "more" for the rest.
         for i in 0..<4 {
             let b = makeColorButton(tag: i)
             b.widthAnchor.constraint(equalToConstant: 24).isActive = true
@@ -107,7 +107,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         leading.addArrangedSubview(separator())
 
-        // Grosor: solo dos niveles (fina / gruesa), más gruesos y visibles que antes.
+        // Thickness: only two levels (thin / thick), thicker and more visible than before.
         let widths = NSSegmentedControl(images: [lineImage(4), lineImage(10)],
                                         trackingMode: .selectOne,
                                         target: self, action: #selector(widthChanged(_:)))
@@ -118,7 +118,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         leading.addArrangedSubview(separator())
 
-        // Tamaño de texto (afecta al texto seleccionado o al próximo que escribas).
+        // Text size (affects the selected text or the next one you type).
         let smaller = makeActionButton(symbol: "textformat.size.smaller", tip: "Texto más chico", action: #selector(textSmaller))
         let larger = makeActionButton(symbol: "textformat.size.larger", tip: "Texto más grande", action: #selector(textLarger))
         for b in [smaller, larger] {
@@ -133,7 +133,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         undo.widthAnchor.constraint(equalToConstant: size).isActive = true
         leading.addArrangedSubview(undo)
 
-        // Grupo derecho: copiar + guardar + cerrar.
+        // Right group: copy + save + close.
         let trailing = NSStackView()
         trailing.orientation = .horizontal
         trailing.spacing = 6
@@ -180,7 +180,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         return b
     }
 
-    // MARK: - Acciones de toolbar
+    // MARK: - Toolbar actions
 
     @objc private func toolTapped(_ sender: NSButton) {
         let tool = SnapTool.allCases[sender.tag]
@@ -192,11 +192,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         for (t, b) in toolButtons {
             let on = (t == tool)
             b.layer?.backgroundColor = on ? NSColor.controlAccentColor.cgColor : NSColor.clear.cgColor
-            b.contentTintColor = on ? .white : .labelColor   // resalta claramente la herramienta activa
+            b.contentTintColor = on ? .white : .labelColor   // clearly highlights the active tool
         }
-        refreshColorSwatches()                                // el marcador muestra tonos de resaltador
-        // Solo re-aplicar color cuando la PALETA cambia de tipo (normal↔marcador). Entre herramientas
-        // normales se conserva el color elegido (incluido uno libre del selector "más").
+        refreshColorSwatches()                                // the marker shows highlighter tones
+        // Only re-apply color when the PALETTE changes type (normal↔marker). Between normal tools
+        // the chosen color is preserved (including a custom one from the "more" picker).
         let isMarker = (tool == .marker)
         if isMarker != lastToolWasMarker, colorIndex >= 0 {
             canvas.setColor(palette[min(colorIndex, palette.count - 1)])
@@ -205,7 +205,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     }
 
     @objc private func widthChanged(_ sender: NSSegmentedControl) {
-        canvas.currentLineWidth = sender.selectedSegment == 1 ? 10 : 4   // gruesa / fina
+        canvas.currentLineWidth = sender.selectedSegment == 1 ? 10 : 4   // thick / thin
     }
 
     // MARK: - Color
@@ -226,12 +226,12 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     }
 
     @objc private func customColorChanged(_ sender: NSColorPanel) {
-        colorIndex = -1                                        // color libre: ningún preset marcado
+        colorIndex = -1                                        // custom color: no preset marked
         canvas.setColor(sender.color)
         refreshColorSwatches()
     }
 
-    /// Si el texto seleccionado usa un color de la paleta, marca ese swatch (si no, ninguno).
+    /// If the selected text uses a palette color, mark that swatch (otherwise none).
     private func syncColorSelectionFromCanvas() {
         colorIndex = palette.firstIndex(where: { Self.approxEqual($0, canvas.effectiveColor) }) ?? -1
         refreshColorSwatches()
@@ -248,7 +248,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         }
     }
 
-    // MARK: - Constructores de controles
+    // MARK: - Control builders
 
     private func makeToolButton(_ tool: SnapTool) -> NSButton {
         let b = NSButton(title: "", target: self, action: #selector(toolTapped(_:)))
@@ -290,7 +290,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         img.lockFocus()
         color.setFill()
         NSBezierPath(ovalIn: NSRect(x: 2, y: 2, width: d - 4, height: d - 4)).fill()
-        NSColor.separatorColor.setStroke()                     // borde para que el blanco se vea
+        NSColor.separatorColor.setStroke()                     // border so white is visible
         let ring = NSBezierPath(ovalIn: NSRect(x: 2, y: 2, width: d - 4, height: d - 4))
         ring.lineWidth = 1; ring.stroke()
         img.unlockFocus()
@@ -333,10 +333,10 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "Captura Klip.png"
-        // Hoja anclada a la ventana del editor (no flotante) para que no quede huérfana si se cierra.
+        // Sheet anchored to the editor window (not floating) so it isn't orphaned if it closes.
         panel.beginSheetModal(for: window) { [weak self] resp in
             guard let self else { return }
-            guard resp == .OK, let url = panel.url else { return }   // cancelar: el editor sigue abierto
+            guard resp == .OK, let url = panel.url else { return }   // cancel: the editor stays open
             guard let tiff = image.tiffRepresentation,
                   let rep = NSBitmapImageRep(data: tiff),
                   let png = rep.representation(using: .png, properties: [:]) else {
@@ -346,8 +346,8 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
                 try png.write(to: url)
                 self.finish(with: image)
             } catch {
-                // Fallo de escritura (disco lleno, ruta de solo lectura…): avisar y NO cerrar el editor,
-                // para no perder la anotación creyendo que se guardó.
+                // Write failure (disk full, read-only path…): warn and do NOT close the editor,
+                // so we don't lose the annotation thinking it was saved.
                 self.showError("No se pudo guardar la captura: \(error.localizedDescription)")
             }
         }
@@ -360,9 +360,9 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
     @objc private func closeTapped() { finish(with: nil) }
 
-    /// Al cerrar el editor, cierra también el NSColorPanel compartido (si se abrió con "más colores"):
-    /// de lo contrario seguiría flotando sobre una app de barra de menú sin ventanas, apuntando a un
-    /// editor ya destruido.
+    /// When closing the editor, also close the shared NSColorPanel (if it was opened via "more colors"):
+    /// otherwise it would keep floating over a menu-bar app with no windows, pointing to an
+    /// already-destroyed editor.
     private func dismissColorUI() {
         guard NSColorPanel.sharedColorPanelExists else { return }
         NSColorPanel.shared.setTarget(nil)

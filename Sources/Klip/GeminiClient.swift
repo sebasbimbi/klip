@@ -1,7 +1,7 @@
 import Foundation
 
-/// Cliente de Google Gemini para transcripción de audio (proveedor alternativo a OpenAI).
-/// La clave se lee del archivo local (gemini.key); se envía por el header x-goog-api-key (no en la URL).
+/// Google Gemini client for audio transcription (alternative provider to OpenAI).
+/// The key is read from the local file (gemini.key); it is sent via the x-goog-api-key header (not in the URL).
 final class GeminiClient {
     static let shared = GeminiClient()
     private let session: URLSession
@@ -17,8 +17,8 @@ final class GeminiClient {
         return v
     }
 
-    /// `model` se resuelve en el MainActor por quien llama (Recorder) y se pasa aquí, para no leer
-    /// `Settings.shared` desde el hilo de la transcripción (evita el data race con un @Published).
+    /// `model` is resolved on the MainActor by the caller (Recorder) and passed in here, so we don't read
+    /// `Settings.shared` from the transcription thread (avoids the data race with a @Published).
     func transcribe(audioURL: URL, language: String?, model: String) async throws -> String {
         let key = try apiKey()
         let resolvedModel = model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -73,7 +73,7 @@ final class GeminiClient {
         return text
     }
 
-    /// Tipos MIME de audio que acepta Gemini (best-effort; .m4a/AAC → audio/aac).
+    /// Audio MIME types that Gemini accepts (best-effort; .m4a/AAC → audio/aac).
     private static func mimeType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
         case "mp3", "mpeg", "mpga":        return "audio/mp3"
@@ -87,11 +87,11 @@ final class GeminiClient {
     }
 }
 
-/// Selecciona el proveedor de IA configurado para transcribir.
+/// Selects the configured AI provider for transcription.
 enum AIProvider {
     static var selected: String { Settings.shared.aiProvider }
 
-    /// ¿Hay clave para el proveedor seleccionado (con respaldo a OpenAI si Gemini no tiene clave)?
+    /// Is there a key for the selected provider (falling back to OpenAI if Gemini has no key)?
     static var hasKey: Bool {
         if selected == "gemini" { return GeminiClient.shared.hasAPIKey || OpenAIClient.shared.hasAPIKey }
         return OpenAIClient.shared.hasAPIKey

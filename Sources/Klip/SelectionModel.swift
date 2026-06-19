@@ -1,19 +1,19 @@
 import Foundation
 import Combine
 
-/// Fuente de verdad de la navegación por teclado, compartida entre el monitor
-/// AppKit (PanelController) y la vista SwiftUI (HistoryView).
+/// Source of truth for keyboard navigation, shared between the AppKit
+/// monitor (PanelController) and the SwiftUI view (HistoryView).
 final class SelectionModel: ObservableObject {
-    /// IDs en el MISMO orden que muestra la lista filtrada del View.
+    /// IDs in the SAME order the View's filtered list shows.
     @Published var visibleIDs: [UUID] = []
-    /// Índice seleccionado dentro de visibleIDs (-1 = nada).
+    /// Selected index within visibleIDs (-1 = nothing).
     @Published var selectedIndex: Int = 0
-    /// Se incrementa en cada apertura del panel para que la vista resetee búsqueda y foco.
+    /// Incremented each time the panel opens so the view resets search and focus.
     @Published var openToken: Int = 0
-    /// Se incrementa para devolver el foco al buscador SIN limpiar búsqueda/filtro (p.ej. tras renombrar).
+    /// Incremented to return focus to the search field WITHOUT clearing search/filter (e.g. after renaming).
     @Published var focusToken: Int = 0
-    /// true mientras el panel está en modo multi-selección por lote: el teclado (Return / ⌘1-9) NO debe
-    /// pegar ni cerrar el panel (rompería el lote que el usuario está armando). Lo sincroniza HistoryView.
+    /// true while the panel is in batch multi-selection mode: the keyboard (Return / ⌘1-9) must NOT
+    /// paste or close the panel (it would break the batch the user is assembling). Synced by HistoryView.
     @Published var selecting: Bool = false
 
     var visibleCount: Int { visibleIDs.count }
@@ -23,10 +23,10 @@ final class SelectionModel: ObservableObject {
         return visibleIDs[selectedIndex]
     }
 
-    /// El View llama a esto cuando cambia la lista filtrada.
+    /// The View calls this when the filtered list changes.
     func updateVisible(_ ids: [UUID]) {
-        // Re-anclar por ID: si el elemento seleccionado sigue visible, conservar su selección
-        // (evita que la selección "salte" al entrar capturas nuevas); si no, ir al primero.
+        // Re-anchor by ID: if the selected item is still visible, keep its selection
+        // (prevents the selection from "jumping" when new captures come in); otherwise, go to the first.
         let prev = selectedID
         visibleIDs = ids
         if let prev, let i = ids.firstIndex(of: prev) { selectedIndex = i }
@@ -43,7 +43,7 @@ final class SelectionModel: ObservableObject {
         selectedIndex = max(selectedIndex - 1, 0)
     }
 
-    /// ⌘1..⌘9 → índice 0..8 (si existe).
+    /// ⌘1..⌘9 → index 0..8 (if it exists).
     func selectQuick(_ n: Int) {
         let i = n - 1
         if visibleIDs.indices.contains(i) { selectedIndex = i }

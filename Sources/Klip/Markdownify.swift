@@ -1,20 +1,20 @@
 import Foundation
 
-/// Conversión local (sin red) de texto a Markdown.
+/// Local (offline) conversion of text to Markdown.
 enum Markdownify {
     static func fromText(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return "" }
 
-        // ¿URL sola? → enlace.
+        // URL on its own? → link.
         if t.range(of: "^https?://\\S+$", options: .regularExpression) != nil {
             return "[\(t)](\(t))"
         }
-        // ¿Parece código? → bloque cercado.
+        // Looks like code? → fenced block.
         if looksLikeCode(t) {
             return "```\n\(text)\n```"
         }
-        // Texto normal → párrafos separados por línea en blanco.
+        // Normal text → paragraphs separated by a blank line.
         let paras = text.replacingOccurrences(of: "\r\n", with: "\n")
             .components(separatedBy: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -33,7 +33,7 @@ enum Markdownify {
     }
 }
 
-/// Exporta el historial completo como un documento Markdown.
+/// Exports the entire history as a Markdown document.
 enum MarkdownExporter {
     static func history(_ items: [ClipboardItem]) -> String {
         var out = "# Klip — Historial del portapapeles\n\n"
@@ -52,7 +52,7 @@ enum MarkdownExporter {
             switch item.kind {
             case .text:
                 if item.isCredential == true {
-                    // No exportar secretos en claro: solo enmascarado.
+                    // Don't export secrets in the clear: masked only.
                     out += "🔑 _Credencial oculta (\(CredentialDetector.masked(item.text ?? "")))_\n\n"
                 } else {
                     out += Markdownify.fromText(item.text ?? "") + "\n\n"

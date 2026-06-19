@@ -2,7 +2,7 @@ import AppKit
 import ScreenCaptureKit
 import CoreGraphics
 
-/// Resultado de una captura: la pantalla capturada, su bitmap en píxeles y el factor de escala.
+/// Result of a capture: the captured screen, its pixel bitmap, and the scale factor.
 struct DisplayShot {
     let screen: NSScreen
     let cgImage: CGImage
@@ -11,26 +11,26 @@ struct DisplayShot {
 
 enum CaptureError: Error { case noDisplay, noPermission }
 
-/// Captura de pantalla con ScreenCaptureKit (macOS 14+). Reemplaza a `CGDisplayCreateImage`
-/// (deprecado). Estrategia: capturar SOLO el display que contiene el cursor — evita los bugs
-/// clásicos de coordenadas multi-monitor y es el caso de uso real (seleccionas donde estás).
+/// Screen capture with ScreenCaptureKit (macOS 14+). Replaces `CGDisplayCreateImage`
+/// (deprecated). Strategy: capture ONLY the display that contains the cursor — this avoids the
+/// classic multi-monitor coordinate bugs and matches the real use case (you select where you are).
 enum ScreenCapturer {
 
-    /// ¿El usuario ya concedió el permiso de Grabación de pantalla? (no dispara el prompt)
+    /// Has the user already granted Screen Recording permission? (does not trigger the prompt)
     static func hasPermission() -> Bool { CGPreflightScreenCaptureAccess() }
 
-    /// Dispara el prompt del sistema (una sola vez). Devuelve si quedó concedido.
+    /// Triggers the system prompt (only once). Returns whether it ended up granted.
     @discardableResult
     static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
-    /// Calienta el subsistema de captura para que el primer disparo real no tenga latencia visible.
+    /// Warms up the capture subsystem so the first real shot has no visible latency.
     static func warmUp() {
         Task.detached(priority: .utility) {
             _ = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         }
     }
 
-    /// Captura el display que contiene `point` (coordenadas globales Cocoa, origen abajo-izquierda).
+    /// Captures the display that contains `point` (global Cocoa coordinates, bottom-left origin).
     static func captureDisplay(containing point: NSPoint) async throws -> DisplayShot {
         guard hasPermission() else { throw CaptureError.noPermission }
 
@@ -43,12 +43,12 @@ enum ScreenCapturer {
             throw CaptureError.noDisplay
         }
 
-        // Excluir las ventanas de la propia Klip (panel/overlay) para que no salgan en la captura.
+        // Exclude Klip's own windows (panel/overlay) so they don't appear in the capture.
         let ownBundleID = Bundle.main.bundleIdentifier
         let ownApps = content.applications.filter { $0.bundleIdentifier == ownBundleID }
         let filter = SCContentFilter(display: scd, excludingApplications: ownApps, exceptingWindows: [])
         let config = SCStreamConfiguration()
-        // Píxeles físicos = puntos × escala (correcto en Retina).
+        // Physical pixels = points × scale (correct on Retina).
         config.width  = Int(screen.frame.width  * screen.backingScaleFactor)
         config.height = Int(screen.frame.height * screen.backingScaleFactor)
         config.showsCursor = false
@@ -60,7 +60,7 @@ enum ScreenCapturer {
 }
 
 extension NSScreen {
-    /// CGDirectDisplayID de esta pantalla (para emparejar con SCDisplay).
+    /// CGDirectDisplayID of this screen (to match against SCDisplay).
     var displayID: CGDirectDisplayID {
         (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
     }

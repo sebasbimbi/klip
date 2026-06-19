@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Ventana para subir audios y transcribirlos: zona de arrastre + elegir archivos.
+/// Window to upload audio files and transcribe them: drop zone + file picker.
 struct UploadView: View {
     @ObservedObject var recorder: Recorder
     var onChoose: () -> Void
@@ -73,8 +73,8 @@ struct UploadView: View {
         for p in providers {
             group.enter()
             p.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                // loadItem entrega su callback en una cola interna arbitraria y los providers corren en
-                // paralelo: acumular en main serializa los append (Array no es thread-safe).
+                // loadItem delivers its callback on an arbitrary internal queue and the providers run in
+                // parallel: accumulating on main serializes the appends (Array is not thread-safe).
                 let resolved: URL? = (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
                     ?? (item as? URL)
                 DispatchQueue.main.async {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Detecta si un texto parece una credencial (API key, token, secreto) para el mini gestor.
+/// Detects whether a text looks like a credential (API key, token, secret) for the mini manager.
 enum CredentialDetector {
     private static let patterns: [String] = [
         "sk-[A-Za-z0-9_-]{20,}",                              // OpenAI
@@ -21,7 +21,7 @@ enum CredentialDetector {
         return false
     }
 
-    /// Versión enmascarada para mostrar sin revelar el secreto (••••1234).
+    /// Masked version to display without revealing the secret (••••1234).
     static func masked(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.count > 4 else { return "••••" }

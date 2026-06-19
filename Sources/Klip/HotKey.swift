@@ -1,21 +1,21 @@
 import Carbon.HIToolbox
 import AppKit
 
-/// Atajo de teclado GLOBAL (funciona aunque la app no esté en primer plano),
-/// usando la API Carbon RegisterEventHotKey. No requiere permisos de Accesibilidad.
+/// GLOBAL keyboard shortcut (works even when the app is not in the foreground),
+/// using the Carbon RegisterEventHotKey API. Does not require Accessibility permissions.
 final class HotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
     private let id: UInt32
     private let callback: () -> Void
 
-    /// Mapa estático para que el callback en C (sin captura) pueda localizar la instancia.
+    /// Static map so the C callback (which can't capture) can locate the instance.
     private static var instances: [UInt32: HotKey] = [:]
     private static var handlerInstalled = false
 
     /// - Parameters:
-    ///   - keyCode: código de tecla virtual (p. ej. kVK_ANSI_V).
-    ///   - modifiers: combinación Carbon (p. ej. cmdKey | shiftKey).
+    ///   - keyCode: virtual key code (e.g. kVK_ANSI_V).
+    ///   - modifiers: Carbon combination (e.g. cmdKey | shiftKey).
     init?(keyCode: UInt32, modifiers: UInt32, id: UInt32 = 1, callback: @escaping () -> Void) {
         self.id = id
         self.callback = callback
@@ -54,12 +54,12 @@ final class HotKey {
         }, 1, &eventType, nil, nil)
     }
 
-    /// Re-registra en caliente con una nueva combinación, reusando id y callback.
-    /// El handler global ya instalado sigue válido; no se reinstala.
+    /// Hot-reloads with a new combination, reusing the id and callback.
+    /// The already-installed global handler stays valid; it is not reinstalled.
     @discardableResult
     func reRegister(keyCode: UInt32, modifiers: UInt32) -> Bool {
-        // Registrar el NUEVO en una ref temporal; solo soltar el viejo si tuvo éxito,
-        // para no quedarnos sin atajo si la combinación colisiona.
+        // Register the NEW one in a temporary ref; only release the old one if it succeeded,
+        // so we don't end up without a shortcut if the combination collides.
         let hotKeyID = EventHotKeyID(signature: OSType(0x50415354), id: id) // 'PAST'
         var newRef: EventHotKeyRef?
         let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,

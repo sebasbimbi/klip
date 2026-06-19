@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Ventana de Preferencias normal (titulada), distinta del panel flotante.
+/// Standard (titled) Preferences window, distinct from the floating panel.
 final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
     convenience init(onHotKeyChange: @escaping (KeyCombo) -> Void,
@@ -25,14 +25,14 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func show() {
-        // Pasar a app "regular" mientras la ventana está abierta: garantiza foco de teclado
-        // (necesario para escribir/pegar la API key en el SecureField).
+        // Switch to a "regular" app while the window is open: guarantees keyboard focus
+        // (needed to type/paste the API key into the SecureField).
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
 
     func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)   // volver a app de barra de menú (sin Dock)
+        NSApp.setActivationPolicy(.accessory)   // back to a menu-bar app (no Dock)
     }
 }

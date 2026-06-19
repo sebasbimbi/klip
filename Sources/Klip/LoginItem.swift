@@ -2,7 +2,7 @@ import Foundation
 import ServiceManagement
 import AppKit
 
-/// Errores legibles para la UI al activar el arranque al iniciar sesión.
+/// Human-readable errors for the UI when enabling launch at login.
 enum LoginItemError: LocalizedError {
     case invalidSignature
     case requiresApproval
@@ -23,7 +23,7 @@ enum LoginItemError: LocalizedError {
     }
 }
 
-/// Controla el arranque al iniciar sesión vía SMAppService.mainApp (macOS 13+).
+/// Controls launch at login via SMAppService.mainApp (macOS 13+).
 final class LoginItem {
     static let shared = LoginItem()
     private let service = SMAppService.mainApp
@@ -33,13 +33,13 @@ final class LoginItem {
 
     var requiresApproval: Bool { service.status == .requiresApproval }
 
-    /// Activo o pendiente de aprobación del usuario (para reflejar el estado real en la UI).
+    /// Enabled or pending user approval (to reflect the real state in the UI).
     var isEnabledOrPending: Bool {
         let s = service.status
         return s == .enabled || s == .requiresApproval
     }
 
-    /// La app debe correr desde una ubicación estable (no translocada) y firmada.
+    /// The app must run from a stable (non-translocated) and signed location.
     private func preflight() -> LoginItemError? {
         if Bundle.main.bundlePath.contains("/AppTranslocation/") { return .translocated }
         return nil
@@ -52,8 +52,8 @@ final class LoginItem {
             else       { try service.unregister() }
         } catch let e as NSError {
             switch e.code {
-            case 12: return            // kSMErrorAlreadyRegistered -> éxito idempotente
-            case 6:  return            // kSMErrorJobNotFound -> ya estaba inactivo
+            case 12: return            // kSMErrorAlreadyRegistered -> idempotent success
+            case 6:  return            // kSMErrorJobNotFound -> was already inactive
             case 3:  throw LoginItemError.invalidSignature
             case 11: throw LoginItemError.requiresApproval
             default: throw LoginItemError.underlying(e)
@@ -74,7 +74,7 @@ final class LoginItem {
         }
     }
 
-    /// Registra el arranque automático la primera vez (idempotente, silencioso).
+    /// Registers launch at login the first time (idempotent, silent).
     func registerIfNeeded() {
         guard service.status != .enabled, service.status != .requiresApproval else { return }
         try? setEnabled(true)

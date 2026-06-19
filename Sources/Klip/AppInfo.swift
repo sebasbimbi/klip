@@ -1,6 +1,6 @@
 import Foundation
 
-/// Metadatos de la app para "Acerca de" y enlaces.
+/// App metadata for the "About" panel and links.
 enum AppInfo {
     static let name = "Klip"
     static var version: String {

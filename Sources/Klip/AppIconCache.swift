@@ -1,6 +1,6 @@
 import AppKit
 
-/// Caché en memoria de iconos de apps por bundle ID, para mostrar el origen sin coste por frame.
+/// In-memory cache of app icons by bundle ID, to show the source without per-frame cost.
 enum AppIconCache {
     private static var cache: [String: NSImage] = [:]
 

@@ -1,13 +1,13 @@
 import AppKit
 import Combine
 
-/// Snapshot del origen tomado al inicio de poll().
+/// Snapshot of the source taken at the start of poll().
 struct CaptureSource {
     let name: String?
     let bundleID: String?
 }
 
-/// Monitorea el portapapeles, mantiene el historial y expone acciones.
+/// Monitors the pasteboard, maintains the history, and exposes actions.
 final class ClipboardManager: ObservableObject {
     @Published private(set) var items: [ClipboardItem] = []
 
@@ -22,9 +22,9 @@ final class ClipboardManager: ObservableObject {
         lastChangeCount = NSPasteboard.general.changeCount
         items = storage.loadItems()
         reconcileVoiceNotesOnLoad()
-        // Limpieza de huérfanos (audio/imágenes sin item, p.ej. tras un cierre a media transcripción).
-        // Solo si hay items: items vacío también ocurre si items.json está corrupto/ilegible, y en ese
-        // caso barrer borraría TODA la media (evitamos esa pérdida; los archivos siguen ahí para recuperar).
+        // Clean up orphans (audio/images with no item, e.g. after quitting mid-transcription).
+        // Only if there are items: an empty items array also happens when items.json is corrupt/unreadable, and in
+        // that case sweeping would delete ALL the media (we avoid that loss; the files stay there for recovery).
         if !items.isEmpty {
             storage.pruneOrphans(
                 referencedAudio: Set(items.compactMap { $0.audioFileName }),
@@ -32,8 +32,8 @@ final class ClipboardManager: ObservableObject {
         }
     }
 
-    /// Repara notas de voz que quedaron en "Transcribiendo…" (la app se cerró durante la transcripción):
-    /// si conservan su audio, pasan a "sin transcripción" (recuperable); si no, se descartan.
+    /// Repairs voice notes left in "Transcribiendo…" (the app was closed during transcription):
+    /// if they still have their audio, they move to "no transcription" (recoverable); otherwise they are discarded.
     private func reconcileVoiceNotesOnLoad() {
         var changed = false
         for idx in items.indices where items[idx].isVoiceNote == true && items[idx].preview == Self.voiceTranscribing {
@@ -41,7 +41,7 @@ final class ClipboardManager: ObservableObject {
                 items[idx].text = nil
                 items[idx].preview = Self.voiceFailed
             } else {
-                items[idx].audioFileName = nil   // marca para eliminar
+                items[idx].audioFileName = nil   // mark for removal
             }
             changed = true
         }
@@ -56,11 +56,11 @@ final class ClipboardManager: ObservableObject {
         timer = t
     }
 
-    /// Pausa el monitoreo del portapapeles (p. ej. durante un import: evita escribir en el mismo
-    /// directorio que la importación en segundo plano). Llamar en el hilo principal.
+    /// Pauses pasteboard monitoring (e.g. during an import: avoids writing to the same
+    /// directory as the background import). Call on the main thread.
     func pauseMonitoring() { timer?.invalidate(); timer = nil }
 
-    /// Reanuda el monitoreo. Reancla lastChangeCount para no capturar lo copiado durante la pausa.
+    /// Resumes monitoring. Re-anchors lastChangeCount so anything copied during the pause is not captured.
     func resumeMonitoring() {
         guard timer == nil else { return }
         lastChangeCount = NSPasteboard.general.changeCount
@@ -71,18 +71,18 @@ final class ClipboardManager: ObservableObject {
         let pb = NSPasteboard.general
         guard pb.changeCount != lastChangeCount else { return }
         lastChangeCount = pb.changeCount
-        let source = currentSource()                // origen ANTES del gate (el foco puede cambiar)
+        let source = currentSource()                // source BEFORE the gate (focus may change)
         guard !shouldIgnore(pb) else { return }
         capture(from: pb, source: source)
     }
 
     private func currentSource() -> CaptureSource {
-        // Desactivado: atribuir el "origen" por la app frontal al momento del sondeo era poco
-        // fiable (marcaba la app activa equivocada, p.ej. la que tenía el foco 0.5s después).
+        // Disabled: attributing the "source" to the frontmost app at poll time was unreliable
+        // (it marked the wrong active app, e.g. the one that had focus 0.5s later).
         CaptureSource(name: nil, bundleID: nil)
     }
 
-    // MARK: - Filtro de privacidad
+    // MARK: - Privacy filter
 
     private func shouldIgnore(_ pb: NSPasteboard) -> Bool {
         hasPrivacyMarker(pb) || isFrontmostAppExcluded()
@@ -103,7 +103,7 @@ final class ClipboardManager: ObservableObject {
         return settings.excludedBundleIDs.contains(id)
     }
 
-    // MARK: - Captura
+    // MARK: - Capture
 
     private func capture(from pb: NSPasteboard, source: CaptureSource) {
         let remote = settings.detectRemoteSource
@@ -128,14 +128,14 @@ final class ClipboardManager: ObservableObject {
         if let idx = items.firstIndex(where: { $0.kind == .text && $0.isVoiceNote != true && $0.text == text }) {
             var item = items.remove(at: idx)
             item.createdAt = Date()
-            item.sourceName = source.name           // refrescar origen con la captura nueva
+            item.sourceName = source.name           // refresh source with the new capture
             item.sourceBundleID = source.bundleID
             item.isRemote = remote ? true : nil
             items.insert(item, at: 0)
         } else {
             let isCred = CredentialDetector.looksLikeCredential(text)
             let preview = isCred
-                ? CredentialDetector.masked(text)   // no guardar el secreto en claro en el preview
+                ? CredentialDetector.masked(text)   // don't store the secret in cleartext in the preview
                 : String(text.prefix(160)).replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
             items.insert(ClipboardItem(kind: .text, text: text, preview: preview,
                                        sourceName: source.name, sourceBundleID: source.bundleID,
@@ -156,14 +156,14 @@ final class ClipboardManager: ObservableObject {
         trimAndSave()
     }
 
-    /// Inserta una captura anotada (Klip Snap) en el historial persistente y, opcionalmente, la deja
-    /// en el portapapeles. Análogo público a `addImage`, pero para imágenes generadas por la app
-    /// (no capturadas del pasteboard). Queda disponible para OCR y búsqueda como cualquier imagen.
+    /// Inserts an annotated screenshot (Klip Snap) into the persistent history and, optionally, leaves it
+    /// on the pasteboard. Public counterpart to `addImage`, but for images generated by the app
+    /// (not captured from the pasteboard). It becomes available for OCR and search like any other image.
     @discardableResult
     func addAnnotatedScreenshot(_ image: NSImage, copyToClipboard: Bool = true) -> UUID {
         let fileName = "\(UUID().uuidString).png"
         storage.saveImage(image, fileName: fileName)
-        let size = image.pixelDimensions   // píxeles reales (no puntos): badge consistente en Retina
+        let size = image.pixelDimensions   // real pixels (not points): consistent badge on Retina
         let preview = "Captura · \(Int(size.width))×\(Int(size.height))"
         let item = ClipboardItem(kind: .image, imageFileName: fileName, preview: preview)
         items.insert(item, at: 0)
@@ -171,12 +171,12 @@ final class ClipboardManager: ObservableObject {
         if copyToClipboard {
             let pb = NSPasteboard.general
             pb.clearContents(); pb.writeObjects([image])
-            lastChangeCount = pb.changeCount   // ya está en el historial: no re-capturar como item nuevo
+            lastChangeCount = pb.changeCount   // already in the history: don't re-capture it as a new item
         }
         return item.id
     }
 
-    // MARK: - Notas de voz (audio guardado + transcripción en 3 pasos)
+    // MARK: - Voice notes (saved audio + 3-step transcription)
 
     static let voiceTranscribing = "🎙 Transcribiendo…"
     static let voiceFailed = "🎙 Nota de voz (sin transcripción · reproduce el audio)"
@@ -188,11 +188,11 @@ final class ClipboardManager: ObservableObject {
             .trimmingCharacters(in: .whitespaces)
     }
 
-    /// changeCount del portapapeles al empezar cada nota: solo auto-pegamos su transcripción si el
-    /// usuario NO copió nada distinto mientras transcribía (no pisar su portapapeles en 2º plano).
+    /// Pasteboard changeCount when each note starts: we only auto-paste its transcription if the
+    /// user did NOT copy anything else while it was transcribing (don't clobber their pasteboard in the background).
     private var voicePasteGuards: [UUID: Int] = [:]
 
-    /// Crea el elemento de la nota de voz con su audio (placeholder "Transcribiendo…") y devuelve su id.
+    /// Creates the voice note item with its audio (placeholder "Transcribiendo…") and returns its id.
     @discardableResult
     func beginVoiceNote(audioFileName: String?, duration: Double?) -> UUID {
         let item = ClipboardItem(kind: .text, preview: Self.voiceTranscribing,
@@ -203,36 +203,36 @@ final class ClipboardManager: ObservableObject {
         return item.id
     }
 
-    /// Vuelve a marcar un elemento como "Transcribiendo…" (reintento de una nota fallida).
+    /// Marks an item as "Transcribiendo…" again (retry of a failed note).
     func markVoiceNoteTranscribing(id: UUID) {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].text = nil
         items[idx].preview = Self.voiceTranscribing
-        // Re-registrar el guard de portapapeles: si no, un reintento exitoso nunca se auto-pegaría
-        // (removeValue daría nil → canPaste=false). El auto-pegado de reintentos quedaba muerto.
+        // Re-register the pasteboard guard: otherwise a successful retry would never auto-paste
+        // (removeValue would return nil → canPaste=false). Auto-paste on retries was dead.
         voicePasteGuards[id] = NSPasteboard.general.changeCount
         storage.saveItems(items)
     }
 
-    /// Rellena la transcripción. Solo la deja en el portapapeles si el usuario NO copió otra cosa
-    /// mientras transcribía (evita pisar su portapapeles en segundo plano).
+    /// Fills in the transcription. Only leaves it on the pasteboard if the user did NOT copy something else
+    /// while it was transcribing (avoids clobbering their pasteboard in the background).
     func finishVoiceNote(id: UUID, text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let canPaste = voicePasteGuards.removeValue(forKey: id).map { $0 == NSPasteboard.general.changeCount } ?? false
         guard let idx = items.firstIndex(where: { $0.id == id }) else {
-            // El elemento ya no existe: el usuario lo borró (o se reemplazó al importar). No tocar su
-            // portapapeles con la transcripción de una nota que eliminó a propósito.
+            // The item no longer exists: the user deleted it (or it was replaced on import). Don't touch their
+            // pasteboard with the transcription of a note they intentionally removed.
             return
         }
         items[idx].text = clean.isEmpty ? nil : clean
         items[idx].preview = clean.isEmpty ? Self.voiceFailed : Self.voicePreview(clean)
         let item = items[idx]
         trimAndSave()
-        if !clean.isEmpty, canPaste { copyToPasteboard(item) }   // solo si nada cambió el portapapeles
+        if !clean.isEmpty, canPaste { copyToPasteboard(item) }   // only if nothing changed the pasteboard
     }
 
-    /// La transcripción falló: deja el elemento visible (con audio reproducible si lo hay) en vez de
-    /// borrarlo en silencio, para que el usuario sepa qué pasó y pueda recuperarlo o eliminarlo.
+    /// Transcription failed: keeps the item visible (with playable audio if any) instead of
+    /// deleting it silently, so the user knows what happened and can recover or remove it.
     func failVoiceNote(id: UUID) {
         voicePasteGuards.removeValue(forKey: id)
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
@@ -241,7 +241,7 @@ final class ClipboardManager: ObservableObject {
         storage.saveItems(items)
     }
 
-    /// No se recorta: ni los fijados ni una nota de voz aún transcribiéndose (se perdería su audio/texto).
+    /// Not trimmed: neither pinned items nor a voice note still being transcribed (its audio/text would be lost).
     private func isProtectedFromTrim(_ it: ClipboardItem) -> Bool {
         it.pinned || (it.isVoiceNote == true && it.preview == Self.voiceTranscribing)
     }
@@ -265,13 +265,13 @@ final class ClipboardManager: ObservableObject {
 
     func applyMaxItems() { trimAndSave() }
 
-    // MARK: - Acciones
+    // MARK: - Actions
 
     func copyToPasteboard(_ item: ClipboardItem) {
         let pb = NSPasteboard.general
         switch item.kind {
         case .text:
-            guard let t = item.text, !t.isEmpty else { return }   // nota de voz sin texto: no tocar el portapapeles
+            guard let t = item.text, !t.isEmpty else { return }   // voice note without text: don't touch the pasteboard
             pb.clearContents(); pb.setString(t, forType: .string)
         case .image:
             guard let f = item.imageFileName, let img = storage.loadImage(fileName: f) else { return }
@@ -284,7 +284,7 @@ final class ClipboardManager: ObservableObject {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
-        lastChangeCount = pb.changeCount   // evita re-capturar la salida de Markdown/OCR como item nuevo
+        lastChangeCount = pb.changeCount   // avoids re-capturing the Markdown/OCR output as a new item
     }
 
     func extractText(from item: ClipboardItem) -> String? {
@@ -302,7 +302,7 @@ final class ClipboardManager: ObservableObject {
         storage.saveItems(items)
     }
 
-    /// Reemplaza el historial en memoria tras importar una copia de seguridad.
+    /// Replaces the in-memory history after importing a backup.
     func reload(_ newItems: [ClipboardItem]) {
         AudioPlayer.shared.stop()
         items = newItems
@@ -322,12 +322,12 @@ final class ClipboardManager: ObservableObject {
     func togglePin(_ item: ClipboardItem) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         items[idx].pinned.toggle()
-        trimAndSave()   // re-evaluar el recorte al desfijar (puede exceder maxItems)
+        trimAndSave()   // re-evaluate trimming when unpinning (may exceed maxItems)
     }
 
-    // MARK: - Colecciones (vibe coders)
+    // MARK: - Collections (vibe coders)
 
-    /// Asigna (o quita, con nombre vacío) una colección a varios elementos.
+    /// Assigns (or clears, with an empty name) a collection to several items.
     func assignCollection(_ ids: Set<UUID>, to name: String?) {
         let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
         let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
@@ -335,10 +335,10 @@ final class ClipboardManager: ObservableObject {
         storage.saveItems(items)
     }
 
-    /// Nombres de colecciones existentes (para los filtros).
+    /// Names of existing collections (for the filters).
     var collections: [String] { Array(Set(items.compactMap { $0.collection })).sorted() }
 
-    /// Pone (o quita) la etiqueta/nombre de un elemento. El nombre es buscable y se muestra como título.
+    /// Sets (or clears) an item's label/name. The name is searchable and is shown as the title.
     func rename(_ item: ClipboardItem, to name: String) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -346,12 +346,12 @@ final class ClipboardManager: ObservableObject {
         storage.saveItems(items)
     }
 
-    /// Marca o desmarca un elemento como credencial (mini gestor).
+    /// Marks or unmarks an item as a credential (mini manager).
     func toggleCredential(_ item: ClipboardItem) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         let nowCred = !(items[idx].isCredential == true)
         items[idx].isCredential = nowCred ? true : nil
-        if let t = items[idx].text {   // regenerar el preview (enmascarar / desenmascarar)
+        if let t = items[idx].text {   // regenerate the preview (mask / unmask)
             items[idx].preview = nowCred
                 ? CredentialDetector.masked(t)
                 : String(t.prefix(160)).replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
@@ -360,12 +360,12 @@ final class ClipboardManager: ObservableObject {
     }
 }
 
-/// Heurística best-effort para "otro dispositivo" (NO hay API pública fiable de Universal Clipboard).
+/// Best-effort heuristic for "another device" (there is NO reliable public Universal Clipboard API).
 enum RemoteClipboardHeuristic {
     static func looksRemote(pb: NSPasteboard, source: CaptureSource, captureSourceEnabled: Bool) -> Bool {
-        // Solo marcamos "otro dispositivo" si aparece el marcador fiable de Apple.
-        // La heurística por "sin app de origen" daba falsos positivos (SecurityAgent, helpers…);
-        // se elimina: preferimos NO marcar antes que marcar mal.
+        // We only mark "another device" if Apple's reliable marker is present.
+        // The "no source app" heuristic produced false positives (SecurityAgent, helpers…);
+        // it's removed: we'd rather NOT mark than mark incorrectly.
         pb.types?.contains(where: { $0.rawValue == "com.apple.is-remote-clipboard" }) == true
     }
 }

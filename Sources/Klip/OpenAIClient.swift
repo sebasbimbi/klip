@@ -20,7 +20,7 @@ enum OpenAIError: Error, LocalizedError {
     }
 }
 
-/// Cliente HTTP de OpenAI. Lee la clave del Llavero en cada petición (nunca la hardcodea).
+/// OpenAI HTTP client. Reads the key from the Keychain on every request (never hardcodes it).
 final class OpenAIClient {
     static let shared = OpenAIClient()
     private let session: URLSession
@@ -36,7 +36,7 @@ final class OpenAIClient {
         return v
     }
 
-    // MARK: - Transcripción de audio
+    // MARK: - Audio transcription
 
     func transcribe(audioURL: URL, language: String?, model: String) async throws -> String {
         let key = try apiKey()
@@ -75,7 +75,7 @@ final class OpenAIClient {
         return r.text
     }
 
-    // MARK: - Reformatear a Markdown con IA
+    // MARK: - Reformat to Markdown with AI
 
     func markdownify(text: String) async throws -> String {
         let key = try apiKey()
@@ -120,8 +120,8 @@ final class OpenAIClient {
         }
     }
 
-    /// OpenAI valida el formato por la extensión del nombre. WhatsApp graba en .opus (Ogg-Opus),
-    /// extensión que la API NO acepta, pero SÍ acepta el mismo contenedor como .ogg → lo renombramos.
+    /// OpenAI validates the format by the filename extension. WhatsApp records in .opus (Ogg-Opus),
+    /// an extension the API does NOT accept, but it DOES accept the same container as .ogg → we rename it.
     private static func uploadFilename(for url: URL) -> String {
         guard url.pathExtension.lowercased() == "opus" else { return url.lastPathComponent }
         let base = url.deletingPathExtension().lastPathComponent

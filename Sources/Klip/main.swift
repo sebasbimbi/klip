@@ -1,6 +1,6 @@
 import AppKit
 
-// Punto de entrada. App accesoria (sin icono en el Dock); vive en la barra de menú.
+// Entry point. Accessory app (no Dock icon); lives in the menu bar.
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

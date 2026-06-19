@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// UI del popup dedicado de grabación de voz (separado del panel del historial).
+/// UI for the dedicated voice-recording popup (separate from the history panel).
 struct RecordingView: View {
     @ObservedObject var recorder: Recorder
     var onStop: () -> Void

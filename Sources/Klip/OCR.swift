@@ -2,7 +2,7 @@ import Foundation
 import Vision
 import AppKit
 
-/// Reconocimiento de texto en imágenes usando el framework Vision (en el dispositivo).
+/// Text recognition in images using the Vision framework (on-device).
 enum OCR {
     static func recognizeText(in image: NSImage) -> String {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {

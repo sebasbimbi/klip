@@ -42,20 +42,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Settings.shared.$uiLanguage.dropFirst().sink { [weak self] _ in self?.buildMenu() }.store(in: &cancellables)
     }
 
-    // Una app accesoria (.accessory) no tiene menú principal, así que los campos de texto de
-    // SwiftUI no reciben ⌘X/⌘C/⌘V/⌘A (no hay menú "Editar" que enrute esos atajos por la
-    // cadena de responders). Instalamos un menú principal mínimo con un menú Editar estándar.
+    // An accessory app (.accessory) has no main menu, so SwiftUI text fields don't receive
+    // ⌘X/⌘C/⌘V/⌘A (there's no "Edit" menu to route those shortcuts through the responder
+    // chain). We install a minimal main menu with a standard Edit menu.
     private func installMainMenu() {
         let mainMenu = NSMenu()
 
-        // Menú de la app (necesario para que el menú Editar aparezca como segundo).
+        // App menu (needed so the Edit menu appears as the second one).
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L10n.t("menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
 
-        // Menú Editar con los atajos estándar (target nil → cadena de responders).
+        // Edit menu with the standard shortcuts (nil target → responder chain).
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
         let editMenu = NSMenu(title: "Edit")
@@ -120,8 +120,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         makePanelHotKey(Settings.shared.combo)
         makeVoiceHotKey(Settings.shared.voiceCombo)
         makeCaptureHotKey(Settings.shared.captureCombo)
-        // Si una combinación persistida colisiona con otra al arrancar (HotKey.init devuelve nil), el
-        // atajo quedaría muerto toda la sesión. Recuperar con su atajo por defecto para no perderlo.
+        // If a persisted combination collides with another at startup (HotKey.init returns nil), the
+        // shortcut would stay dead for the whole session. Recover with its default shortcut so it isn't lost.
         if hotKey == nil, Settings.shared.combo != .defaultCombo {
             Settings.shared.combo = .defaultCombo; lastGoodCombo = .defaultCombo; makePanelHotKey(.defaultCombo)
         }
@@ -131,8 +131,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if captureHotKey == nil, Settings.shared.captureCombo != .defaultCaptureCombo {
             Settings.shared.captureCombo = .defaultCaptureCombo; lastGoodCaptureCombo = .defaultCaptureCombo; makeCaptureHotKey(.defaultCaptureCombo)
         }
-        // Si incluso el atajo de captura por defecto (⌘⇧U) colisiona (p. ej. otra app ya lo tomó),
-        // probar las combinaciones sugeridas para no dejar la captura inerte sin que el usuario lo sepa.
+        // If even the default capture shortcut (⌘⇧U) collides (e.g. another app already took it),
+        // try the suggested combinations so capture isn't left inert without the user knowing.
         if captureHotKey == nil {
             for s in KeyCombo.suggestions where s != Settings.shared.combo && s != Settings.shared.voiceCombo {
                 makeCaptureHotKey(s)
@@ -147,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func applyCaptureHotKey(_ combo: KeyCombo) {
         let ok: Bool
-        if captureHotKey == nil { makeCaptureHotKey(combo); ok = (captureHotKey != nil) }   // estaba muerto: re-crear
+        if captureHotKey == nil { makeCaptureHotKey(combo); ok = (captureHotKey != nil) }   // was dead: re-create
         else { ok = captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodCaptureCombo = combo }
         else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.captureCombo = lastGoodCaptureCombo }
@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if hotKey == nil { makePanelHotKey(combo); ok = (hotKey != nil) }
         else { ok = hotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.combo = lastGoodCombo }   // colisión: revertir
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.combo = lastGoodCombo }   // collision: revert
         buildMenu()
     }
 
@@ -180,7 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         launchItem?.state = LoginItem.shared.isEnabledOrPending ? .on : .off
     }
 
-    // Submenú "Recientes": se reconstruye cada vez que se abre.
+    // "Recents" submenu: rebuilt every time it's opened.
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === recentsMenu else { return }
         menu.removeAllItems()
@@ -194,10 +194,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for it in items {
             let icon = it.isVoiceNote == true ? "🎙 " : (it.kind == .image ? "🖼 " : (it.isCredential == true ? "🔑 " : ""))
             let body: String
-            if let nm = it.name, !nm.isEmpty { body = String(nm.prefix(45)) }   // nombre puesto por el usuario
+            if let nm = it.name, !nm.isEmpty { body = String(nm.prefix(45)) }   // name set by the user
             else if it.isCredential == true { body = CredentialDetector.masked(it.text ?? "") }
             else if it.isVoiceNote == true {
-                // texto transcrito (evita doble 🎙); si aún no hay, usar el preview sin el emoji.
+                // transcribed text (avoids a double 🎙); if there's none yet, use the preview without the emoji.
                 let tx = (it.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 body = tx.isEmpty ? String(it.preview.drop(while: { $0 == "🎙" || $0 == " " }).prefix(45))
                                   : String(tx.prefix(45))
@@ -214,12 +214,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func pasteRecent(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? UUID,
               let item = manager.items.first(where: { $0.id == id }) else { return }
-        // Nota de voz sin transcripción: no hay texto que copiar → reproducir su audio.
+        // Voice note without transcription: there's no text to copy → play its audio.
         if item.kind == .text, (item.text?.isEmpty ?? true) {
             if let af = item.audioFileName { AudioPlayer.shared.toggle(fileName: af) }
             return
         }
-        manager.copyToPasteboard(item)   // queda en el portapapeles, listo para pegar
+        manager.copyToPasteboard(item)   // lands on the pasteboard, ready to paste
     }
 
     @objc private func showPanel() { panelController.show() }
@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let del = alert.addButton(withTitle: L10n.t("clear.confirm"))
         del.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: L10n.t("common.cancel"))
-        cancel.keyEquivalent = "\u{1b}"   // Esc cancela (no se asigna solo en español)
+        cancel.keyEquivalent = "\u{1b}"   // Esc cancels (it isn't assigned automatically in Spanish)
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn { manager.clearAll() }
     }
@@ -283,7 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         sp.begin { [weak self] resp in
             guard resp == .OK, let url = sp.url else { return }
-            DispatchQueue.global(qos: .userInitiated).async {   // ditto + copia pesada: fuera de main
+            DispatchQueue.global(qos: .userInitiated).async {   // ditto + heavy copy: off the main thread
                 do { try Storage.shared.exportBackup(to: url) }
                 catch { DispatchQueue.main.async { self?.showAlert(L10n.t("export.fail"), error.localizedDescription) } }
             }
@@ -305,8 +305,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let ok = alert.addButton(withTitle: L10n.t("import.confirm")); ok.hasDestructiveAction = true
             let cancel = alert.addButton(withTitle: L10n.t("common.cancel")); cancel.keyEquivalent = "\u{1b}"
             guard alert.runModal() == .alertFirstButtonReturn else { return }
-            self.manager.pauseMonitoring()   // que el poll no escriba en el store durante el import
-            DispatchQueue.global(qos: .userInitiated).async {   // ditto + copia pesada: fuera de main
+            self.manager.pauseMonitoring()   // keep the poll from writing to the store during the import
+            DispatchQueue.global(qos: .userInitiated).async {   // ditto + heavy copy: off the main thread
                 do {
                     let items = try Storage.shared.importBackup(from: url)
                     DispatchQueue.main.async { self.manager.reload(items); self.manager.resumeMonitoring() }

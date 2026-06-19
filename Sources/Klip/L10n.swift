@@ -273,8 +273,8 @@ enum L10n {
         "item.empty": "(empty)"
     ]
 
-    // Las traducciones de abajo (fr/de/it/pt/zh/ja) las completa el flujo de traducción; cualquier
-    // clave ausente cae a inglés. Mantener las claves idénticas a `en`.
+    // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation flow; any
+    // missing key falls back to English. Keep the keys identical to `en`.
     private static let fr: [String: String] = [
         "menu.show": "Afficher l'historique",
         "menu.capture": "Capturer une zone",
