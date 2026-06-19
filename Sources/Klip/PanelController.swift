@@ -444,7 +444,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         if guideWindow == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 560),
                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            w.title = "Guía de Klip"
+            w.title = L10n.t("win.guide")
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: GuideView())
             w.center()
@@ -471,7 +471,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             )
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 300),
                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            w.title = "Subir audio"
+            w.title = L10n.t("win.upload")
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(rootView: view)
             w.center()

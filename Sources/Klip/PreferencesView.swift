@@ -72,7 +72,12 @@ struct PreferencesView: View {
     // versiones fijadas para quien quiera estabilidad de comportamiento.
     private let geminiModels = ["gemini-flash-latest", "gemini-flash-lite-latest",
                                 "gemini-pro-latest", "gemini-2.5-flash", "gemini-2.5-pro"]
-    private let languages = ["es": "Español", "en": "Inglés", "": "Detectar automáticamente"]
+    // Dictation/audio languages passed to the transcription provider (endonyms). "" = auto-detect.
+    private let dictationLanguages: [(code: String, name: String)] = [
+        ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
+        ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語"),
+        ("ko", "한국어"), ("ru", "Русский"), ("nl", "Nederlands"), ("hi", "हिन्दी")
+    ]
 
     private var appLogo: NSImage? {
         if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
@@ -101,14 +106,14 @@ struct PreferencesView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Klip").font(.title2).bold()
-                Text("v\(AppInfo.version) · Portapapeles para vibe coders en macOS")
+                Text("v\(AppInfo.version) · \(L10n.t("app.tagline"))")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack(spacing: 12) {
                     if let u = URL(string: AppInfo.repoURL) {
                         Link(label: "chevron.left.forwardslash.chevron.right", text: "GitHub", url: u)
                     }
                     if let u = URL(string: AppInfo.issuesURL) {
-                        Link(label: "lightbulb", text: "Sugerencias", url: u)
+                        Link(label: "lightbulb", text: L10n.t("prefs.suggestions"), url: u)
                     }
                 }
                 .font(.caption)
@@ -120,68 +125,67 @@ struct PreferencesView: View {
 
     private var form: some View {
         Form {
-            Section("Idioma · Language") {
-                Picker("Idioma de la app", selection: $settings.uiLanguage) {
-                    Text("Español").tag("es")
-                    Text("English").tag("en")
+            Section(L10n.t("prefs.lang.section")) {
+                Picker(L10n.t("prefs.lang.label"), selection: $settings.uiLanguage) {
+                    ForEach(L10n.supported, id: \.code) { Text($0.name).tag($0.code) }
                 }
-                .pickerStyle(.segmented)
             }
 
-            Section("General") {
-                Toggle("Abrir Klip al iniciar sesión", isOn: Binding(
+            Section(L10n.t("prefs.general")) {
+                Toggle(L10n.t("prefs.openAtLogin"), isOn: Binding(
                     get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
-                Toggle("Pegar automáticamente al elegir un elemento", isOn: $settings.autoPaste)
+                Toggle(L10n.t("prefs.autopaste"), isOn: $settings.autoPaste)
                 if settings.autoPaste && !accessibilityGranted {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("Requiere permiso de Accesibilidad.").font(.caption)
-                        Button("Conceder…") { Paster.ensureAccessibilityPermission(prompt: true) }.font(.caption)
+                        Text(L10n.t("prefs.needAccessibility")).font(.caption)
+                        Button(L10n.t("prefs.grant")) { Paster.ensureAccessibilityPermission(prompt: true) }.font(.caption)
                     }
                 }
-                Stepper("Máximo de elementos: \(settings.maxItems)",
+                Stepper(String(format: L10n.t("prefs.maxItems"), settings.maxItems),
                         value: $settings.maxItems, in: 20...1000, step: 10)
                     .onChange(of: settings.maxItems) { _, _ in onMaxItemsChange() }
             }
 
-            Section("Atajos") {
-                HStack { Text("Mostrar historial:"); Spacer()
+            Section(L10n.t("prefs.shortcuts")) {
+                HStack { Text(L10n.t("prefs.sc.show")); Spacer()
                     HotKeyField(combo: $settings.combo, onChange: onHotKeyChange) }
-                HStack { Text("Grabar nota de voz:"); Spacer()
+                HStack { Text(L10n.t("prefs.sc.voice")); Spacer()
                     HotKeyField(combo: $settings.voiceCombo, onChange: onVoiceHotKeyChange) }
-                HStack { Text("Capturar región:"); Spacer()
+                HStack { Text(L10n.t("prefs.sc.capture")); Spacer()
                     HotKeyField(combo: $settings.captureCombo, onChange: onCaptureHotKeyChange) }
-                Text("Pulsa el campo y teclea la combinación, o usa ⌄ para elegir una sugerida.")
+                Text(L10n.t("prefs.sc.hint"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Transcripción de voz") {
-                Picker("Proveedor", selection: $settings.aiProvider) {
+            Section(L10n.t("prefs.voice.section")) {
+                Picker(L10n.t("prefs.provider"), selection: $settings.aiProvider) {
                     Text("OpenAI").tag("openai")
                     Text("Google Gemini").tag("gemini")
                 }
                 .pickerStyle(.segmented)
                 if settings.aiProvider == "openai" {
-                    Picker("Modelo", selection: $settings.transcriptionModel) {
+                    Picker(L10n.t("prefs.model"), selection: $settings.transcriptionModel) {
                         ForEach(models, id: \.self) { Text($0).tag($0) }
                     }
                 } else {
-                    Picker("Modelo", selection: $settings.geminiModel) {
+                    Picker(L10n.t("prefs.model"), selection: $settings.geminiModel) {
                         ForEach(geminiModels, id: \.self) { Text($0).tag($0) }
                     }
                 }
-                Picker("Idioma del audio", selection: $settings.transcriptionLanguage) {
-                    ForEach(languages.sorted(by: { $0.value < $1.value }), id: \.key) { Text($1).tag($0) }
+                Picker(L10n.t("prefs.audioLang"), selection: $settings.transcriptionLanguage) {
+                    Text(L10n.t("lang.auto")).tag("")
+                    ForEach(dictationLanguages, id: \.code) { Text($0.name).tag($0.code) }
                 }
                 Text(settings.aiProvider == "gemini"
-                     ? "Se usará tu clave de Google Gemini (abajo)."
-                     : "Se usará tu clave de OpenAI (abajo).")
+                     ? L10n.t("prefs.voice.useGemini")
+                     : L10n.t("prefs.voice.useOpenAI"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             if settings.aiProvider == "openai" {
-            Section("OpenAI (clave para voz)") {
+            Section(L10n.t("prefs.openai.section")) {
                 keyStatus(apiKey)
                 HStack {
                     if showKey {
@@ -195,18 +199,18 @@ struct PreferencesView: View {
                         .buttonStyle(.borderless)
                 }
                 HStack {
-                    Button("Guardar") { saveOpenAI() }
+                    Button(L10n.t("common.save")) { saveOpenAI() }
                         .keyboardShortcut(.defaultAction)
                         .disabled(draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button("Borrar", role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
-                    if apiKey.savedOK { Label("Guardada", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
+                    Button(L10n.t("common.delete"), role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
+                    if apiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
                 }
                 if let err = apiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
             }
             }
 
             if settings.aiProvider == "gemini" {
-            Section("Google Gemini (clave para voz)") {
+            Section(L10n.t("prefs.gemini.section")) {
                 keyStatus(geminiKey)
                 HStack {
                     if showGeminiKey {
@@ -220,26 +224,26 @@ struct PreferencesView: View {
                         .buttonStyle(.borderless)
                 }
                 HStack {
-                    Button("Guardar") { saveGemini() }
+                    Button(L10n.t("common.save")) { saveGemini() }
                         .disabled(draftGeminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button("Borrar", role: .destructive) { geminiKey.delete() }.disabled(!geminiKey.isConfigured)
-                    if geminiKey.savedOK { Label("Guardada", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
+                    Button(L10n.t("common.delete"), role: .destructive) { geminiKey.delete() }.disabled(!geminiKey.isConfigured)
+                    if geminiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
                 }
                 if let err = geminiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
-                Text("Obtén tu clave en aistudio.google.com. Se guarda en un archivo local 0600, nunca en el repositorio.")
+                Text(L10n.t("prefs.gemini.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             }
 
-            Section("Privacidad") {
-                Toggle("No guardar contraseñas ni datos sensibles", isOn: $settings.ignoreSensitive)
-                Text("Klip ignora el contenido que las apps marcan como confidencial (gestores de contraseñas, campos temporales). Los tokens y API keys sueltos se detectan y se guardan aparte como credenciales.")
+            Section(L10n.t("prefs.privacy.section")) {
+                Toggle(L10n.t("prefs.privacy.toggle"), isOn: $settings.ignoreSensitive)
+                Text(L10n.t("prefs.privacy.info"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Apps excluidas") {
+            Section(L10n.t("prefs.excluded.section")) {
                 if settings.excludedBundleIDs.isEmpty {
-                    Text("Ninguna. El contenido copiado en estas apps no se guardará.")
+                    Text(L10n.t("prefs.excluded.none"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(settings.excludedBundleIDs, id: \.self) { id in
@@ -249,7 +253,7 @@ struct PreferencesView: View {
                             .buttonStyle(.borderless)
                     }
                 }
-                Button { pickApp() } label: { Label("Añadir app…", systemImage: "plus") }
+                Button { pickApp() } label: { Label(L10n.t("prefs.excluded.add"), systemImage: "plus") }
             }
         }
         .formStyle(.grouped)

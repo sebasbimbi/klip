@@ -1,12 +1,22 @@
 import Foundation
 
-/// Localización ligera (es/en) para la interfaz principal. El idioma se elige en Preferencias.
+/// Lightweight localization for the main UI. English is the base language; every other language
+/// falls back to English for any missing key. The language is chosen in Preferences.
+/// To add a string: add the English value to `en` with a new key, then translate it in the others.
 enum L10n {
     static var lang: String { Settings.shared.uiLanguage }
 
+    /// UI languages offered in Preferences (code, endonym). English is the default/base language.
+    static let supported: [(code: String, name: String)] = [
+        ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
+        ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語")
+    ]
+
+    private static let tables: [String: [String: String]] =
+        ["en": en, "es": es, "fr": fr, "de": de, "it": it, "pt": pt, "zh": zh, "ja": ja]
+
     static func t(_ key: String) -> String {
-        let table = (lang == "en") ? en : es
-        return table[key] ?? es[key] ?? key
+        (tables[lang] ?? en)[key] ?? en[key] ?? key
     }
 
     private static let es: [String: String] = [
@@ -87,7 +97,53 @@ enum L10n {
         "collection.add.title": "Añadir a colección",
         "collection.add.info": "Nombre de la colección (déjalo vacío para quitar de su colección).",
         "capture.hint": "Arrastra para seleccionar una zona  ·  Esc para cancelar",
-        "badge.remote": "Otro dispositivo"
+        "badge.remote": "Otro dispositivo",
+        "app.tagline": "Portapapeles para vibe coders",
+        "lang.auto": "Detectar automáticamente",
+        "common.save": "Guardar",
+        "common.delete": "Borrar",
+        "prefs.lang.section": "Idioma",
+        "prefs.lang.label": "Idioma de la app",
+        "prefs.general": "General",
+        "prefs.openAtLogin": "Abrir Klip al iniciar sesión",
+        "prefs.autopaste": "Pegar automáticamente al elegir un elemento",
+        "prefs.needAccessibility": "Requiere permiso de Accesibilidad.",
+        "prefs.grant": "Conceder…",
+        "prefs.maxItems": "Máximo de elementos: %d",
+        "prefs.shortcuts": "Atajos",
+        "prefs.sc.show": "Mostrar historial:",
+        "prefs.sc.voice": "Grabar nota de voz:",
+        "prefs.sc.capture": "Capturar región:",
+        "prefs.sc.hint": "Pulsa el campo y teclea la combinación, o usa ⌄ para elegir una sugerida.",
+        "prefs.voice.section": "Transcripción de voz",
+        "prefs.provider": "Proveedor",
+        "prefs.model": "Modelo",
+        "prefs.audioLang": "Idioma del audio",
+        "prefs.voice.useGemini": "Se usará tu clave de Google Gemini (abajo).",
+        "prefs.voice.useOpenAI": "Se usará tu clave de OpenAI (abajo).",
+        "prefs.openai.section": "OpenAI (clave para voz)",
+        "prefs.gemini.section": "Google Gemini (clave para voz)",
+        "prefs.key.configured": "Clave configurada",
+        "prefs.key.none": "Sin clave configurada",
+        "prefs.saved": "Guardada",
+        "prefs.gemini.help": "Obtén tu clave en aistudio.google.com. Se guarda en un archivo local 0600, nunca en el repositorio.",
+        "prefs.privacy.section": "Privacidad",
+        "prefs.privacy.toggle": "No guardar contraseñas ni datos sensibles",
+        "prefs.privacy.info": "Klip ignora el contenido que las apps marcan como confidencial (gestores de contraseñas, campos temporales). Los tokens y API keys sueltos se detectan y se guardan aparte como credenciales.",
+        "prefs.excluded.section": "Apps excluidas",
+        "prefs.excluded.none": "Ninguna. El contenido copiado en estas apps no se guardará.",
+        "prefs.excluded.add": "Añadir app…",
+        "prefs.suggestions": "Sugerencias",
+        "hotkey.capture.changed.title": "Atajo de captura cambiado",
+        "hotkey.capture.changed.info": "⌘⇧U ya estaba en uso por otra app, así que se asignó otra combinación. Puedes cambiarla en Preferencias › Atajos.",
+        "win.guide": "Guía de Klip",
+        "win.upload": "Subir audio",
+        "win.editor": "Anotar captura — Klip",
+        "win.prefs": "Preferencias de Klip",
+        "menu.recents": "Recientes",
+        "menu.empty": "Sin elementos",
+        "login.title": "Inicio automático",
+        "item.empty": "(vacío)"
     ]
 
     private static let en: [String: String] = [
@@ -168,6 +224,61 @@ enum L10n {
         "collection.add.title": "Add to collection",
         "collection.add.info": "Collection name (leave empty to remove from its collection).",
         "capture.hint": "Drag to select an area  ·  Esc to cancel",
-        "badge.remote": "Other device"
+        "badge.remote": "Other device",
+        "app.tagline": "Clipboard manager for vibe coders",
+        "lang.auto": "Auto-detect",
+        "common.save": "Save",
+        "common.delete": "Delete",
+        "prefs.lang.section": "Language",
+        "prefs.lang.label": "App language",
+        "prefs.general": "General",
+        "prefs.openAtLogin": "Open Klip at login",
+        "prefs.autopaste": "Auto-paste when you pick an item",
+        "prefs.needAccessibility": "Requires Accessibility permission.",
+        "prefs.grant": "Grant…",
+        "prefs.maxItems": "Maximum items: %d",
+        "prefs.shortcuts": "Shortcuts",
+        "prefs.sc.show": "Show history:",
+        "prefs.sc.voice": "Record voice note:",
+        "prefs.sc.capture": "Capture region:",
+        "prefs.sc.hint": "Click the field and type the combo, or use ⌄ to pick a suggested one.",
+        "prefs.voice.section": "Voice transcription",
+        "prefs.provider": "Provider",
+        "prefs.model": "Model",
+        "prefs.audioLang": "Audio language",
+        "prefs.voice.useGemini": "Your Google Gemini key (below) will be used.",
+        "prefs.voice.useOpenAI": "Your OpenAI key (below) will be used.",
+        "prefs.openai.section": "OpenAI (key for voice)",
+        "prefs.gemini.section": "Google Gemini (key for voice)",
+        "prefs.key.configured": "Key configured",
+        "prefs.key.none": "No key configured",
+        "prefs.saved": "Saved",
+        "prefs.gemini.help": "Get your key at aistudio.google.com. Stored in a local 0600 file, never in the repository.",
+        "prefs.privacy.section": "Privacy",
+        "prefs.privacy.toggle": "Don't save passwords or sensitive data",
+        "prefs.privacy.info": "Klip ignores content apps mark as concealed (password managers, transient fields). Loose tokens and API keys are detected and stored separately as credentials.",
+        "prefs.excluded.section": "Excluded apps",
+        "prefs.excluded.none": "None. Content copied in these apps won't be saved.",
+        "prefs.excluded.add": "Add app…",
+        "prefs.suggestions": "Suggestions",
+        "hotkey.capture.changed.title": "Capture shortcut changed",
+        "hotkey.capture.changed.info": "⌘⇧U was already in use by another app, so a different combo was assigned. You can change it in Preferences › Shortcuts.",
+        "win.guide": "Klip guide",
+        "win.upload": "Upload audio",
+        "win.editor": "Annotate capture — Klip",
+        "win.prefs": "Klip Preferences",
+        "menu.recents": "Recent",
+        "menu.empty": "No items",
+        "login.title": "Launch at login",
+        "item.empty": "(empty)"
     ]
+
+    // Las traducciones de abajo (fr/de/it/pt/zh/ja) las completa el flujo de traducción; cualquier
+    // clave ausente cae a inglés. Mantener las claves idénticas a `en`.
+    private static let fr: [String: String] = [:]
+    private static let de: [String: String] = [:]
+    private static let it: [String: String] = [:]
+    private static let pt: [String: String] = [:]
+    private static let zh: [String: String] = [:]
+    private static let ja: [String: String] = [:]
 }

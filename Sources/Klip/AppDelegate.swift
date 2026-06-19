@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(withTitle: "\(L10n.t("menu.capture"))   \(Settings.shared.captureCombo.displayString)",
                      action: #selector(startCapture), keyEquivalent: "")
         menu.addItem(.separator())
-        let recents = NSMenuItem(title: "Recientes", action: nil, keyEquivalent: "")
+        let recents = NSMenuItem(title: L10n.t("menu.recents"), action: nil, keyEquivalent: "")
         recentsMenu.delegate = self
         recents.submenu = recentsMenu
         menu.addItem(recents)
@@ -131,6 +131,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if captureHotKey == nil, Settings.shared.captureCombo != .defaultCaptureCombo {
             Settings.shared.captureCombo = .defaultCaptureCombo; lastGoodCaptureCombo = .defaultCaptureCombo; makeCaptureHotKey(.defaultCaptureCombo)
         }
+        // Si incluso el atajo de captura por defecto (⌘⇧U) colisiona (p. ej. otra app ya lo tomó),
+        // probar las combinaciones sugeridas para no dejar la captura inerte sin que el usuario lo sepa.
+        if captureHotKey == nil {
+            for s in KeyCombo.suggestions where s != Settings.shared.combo && s != Settings.shared.voiceCombo {
+                makeCaptureHotKey(s)
+                if captureHotKey != nil {
+                    Settings.shared.captureCombo = s; lastGoodCaptureCombo = s
+                    showAlert(L10n.t("hotkey.capture.changed.title"), L10n.t("hotkey.capture.changed.info"))
+                    break
+                }
+            }
+        }
     }
 
     private func applyCaptureHotKey(_ combo: KeyCombo) {
@@ -174,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         let items = manager.items.sorted { $0.createdAt > $1.createdAt }.prefix(10)
         if items.isEmpty {
-            let empty = NSMenuItem(title: "Sin elementos", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: L10n.t("menu.empty"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
             return
@@ -233,7 +245,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .failure(let err):
             if case .requiresApproval = err { LoginItem.shared.openSystemSettings() }
             let alert = NSAlert()
-            alert.messageText = "Inicio automático"
+            alert.messageText = L10n.t("login.title")
             alert.informativeText = err.localizedDescription
             alert.runModal()
             launchItem?.state = LoginItem.shared.isEnabledOrPending ? .on : .off

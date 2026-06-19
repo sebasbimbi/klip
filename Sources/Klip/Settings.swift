@@ -168,7 +168,7 @@ final class Settings: ObservableObject {
             K.mods2: Int(cmdKey | shiftKey),
             K.keyCode3: Int(kVK_ANSI_U),
             K.mods3: Int(cmdKey | shiftKey),
-            K.uiLang: "es"
+            K.uiLang: "en"   // English is the base/default UI language (open-source collaboration)
         ])
         maxItems = d.integer(forKey: K.maxItems)
         combo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode)),
@@ -188,7 +188,7 @@ final class Settings: ObservableObject {
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
         captureCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode3)),
                                 carbonModifiers: UInt32(d.integer(forKey: K.mods3)))
-        uiLanguage = d.string(forKey: K.uiLang) ?? "es"
+        uiLanguage = d.string(forKey: K.uiLang) ?? "en"
 
         // Migración única: el default de captura pasó de ⌘⇧2 a ⌘⇧U (⌘⇧2 lo secuestraban apps como Loom).
         // A quien siga con el viejo ⌘⇧2 persistido, moverlo a ⌘⇧U. Si el usuario eligió otro atajo, respetarlo.

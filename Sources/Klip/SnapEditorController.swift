@@ -9,6 +9,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     private var toolButtons: [SnapTool: NSButton] = [:]
     private var colorButtons: [NSButton] = []
     private var colorIndex = 0
+    private var lastToolWasMarker = false
     /// Paleta para dibujo normal y paleta de tonos de resaltador (se usa con el marcador).
     private let normalColors: [NSColor] = [.systemRed, .systemBlue, .black, .white]
     private let markerColors: [NSColor] = [.systemYellow, .systemGreen, .systemPink, .systemOrange]
@@ -32,7 +33,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: contentW, height: contentH),
                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        win.title = "Anotar captura — Klip"
+        win.title = L10n.t("win.editor")
         win.minSize = NSSize(width: minBarWidth, height: 240)
         win.isReleasedWhenClosed = false
         win.delegate = self
@@ -107,7 +108,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         leading.addArrangedSubview(separator())
 
         // Grosor: solo dos niveles (fina / gruesa), más gruesos y visibles que antes.
-        let widths = NSSegmentedControl(images: [lineImage(3), lineImage(8)],
+        let widths = NSSegmentedControl(images: [lineImage(4), lineImage(10)],
                                         trackingMode: .selectOne,
                                         target: self, action: #selector(widthChanged(_:)))
         widths.setWidth(40, forSegment: 0); widths.setWidth(40, forSegment: 1)
@@ -194,7 +195,13 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             b.contentTintColor = on ? .white : .labelColor   // resalta claramente la herramienta activa
         }
         refreshColorSwatches()                                // el marcador muestra tonos de resaltador
-        if colorIndex >= 0 { canvas.setColor(palette[min(colorIndex, palette.count - 1)]) }
+        // Solo re-aplicar color cuando la PALETA cambia de tipo (normal↔marcador). Entre herramientas
+        // normales se conserva el color elegido (incluido uno libre del selector "más").
+        let isMarker = (tool == .marker)
+        if isMarker != lastToolWasMarker, colorIndex >= 0 {
+            canvas.setColor(palette[min(colorIndex, palette.count - 1)])
+        }
+        lastToolWasMarker = isMarker
     }
 
     @objc private func widthChanged(_ sender: NSSegmentedControl) {

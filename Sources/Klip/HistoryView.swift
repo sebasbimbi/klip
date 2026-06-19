@@ -437,7 +437,7 @@ struct ItemRow: View {
     private var displayedPreview: String {
         // El ojo alterna enmascarado/real (item.preview siempre está enmascarado para credenciales).
         if isCredential, let t = item.text { return revealed ? t : CredentialDetector.masked(t) }
-        return item.preview.isEmpty ? "(vacío)" : item.preview
+        return item.preview.isEmpty ? L10n.t("item.empty") : item.preview
     }
 
     var body: some View {
