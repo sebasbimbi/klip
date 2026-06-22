@@ -60,9 +60,10 @@ Text & image history · **native capture + annotation** · **OCR** · **voice no
 - **The original audio is kept** with **duration** and a **progress bar**: play it (▶) or reveal it in Finder, and **retry (↻)** if a transcription fails.
 
 ### 🤖 AI: you pick the engine
-- **OpenAI** or **Google Gemini** for transcription. Bring your own key for either.
-- For **Gemini** you can pick the model (`gemini-flash-latest`, `-flash-lite-latest`, `-pro-latest`, `2.5-flash`, `2.5-pro`); for **OpenAI**, `gpt-4o-mini-transcribe` or `whisper-1`.
+- **On-device (default)** — transcribe **fully offline with Whisper** ([WhisperKit](https://github.com/argmaxinc/WhisperKit) on Core ML): **no API key, no audio ever leaves your Mac.** Pick the model (Tiny / Base / Small / Large v3 Turbo); it downloads once on first use, then runs offline.
+- **OpenAI** or **Google Gemini** — optional cloud engines if you'd rather use them; bring your own key. For **Gemini** you can pick the model (`gemini-flash-latest`, `-flash-lite-latest`, `-pro-latest`, `2.5-flash`, `2.5-pro`); for **OpenAI**, `gpt-4o-mini-transcribe` or `whisper-1`.
 - **Dictation language** is selectable (and auto-detect), so transcription is natural in your language.
+- **Context words** — list names, brands or jargon (e.g. `Kommo, CRM, Proper, KPI, Tami Bot`) so the cloud transcribers spell your proper nouns correctly.
 
 ### 🧰 Built for pasting into AI
 - **Copy as code block** — wraps the text in ` ``` ` to paste cleanly into a chat.

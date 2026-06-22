@@ -11,11 +11,21 @@ enum OCR {
         return recognizeText(in: cg)
     }
 
+    /// Common code tokens that language correction tends to "fix" into prose; listing them as custom
+    /// words keeps them intact even though correction is off.
+    private static let codeWords = ["func", "let", "var", "const", "async", "await", "return", "nil",
+                                    "null", "void", "import", "export", "class", "struct", "enum",
+                                    "true", "false", "=>", "->", "==", "!=", "&&", "||"]
+
     static func recognizeText(in cgImage: CGImage) -> String {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.recognitionLanguages = ["es-ES", "en-US"]
+        // OFF for code: language correction rewrites symbols/identifiers into prose (== → =, names →
+        // dictionary words, dropped punctuation). Off is both more accurate for code and faster.
+        request.usesLanguageCorrection = false
+        request.recognitionLanguages = ["en-US", "es-ES"]
+        request.customWords = codeWords
+        request.minimumTextHeight = 0   // don't skip tiny terminal/log fonts
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         do {

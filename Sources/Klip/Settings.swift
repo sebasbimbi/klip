@@ -107,6 +107,7 @@ final class Settings: ObservableObject {
         static let geminiModel = "geminiModel"
         static let transLang  = "transcriptionLanguage"
         static let transVocab = "transcriptionVocabulary"
+        static let localModel = "localModel"
         static let aiProv     = "aiProvider"
         static let keyCode2   = "voiceHotKeyCode"
         static let mods2      = "voiceHotKeyModifiers"
@@ -133,7 +134,9 @@ final class Settings: ObservableObject {
     @Published var transcriptionLanguage: String { didSet { d.set(transcriptionLanguage, forKey: K.transLang) } }
     /// Context words / vocabulary (names, brands, jargon) sent to the transcriber so it spells them right.
     @Published var transcriptionVocabulary: String { didSet { d.set(transcriptionVocabulary, forKey: K.transVocab) } }
-    /// AI provider for transcription: "openai" or "gemini".
+    /// On-device (WhisperKit) model name when aiProvider == "local".
+    @Published var localModel: String { didSet { d.set(localModel, forKey: K.localModel) } }
+    /// AI provider for transcription: "local" (on-device), "openai" or "gemini".
     @Published var aiProvider: String { didSet { d.set(aiProvider, forKey: K.aiProv) } }
     @Published var voiceCombo: KeyCombo   { didSet {
         d.set(Int(voiceCombo.keyCode), forKey: K.keyCode2)
@@ -167,7 +170,8 @@ final class Settings: ObservableObject {
             K.geminiModel: "gemini-flash-latest",
             K.transLang: "es",
             K.transVocab: "",
-            K.aiProv: "openai",
+            K.localModel: "base",
+            K.aiProv: "local",   // on-device (WhisperKit) by default; cloud is opt-in (needs an API key)
             K.keyCode2: Int(kVK_ANSI_I),
             K.mods2: Int(cmdKey | shiftKey),
             K.keyCode3: Int(kVK_ANSI_U),
@@ -188,7 +192,8 @@ final class Settings: ObservableObject {
         geminiModel = d.string(forKey: K.geminiModel) ?? "gemini-flash-latest"
         transcriptionLanguage = d.string(forKey: K.transLang) ?? "es"
         transcriptionVocabulary = d.string(forKey: K.transVocab) ?? ""
-        aiProvider = d.string(forKey: K.aiProv) ?? "openai"
+        localModel = d.string(forKey: K.localModel) ?? "base"
+        aiProvider = d.string(forKey: K.aiProv) ?? "local"
         voiceCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode2)),
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
         captureCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode3)),

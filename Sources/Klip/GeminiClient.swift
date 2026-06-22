@@ -95,13 +95,21 @@ final class GeminiClient {
 enum AIProvider {
     static var selected: String { Settings.shared.aiProvider }
 
-    /// Is there a key for the selected provider (falling back to OpenAI if Gemini has no key)?
+    /// Is the selected provider ready? Local (on-device) needs no key; cloud needs an API key
+    /// (Gemini falls back to OpenAI if it has no key of its own).
     static var hasKey: Bool {
-        if selected == "gemini" { return GeminiClient.shared.hasAPIKey || OpenAIClient.shared.hasAPIKey }
-        return OpenAIClient.shared.hasAPIKey
+        switch selected {
+        case "local":  return true
+        case "gemini": return GeminiClient.shared.hasAPIKey || OpenAIClient.shared.hasAPIKey
+        default:       return OpenAIClient.shared.hasAPIKey
+        }
     }
 
     static func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
+        if selected == "local" {
+            // On-device (WhisperKit): no audio leaves the Mac. `model` is the on-device model name.
+            return try await LocalTranscriber.shared.transcribe(audioURL: audioURL, model: model, language: language)
+        }
         if selected == "gemini", GeminiClient.shared.hasAPIKey {
             return try await GeminiClient.shared.transcribe(audioURL: audioURL, language: language, model: model, vocabulary: vocabulary)
         }

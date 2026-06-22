@@ -233,7 +233,10 @@ enum L10n {
         "perm.mic.info": "Para grabar notas de voz, concede acceso a Klip en Ajustes del Sistema › Privacidad y seguridad › Micrófono.",
         "prefs.vocab.label": "Palabras de contexto",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Nombres, marcas o jerga que aparecen en tu audio. El transcriptor los usa para escribirlos bien."
+        "prefs.vocab.info": "Nombres, marcas o jerga que aparecen en tu audio. El transcriptor los usa para escribirlos bien.",
+        "prefs.provider.local": "En el dispositivo",
+        "prefs.local.model": "Modelo en el dispositivo",
+        "prefs.local.info": "El primer uso descarga el modelo. Luego funciona sin conexión — sin API key, y tu audio nunca sale de tu Mac."
     ]
 
     private static let en: [String: String] = [
@@ -450,7 +453,10 @@ enum L10n {
         "perm.mic.info": "To record voice notes, grant Klip access in System Settings › Privacy & Security › Microphone.",
         "prefs.vocab.label": "Context words",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Names, brands or jargon that appear in your audio. The transcriber uses them to spell them correctly."
+        "prefs.vocab.info": "Names, brands or jargon that appear in your audio. The transcriber uses them to spell them correctly.",
+        "prefs.provider.local": "On-device",
+        "prefs.local.model": "On-device model",
+        "prefs.local.info": "First use downloads the model. Then it runs fully offline — no API key, and your audio never leaves your Mac."
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation flow; any
@@ -670,7 +676,10 @@ enum L10n {
         "perm.mic.info": "Pour enregistrer des notes vocales, autorise Klip dans Réglages Système › Confidentialité et sécurité › Microphone.",
         "prefs.vocab.label": "Mots de contexte",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Noms, marques ou jargon présents dans ton audio. Le transcripteur les utilise pour bien les écrire."
+        "prefs.vocab.info": "Noms, marques ou jargon présents dans ton audio. Le transcripteur les utilise pour bien les écrire.",
+        "prefs.provider.local": "Sur l'appareil",
+        "prefs.local.model": "Modèle sur l'appareil",
+        "prefs.local.info": "La première utilisation télécharge le modèle. Ensuite tout est hors ligne — sans clé API, et ton audio ne quitte jamais ton Mac."
     ]
 
     private static let de: [String: String] = [
@@ -888,7 +897,10 @@ enum L10n {
         "perm.mic.info": "Um Sprachnotizen aufzunehmen, gewähre Klip Zugriff unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon.",
         "prefs.vocab.label": "Kontextwörter",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Namen, Marken oder Fachbegriffe in deinem Audio. Der Transkriptor nutzt sie für die richtige Schreibweise."
+        "prefs.vocab.info": "Namen, Marken oder Fachbegriffe in deinem Audio. Der Transkriptor nutzt sie für die richtige Schreibweise.",
+        "prefs.provider.local": "Auf dem Gerät",
+        "prefs.local.model": "Modell auf dem Gerät",
+        "prefs.local.info": "Bei der ersten Nutzung wird das Modell geladen. Danach läuft alles offline — ohne API-Key, und dein Audio verlässt nie deinen Mac."
     ]
 
     private static let it: [String: String] = [
@@ -1106,7 +1118,10 @@ enum L10n {
         "perm.mic.info": "Per registrare note vocali, concedi l'accesso a Klip in Impostazioni di Sistema › Privacy e sicurezza › Microfono.",
         "prefs.vocab.label": "Parole di contesto",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Nomi, marchi o gergo presenti nel tuo audio. Il trascrittore li usa per scriverli correttamente."
+        "prefs.vocab.info": "Nomi, marchi o gergo presenti nel tuo audio. Il trascrittore li usa per scriverli correttamente.",
+        "prefs.provider.local": "Sul dispositivo",
+        "prefs.local.model": "Modello sul dispositivo",
+        "prefs.local.info": "Al primo utilizzo scarica il modello. Poi funziona offline — senza chiave API, e il tuo audio non lascia mai il Mac."
     ]
 
     private static let pt: [String: String] = [
@@ -1324,7 +1339,10 @@ enum L10n {
         "perm.mic.info": "Para gravar notas de voz, concede acesso ao Klip em Definições do Sistema › Privacidade e Segurança › Microfone.",
         "prefs.vocab.label": "Palavras de contexto",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "Nomes, marcas ou jargão que aparecem no teu áudio. O transcritor usa-os para os escrever corretamente."
+        "prefs.vocab.info": "Nomes, marcas ou jargão que aparecem no teu áudio. O transcritor usa-os para os escrever corretamente.",
+        "prefs.provider.local": "No dispositivo",
+        "prefs.local.model": "Modelo no dispositivo",
+        "prefs.local.info": "A primeira utilização descarrega o modelo. Depois funciona offline — sem chave API, e o teu áudio nunca sai do Mac."
     ]
 
     private static let zh: [String: String] = [
@@ -1542,7 +1560,10 @@ enum L10n {
         "perm.mic.info": "要录制语音笔记，请在系统设置 › 隐私与安全性 › 麦克风中授予 Klip 访问权限。",
         "prefs.vocab.label": "上下文词汇",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "你的音频中出现的名称、品牌或术语。转写器会用它们来正确拼写。"
+        "prefs.vocab.info": "你的音频中出现的名称、品牌或术语。转写器会用它们来正确拼写。",
+        "prefs.provider.local": "本地设备",
+        "prefs.local.model": "本地模型",
+        "prefs.local.info": "首次使用会下载模型。之后完全离线运行——无需 API 密钥，音频绝不离开你的 Mac。"
     ]
 
     private static let ja: [String: String] = [
@@ -1760,6 +1781,9 @@ enum L10n {
         "perm.mic.info": "音声メモを録音するには、システム設定 › プライバシーとセキュリティ › マイク で Klip にアクセスを許可してください。",
         "prefs.vocab.label": "コンテキスト単語",
         "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
-        "prefs.vocab.info": "音声に出てくる名前・ブランド・専門用語。文字起こしが正しく表記するために使います。"
+        "prefs.vocab.info": "音声に出てくる名前・ブランド・専門用語。文字起こしが正しく表記するために使います。",
+        "prefs.provider.local": "デバイス内",
+        "prefs.local.model": "デバイス内モデル",
+        "prefs.local.info": "初回はモデルをダウンロードします。以降は完全オフラインで動作—APIキー不要で、音声がMacから出ることはありません。"
     ]
 }

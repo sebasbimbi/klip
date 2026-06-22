@@ -7,7 +7,7 @@
 # Swift / SwiftPM
 .build/
 .swiftpm/
-Package.resolved
+# Package.resolved is committed to pin dependency versions (WhisperKit etc.) for reproducible builds.
 
 # Artefacto compilado (se genera con ./build.sh)
 *.app/

@@ -248,8 +248,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         transcribingCount += 1
         // Resolve the active provider's model here, on the MainActor (avoids reading Settings.shared
         // from the transcription thread). Gemini and OpenAI each have their own model setting.
-        let model = Settings.shared.aiProvider == "gemini"
-            ? Settings.shared.geminiModel : Settings.shared.transcriptionModel
+        let provider = Settings.shared.aiProvider
+        let model = provider == "gemini" ? Settings.shared.geminiModel
+                  : provider == "local"  ? Settings.shared.localModel
+                  : Settings.shared.transcriptionModel
         let language = Settings.shared.transcriptionLanguage
         let vocabulary = Settings.shared.transcriptionVocabulary
         Task { @MainActor in

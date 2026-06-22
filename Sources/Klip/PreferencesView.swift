@@ -161,11 +161,16 @@ struct PreferencesView: View {
 
             Section(L10n.t("prefs.voice.section")) {
                 Picker(L10n.t("prefs.provider"), selection: $settings.aiProvider) {
+                    Text(L10n.t("prefs.provider.local")).tag("local")
                     Text("OpenAI").tag("openai")
-                    Text("Google Gemini").tag("gemini")
+                    Text("Gemini").tag("gemini")
                 }
                 .pickerStyle(.segmented)
-                if settings.aiProvider == "openai" {
+                if settings.aiProvider == "local" {
+                    Picker(L10n.t("prefs.local.model"), selection: $settings.localModel) {
+                        ForEach(LocalTranscriber.models, id: \.id) { Text("\($0.label) — \($0.note)").tag($0.id) }
+                    }
+                } else if settings.aiProvider == "openai" {
                     Picker(L10n.t("prefs.model"), selection: $settings.transcriptionModel) {
                         ForEach(models, id: \.self) { Text($0).tag($0) }
                     }
@@ -178,15 +183,17 @@ struct PreferencesView: View {
                     Text(L10n.t("lang.auto")).tag("")
                     ForEach(dictationLanguages, id: \.code) { Text($0.name).tag($0.code) }
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.t("prefs.vocab.label")).font(.subheadline)
-                    TextField(L10n.t("prefs.vocab.placeholder"), text: $settings.transcriptionVocabulary, axis: .vertical)
-                        .lineLimit(2...4)
-                        .textFieldStyle(.roundedBorder)
-                    Text(L10n.t("prefs.vocab.info")).font(.caption).foregroundStyle(.secondary)
+                if settings.aiProvider != "local" {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.t("prefs.vocab.label")).font(.subheadline)
+                        TextField(L10n.t("prefs.vocab.placeholder"), text: $settings.transcriptionVocabulary, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                        Text(L10n.t("prefs.vocab.info")).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
-                Text(settings.aiProvider == "gemini"
-                     ? L10n.t("prefs.voice.useGemini")
+                Text(settings.aiProvider == "local" ? L10n.t("prefs.local.info")
+                     : settings.aiProvider == "gemini" ? L10n.t("prefs.voice.useGemini")
                      : L10n.t("prefs.voice.useOpenAI"))
                     .font(.caption).foregroundStyle(.secondary)
             }
