@@ -25,9 +25,10 @@ final class GeminiClient {
             ? "gemini-flash-latest" : model.trimmingCharacters(in: .whitespacesAndNewlines)
         let data = try Data(contentsOf: audioURL)
         let base64 = data.base64EncodedString()
-        let lang = (language?.isEmpty == false) ? language! : "es"
+        // No language hint when "auto-detect": let the model transcribe in the audio's own language.
+        let langHint = (language?.isEmpty == false) ? " Primary language: \(language!)." : ""
         let prompt = "Transcribe this audio verbatim. Return ONLY the transcription, "
-            + "with no comments, headings or formatting. Primary language: \(lang)."
+            + "with no comments, headings or formatting.\(langHint)"
 
         let payload: [String: Any] = [
             "contents": [[

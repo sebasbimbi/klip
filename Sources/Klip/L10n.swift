@@ -657,7 +657,11 @@ enum L10n {
         "guide.howto.copy": "Copiez du texte ou des images comme d'habitude : ils apparaissent dans l'historique.",
         "guide.howto.paste": "Appuyez sur %@ et cliquez (ou Entrée) pour coller de nouveau quelque chose.",
         "guide.howto.creds": "Les mots de passe/jetons sont détectés et stockés à part, masqués (filtre 🔑).",
-        "guide.howto.voice": "Enregistrez des notes vocales et elles sont transcrites en texte avec OpenAI."
+        "guide.howto.voice": "Enregistrez des notes vocales et elles sont transcrites en texte avec OpenAI.",
+        "import.busy.title": "Attends la fin des transcriptions",
+        "import.busy.info": "Des notes vocales sont encore en cours de transcription. Importer maintenant pourrait les perdre. Réessaie une fois terminées.",
+        "perm.mic.title": "Klip a besoin de l'autorisation Microphone",
+        "perm.mic.info": "Pour enregistrer des notes vocales, autorise Klip dans Réglages Système › Confidentialité et sécurité › Microphone."
     ]
 
     private static let de: [String: String] = [
@@ -868,7 +872,11 @@ enum L10n {
         "guide.howto.copy": "Kopiere Text oder Bilder wie gewohnt: Sie erscheinen im Verlauf.",
         "guide.howto.paste": "Drücke %@ und klicke (oder Enter), um etwas erneut einzufügen.",
         "guide.howto.creds": "Passwörter/Tokens werden erkannt und separat gespeichert, maskiert (🔑-Filter).",
-        "guide.howto.voice": "Nimm Sprachnotizen auf, und sie werden mit OpenAI in Text transkribiert."
+        "guide.howto.voice": "Nimm Sprachnotizen auf, und sie werden mit OpenAI in Text transkribiert.",
+        "import.busy.title": "Warte, bis die Transkriptionen fertig sind",
+        "import.busy.info": "Einige Sprachnotizen werden noch transkribiert. Ein Import jetzt könnte sie verlieren. Versuche es erneut, wenn sie fertig sind.",
+        "perm.mic.title": "Klip benötigt die Mikrofon-Berechtigung",
+        "perm.mic.info": "Um Sprachnotizen aufzunehmen, gewähre Klip Zugriff unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon."
     ]
 
     private static let it: [String: String] = [
@@ -1079,7 +1087,11 @@ enum L10n {
         "guide.howto.copy": "Copia testo o immagini come al solito: appaiono nella cronologia.",
         "guide.howto.paste": "Premi %@ e fai clic (o Invio) per incollare di nuovo qualcosa.",
         "guide.howto.creds": "Le password/i token vengono rilevati e salvati a parte, mascherati (filtro 🔑).",
-        "guide.howto.voice": "Registra note vocali e vengono trascritte in testo con OpenAI."
+        "guide.howto.voice": "Registra note vocali e vengono trascritte in testo con OpenAI.",
+        "import.busy.title": "Attendi la fine delle trascrizioni",
+        "import.busy.info": "Alcune note vocali si stanno ancora trascrivendo. Importare ora potrebbe perderle. Riprova quando hanno finito.",
+        "perm.mic.title": "Klip ha bisogno dell'autorizzazione Microfono",
+        "perm.mic.info": "Per registrare note vocali, concedi l'accesso a Klip in Impostazioni di Sistema › Privacy e sicurezza › Microfono."
     ]
 
     private static let pt: [String: String] = [
@@ -1290,7 +1302,11 @@ enum L10n {
         "guide.howto.copy": "Copia texto ou imagens como de costume: aparecem no histórico.",
         "guide.howto.paste": "Prime %@ e clica (ou Enter) para colar algo novamente.",
         "guide.howto.creds": "As palavras-passe/tokens são detetados e guardados à parte, mascarados (filtro 🔑).",
-        "guide.howto.voice": "Grava notas de voz e são transcritas para texto com OpenAI."
+        "guide.howto.voice": "Grava notas de voz e são transcritas para texto com OpenAI.",
+        "import.busy.title": "Aguarda o fim das transcrições",
+        "import.busy.info": "Algumas notas de voz ainda estão a ser transcritas. Importar agora pode perdê-las. Tenta de novo quando terminarem.",
+        "perm.mic.title": "O Klip precisa de permissão de Microfone",
+        "perm.mic.info": "Para gravar notas de voz, concede acesso ao Klip em Definições do Sistema › Privacidade e Segurança › Microfone."
     ]
 
     private static let zh: [String: String] = [
@@ -1501,7 +1517,11 @@ enum L10n {
         "guide.howto.copy": "像往常一样复制文本或图片：它们会出现在历史记录中。",
         "guide.howto.paste": "按 %@ 并点击（或回车）以再次粘贴某项内容。",
         "guide.howto.creds": "密码/令牌会被检测并单独保存，以掩码形式显示（🔑 筛选）。",
-        "guide.howto.voice": "录制语音备忘录，它们会通过 OpenAI 转写为文本。"
+        "guide.howto.voice": "录制语音备忘录，它们会通过 OpenAI 转写为文本。",
+        "import.busy.title": "请等待转写完成",
+        "import.busy.info": "部分语音笔记仍在转写中。现在导入可能会丢失它们。请在完成后重试。",
+        "perm.mic.title": "Klip 需要麦克风权限",
+        "perm.mic.info": "要录制语音笔记，请在系统设置 › 隐私与安全性 › 麦克风中授予 Klip 访问权限。"
     ]
 
     private static let ja: [String: String] = [
@@ -1712,6 +1732,10 @@ enum L10n {
         "guide.howto.copy": "テキストや画像をいつも通りコピーすると、履歴に表示されます。",
         "guide.howto.paste": "%@ を押してクリック(またはEnter)すると、もう一度ペーストできます。",
         "guide.howto.creds": "パスワードやトークンは検出され、マスクして別に保存されます(🔑 フィルタ)。",
-        "guide.howto.voice": "音声メモを録音すると、OpenAIでテキストに文字起こしされます。"
+        "guide.howto.voice": "音声メモを録音すると、OpenAIでテキストに文字起こしされます。",
+        "import.busy.title": "文字起こしの完了をお待ちください",
+        "import.busy.info": "一部の音声メモはまだ文字起こし中です。今インポートすると失われる可能性があります。完了後に再試行してください。",
+        "perm.mic.title": "Klip にはマイクの許可が必要です",
+        "perm.mic.info": "音声メモを録音するには、システム設定 › プライバシーとセキュリティ › マイク で Klip にアクセスを許可してください。"
     ]
 }
