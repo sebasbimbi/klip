@@ -8,6 +8,7 @@ enum RecorderState: Equatable {
     case idle
     case recording
     case missingAPIKey
+    case micDenied          // microphone permission denied → guide to System Settings
     case error(String)      // error BEFORE recording starts (permission/key). Transcription runs in the background.
 }
 
@@ -71,7 +72,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         Task { @MainActor in
             guard AIProvider.hasKey else { state = .missingAPIKey; startRequested = false; return }
             guard await requestMicPermission() else {
-                state = .error("Permiso de micrófono denegado"); startRequested = false; return
+                state = .micDenied; startRequested = false; return
             }
             guard startRequested else { return }   // stop()/cancel() while waiting for permission
             let name = "\(UUID().uuidString).m4a"
@@ -87,7 +88,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 rec.delegate = self
                 rec.isMeteringEnabled = true
                 guard rec.prepareToRecord(), rec.record() else {
-                    state = .error("No se pudo iniciar la grabación"); startRequested = false; return
+                    state = .error(L10n.t("rec.err.start")); startRequested = false; return
                 }
                 recorder = rec
                 currentFileName = name
@@ -166,7 +167,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// Returns to .idle from terminal states (error or missing API key) to revalidate on reopen.
     func reset() {
         switch state {
-        case .error, .missingAPIKey: state = .idle
+        case .error, .missingAPIKey, .micDenied: state = .idle
         default: break
         }
     }
@@ -278,7 +279,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             recorder = nil
             guard let name = currentFileName else { return }   // cancelled: not an error, just exit
             currentFileName = nil
-            guard ok else { state = .error("La grabación falló"); return }
+            guard ok else { state = .error(L10n.t("rec.err.failed")); return }
             ingest(audioFileName: name)   // keeps the .m4a and transcribes
         }
     }

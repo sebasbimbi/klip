@@ -181,14 +181,14 @@ final class Storage {
         try Self.runDitto(["-x", "-k", src.path, tmp.path])
 
         guard let root = Self.findBackupRoot(in: tmp) else {
-            throw Self.err("El archivo no es una copia de seguridad de Klip (falta items.json).")
+            throw Self.err(L10n.t("backup.err.notBackup"))
         }
         // Validate that the backup's items.json decodes BEFORE touching anything (don't import garbage).
         let newItemsFile = root.appendingPathComponent("items.json")
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         guard let data = try? Data(contentsOf: newItemsFile),
               let decoded = try? decoder.decode([ClipboardItem].self, from: data) else {
-            throw Self.err("La copia de seguridad está dañada (items.json ilegible).")
+            throw Self.err(L10n.t("backup.err.corrupt"))
         }
 
         let newImages = root.appendingPathComponent("images")
@@ -260,7 +260,7 @@ final class Storage {
         p.waitUntilExit()
         guard p.terminationStatus == 0 else {
             throw NSError(domain: "Klip", code: Int(p.terminationStatus),
-                          userInfo: [NSLocalizedDescriptionKey: "No se pudo comprimir/descomprimir (ditto \(p.terminationStatus))."])
+                          userInfo: [NSLocalizedDescriptionKey: String(format: L10n.t("backup.err.ditto"), p.terminationStatus)])
         }
     }
 

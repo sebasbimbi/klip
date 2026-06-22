@@ -20,30 +20,30 @@ struct UploadView: View {
             switch recorder.state {
             case .missingAPIKey:
                 Image(systemName: "key.slash").font(.system(size: 34)).foregroundStyle(.orange)
-                Text("Falta tu API key").font(.headline)
+                Text(L10n.t("rec.nokey.title")).font(.headline)
                 HStack {
-                    Button("Cerrar") { onClose() }
-                    Button("Abrir Preferencias") { onOpenPreferences(); onClose() }.buttonStyle(.borderedProminent)
+                    Button(L10n.t("common.close")) { onClose() }
+                    Button(L10n.t("rec.openprefs")) { onOpenPreferences(); onClose() }.buttonStyle(.borderedProminent)
                 }
             case .error(let m):
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 34)).foregroundStyle(.orange)
                 Text(m).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                Button("Cerrar") { recorder.reset(); onClose() }
+                Button(L10n.t("common.close")) { recorder.reset(); onClose() }
             default:
-                Text("Subir audio para transcribir").font(.headline)
+                Text(L10n.t("upload.title")).font(.headline)
                 dropZone
-                Text("Se transcriben en segundo plano y aparecen en el historial.\nFormatos: m4a, mp3, wav, mp4, opus, ogg, flac…")
+                Text(L10n.t("upload.info"))
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if recorder.transcribingCount > 0 {
                     HStack(spacing: 7) {
                         ProgressView().controlSize(.small)
-                        Text("Transcribiendo \(recorder.transcribingCount)… aparecerá\(recorder.transcribingCount == 1 ? "" : "n") en tu historial")
+                        Text(String(format: L10n.t(recorder.transcribingCount == 1 ? "upload.transcribing.one" : "upload.transcribing.many"), recorder.transcribingCount))
                     }
                     .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .background(Capsule().fill(Color.accentColor.opacity(0.14)))
                 }
-                Button("Cerrar") { onClose() }
+                Button(L10n.t("common.close")) { onClose() }
             }
         }
         .frame(width: 380, height: 330).padding()
@@ -53,9 +53,9 @@ struct UploadView: View {
         VStack(spacing: 10) {
             Image(systemName: "arrow.down.doc.fill").font(.system(size: 38))
                 .foregroundStyle(hovering ? Color.accentColor : .secondary)
-            Text("Arrastra tus audios aquí").font(.system(size: 14, weight: .medium))
-            Text("o").font(.caption).foregroundStyle(.secondary)
-            Button("Elegir archivos…") { onChoose() }
+            Text(L10n.t("upload.drop")).font(.system(size: 14, weight: .medium))
+            Text(L10n.t("upload.or")).font(.caption).foregroundStyle(.secondary)
+            Button(L10n.t("upload.choose")) { onChoose() }
         }
         .frame(maxWidth: .infinity).frame(height: 150)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(hovering ? 0.12 : 0.05)))

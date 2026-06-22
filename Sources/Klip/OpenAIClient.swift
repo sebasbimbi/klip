@@ -9,13 +9,13 @@ enum OpenAIError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "No hay clave de OpenAI. Añádela en Preferencias › OpenAI."
+            return L10n.t("ai.err.missingKey")
         case .invalidResponse:
-            return "Respuesta no válida de OpenAI."
+            return L10n.t("ai.err.invalidResponse")
         case .http(let status, let message):
             return "OpenAI \(status): \(message)"
         case .transport(let e):
-            return "Error de red: \(e.localizedDescription)"
+            return String(format: L10n.t("ai.err.network"), e.localizedDescription)
         }
     }
 }
@@ -82,7 +82,7 @@ final class OpenAIClient {
         let payload: [String: Any] = [
             "model": "gpt-4o-mini",
             "messages": [
-                ["role": "system", "content": "Convierte el texto del usuario en Markdown limpio y bien estructurado (encabezados, listas, énfasis y bloques de código cuando corresponda). Devuelve SOLO el Markdown, sin explicaciones ni vallas de código envolventes."],
+                ["role": "system", "content": "Convert the user's text into clean, well-structured Markdown (headings, lists, emphasis and code blocks where appropriate). Return ONLY the Markdown, with no explanations or wrapping code fences."],
                 ["role": "user", "content": text]
             ],
             "temperature": 0.2

@@ -21,6 +21,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     var sourceBundleID: String?   // "com.google.Chrome"
     var isRemote: Bool?           // heuristic: "another Apple device"
     var isVoiceNote: Bool?        // voice note transcription
+    var transcribing: Bool?       // voice note: transcription in progress (state, language-independent)
     var isCredential: Bool?       // marked as a credential (token/API key)
     var audioFileName: String?    // voice note: original audio file saved (m4a) for playback
     var audioDuration: Double?    // audio duration in seconds (for display and the progress bar)
@@ -38,6 +39,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
          sourceBundleID: String? = nil,
          isRemote: Bool? = nil,
          isVoiceNote: Bool? = nil,
+         transcribing: Bool? = nil,
          isCredential: Bool? = nil,
          audioFileName: String? = nil,
          audioDuration: Double? = nil,
@@ -54,6 +56,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
         self.sourceBundleID = sourceBundleID
         self.isRemote = isRemote
         self.isVoiceNote = isVoiceNote
+        self.transcribing = transcribing
         self.isCredential = isCredential
         self.audioFileName = audioFileName
         self.audioDuration = audioDuration
@@ -67,6 +70,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
         lhs.id == rhs.id && lhs.pinned == rhs.pinned && lhs.createdAt == rhs.createdAt
             && lhs.isCredential == rhs.isCredential && lhs.isVoiceNote == rhs.isVoiceNote
+            && lhs.transcribing == rhs.transcribing
             && lhs.isRemote == rhs.isRemote
             && lhs.text == rhs.text && lhs.preview == rhs.preview
             && lhs.imageFileName == rhs.imageFileName && lhs.audioFileName == rhs.audioFileName

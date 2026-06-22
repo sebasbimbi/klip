@@ -398,7 +398,7 @@ struct ItemRow: View {
               Storage.shared.audioExists(fileName: af) else { return nil }
         return af
     }
-    private var isTranscribing: Bool { item.preview == ClipboardManager.voiceTranscribing }
+    private var isTranscribing: Bool { item.transcribing == true }
 
     /// Color if the item's text is a hex value (#RGB / #RRGGBB / #RRGGBBAA) → shows a swatch.
     private var swatchColor: NSColor? {

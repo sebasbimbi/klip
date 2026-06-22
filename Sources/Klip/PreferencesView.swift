@@ -22,7 +22,7 @@ final class APIKeyModel: ObservableObject {
     func save(_ raw: String) -> Bool {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            errorMessage = "No se detectó ninguna clave. Pega el texto y vuelve a intentarlo."
+            errorMessage = L10n.t("key.err.empty")
             savedOK = false
             return false
         }
@@ -31,12 +31,12 @@ final class APIKeyModel: ObservableObject {
             if ok {
                 errorMessage = nil; savedOK = true
             } else {
-                errorMessage = "La clave no se pudo confirmar tras guardarla."; savedOK = false
+                errorMessage = L10n.t("key.err.unconfirmed"); savedOK = false
             }
             refresh()
             return ok
         } catch {
-            errorMessage = "No se pudo guardar: \(error.localizedDescription)"
+            errorMessage = String(format: L10n.t("key.err.save"), error.localizedDescription)
             savedOK = false
             refresh()
             return false
@@ -290,13 +290,13 @@ struct PreferencesView: View {
         HStack(spacing: 6) {
             if model.isConfigured {
                 Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
-                Text("Clave configurada")
+                Text(L10n.t("prefs.key.configured"))
                 if let l4 = model.last4 {
                     Text("••••\(l4)").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
                 }
             } else {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text("Sin clave configurada").foregroundStyle(.secondary)
+                Text(L10n.t("prefs.key.none")).foregroundStyle(.secondary)
             }
         }
     }

@@ -56,7 +56,7 @@ final class RecorderNSView: NSView {
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6)
         bg.setFill(); path.fill()
 
-        let label = recording ? "Pulsa la combinación…" : current.displayString
+        let label = recording ? L10n.t("hotkey.record.prompt") : current.displayString
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
             .foregroundColor: NSColor.labelColor
@@ -86,7 +86,7 @@ struct HotKeyField: View {
             }
             .menuStyle(.borderlessButton)
             .frame(width: 28)
-            .help("Combinaciones sugeridas")
+            .help(L10n.t("hotkey.suggestions"))
         }
     }
 }

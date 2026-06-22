@@ -100,7 +100,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             colorButtons.append(b)
             leading.addArrangedSubview(b)
         }
-        let more = makeActionButton(symbol: "ellipsis.circle", tip: "Más colores…", action: #selector(moreColorTapped))
+        let more = makeActionButton(symbol: "ellipsis.circle", tip: L10n.t("editor.morecolors"), action: #selector(moreColorTapped))
         more.translatesAutoresizingMaskIntoConstraints = false
         more.widthAnchor.constraint(equalToConstant: 30).isActive = true
         leading.addArrangedSubview(more)
@@ -113,21 +113,21 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
                                         target: self, action: #selector(widthChanged(_:)))
         widths.setWidth(40, forSegment: 0); widths.setWidth(40, forSegment: 1)
         widths.selectedSegment = 0
-        widths.toolTip = "Grosor del trazo"
+        widths.toolTip = L10n.t("editor.strokewidth")
         leading.addArrangedSubview(widths)
 
         leading.addArrangedSubview(separator())
 
         // Text size (affects the selected text or the next one you type).
-        let smaller = makeActionButton(symbol: "textformat.size.smaller", tip: "Texto más chico", action: #selector(textSmaller))
-        let larger = makeActionButton(symbol: "textformat.size.larger", tip: "Texto más grande", action: #selector(textLarger))
+        let smaller = makeActionButton(symbol: "textformat.size.smaller", tip: L10n.t("editor.textsmaller"), action: #selector(textSmaller))
+        let larger = makeActionButton(symbol: "textformat.size.larger", tip: L10n.t("editor.textlarger"), action: #selector(textLarger))
         for b in [smaller, larger] {
             b.translatesAutoresizingMaskIntoConstraints = false
             b.widthAnchor.constraint(equalToConstant: size).isActive = true
             leading.addArrangedSubview(b)
         }
 
-        let undo = makeActionButton(symbol: "arrow.uturn.backward", tip: "Deshacer (⌘Z)", action: #selector(undoTapped))
+        let undo = makeActionButton(symbol: "arrow.uturn.backward", tip: L10n.t("editor.undo"), action: #selector(undoTapped))
         undo.keyEquivalent = "z"; undo.keyEquivalentModifierMask = [.command]
         undo.translatesAutoresizingMaskIntoConstraints = false
         undo.widthAnchor.constraint(equalToConstant: size).isActive = true
@@ -140,11 +140,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         trailing.alignment = .centerY
         trailing.translatesAutoresizingMaskIntoConstraints = false
 
-        let copy = makeTextButton(title: "Copiar", tip: "Copiar (⌘C)", action: #selector(copyTapped))
+        let copy = makeTextButton(title: L10n.t("editor.copy"), tip: L10n.t("editor.copy.tip"), action: #selector(copyTapped))
         copy.keyEquivalent = "c"; copy.keyEquivalentModifierMask = [.command]
-        let save = makeTextButton(title: "Guardar", tip: "Guardar (⌘S)", action: #selector(saveTapped))
+        let save = makeTextButton(title: L10n.t("editor.save"), tip: L10n.t("editor.save.tip"), action: #selector(saveTapped))
         save.keyEquivalent = "s"; save.keyEquivalentModifierMask = [.command]
-        let close = makeActionButton(symbol: "xmark", tip: "Cerrar (Esc)", action: #selector(closeTapped))
+        let close = makeActionButton(symbol: "xmark", tip: L10n.t("editor.close"), action: #selector(closeTapped))
         close.keyEquivalent = "\u{1b}"   // Esc
         close.translatesAutoresizingMaskIntoConstraints = false
         close.widthAnchor.constraint(equalToConstant: size).isActive = true
@@ -270,7 +270,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         b.isBordered = false
         b.wantsLayer = true
         b.tag = tag
-        b.toolTip = "Color"
+        b.toolTip = L10n.t("editor.color")
         b.translatesAutoresizingMaskIntoConstraints = false
         return b
     }
@@ -332,7 +332,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let image = canvas.flattened()
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = "Captura Klip.png"
+        panel.nameFieldStringValue = L10n.t("editor.savefilename")
         // Sheet anchored to the editor window (not floating) so it isn't orphaned if it closes.
         panel.beginSheetModal(for: window) { [weak self] resp in
             guard let self else { return }
@@ -340,7 +340,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             guard let tiff = image.tiffRepresentation,
                   let rep = NSBitmapImageRep(data: tiff),
                   let png = rep.representation(using: .png, properties: [:]) else {
-                self.showError("No se pudo generar el PNG de la captura."); return
+                self.showError(L10n.t("editor.err.png")); return
             }
             do {
                 try png.write(to: url)
@@ -348,14 +348,14 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             } catch {
                 // Write failure (disk full, read-only path…): warn and do NOT close the editor,
                 // so we don't lose the annotation thinking it was saved.
-                self.showError("No se pudo guardar la captura: \(error.localizedDescription)")
+                self.showError(String(format: L10n.t("editor.err.save"), error.localizedDescription))
             }
         }
     }
 
     private func showError(_ msg: String) {
-        let a = NSAlert(); a.messageText = "Guardar captura"; a.informativeText = msg
-        a.addButton(withTitle: "OK"); a.runModal()
+        let a = NSAlert(); a.messageText = L10n.t("editor.err.title"); a.informativeText = msg
+        a.addButton(withTitle: L10n.t("common.ok")); a.runModal()
     }
 
     @objc private func closeTapped() { finish(with: nil) }

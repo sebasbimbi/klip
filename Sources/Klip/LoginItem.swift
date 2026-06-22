@@ -12,11 +12,11 @@ enum LoginItemError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidSignature:
-            return "Pasta no está firmada correctamente; no se puede activar el inicio automático."
+            return L10n.t("login.err.signature")
         case .requiresApproval:
-            return "Actívalo en Ajustes del Sistema › General › Ítems de inicio de sesión."
+            return L10n.t("login.err.approval")
         case .translocated:
-            return "Mueve Pasta a la carpeta Aplicaciones para activar el inicio automático."
+            return L10n.t("login.err.translocated")
         case .underlying(let e):
             return e.localizedDescription
         }

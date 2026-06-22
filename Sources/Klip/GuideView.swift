@@ -9,38 +9,40 @@ struct GuideView: View {
 
     private var klipShortcuts: [Row] {
         [
-            Row(keys: settings.combo.displayString, what: "Abrir / cerrar el historial"),
-            Row(keys: settings.voiceCombo.displayString, what: "Grabar nota de voz (pulsa otra vez para detener)"),
-            Row(keys: "↑ ↓", what: "Moverte por la lista"),
-            Row(keys: "↩", what: "Elegir el elemento (copiar / pegar)"),
-            Row(keys: "⌘1 … ⌘9", what: "Elegir directamente el elemento 1–9"),
-            Row(keys: "Esc", what: "Cerrar el panel"),
-            Row(keys: "⌘,", what: "Abrir Preferencias")
+            Row(keys: settings.combo.displayString, what: L10n.t("guide.klip.toggle")),
+            Row(keys: settings.voiceCombo.displayString, what: L10n.t("guide.klip.voice")),
+            Row(keys: "↑ ↓", what: L10n.t("guide.klip.move")),
+            Row(keys: "↩", what: L10n.t("guide.klip.choose")),
+            Row(keys: "⌘1 … ⌘9", what: L10n.t("guide.klip.direct")),
+            Row(keys: "Esc", what: L10n.t("guide.klip.close")),
+            Row(keys: "⌘,", what: L10n.t("guide.klip.prefs"))
         ]
     }
 
-    private let macShortcuts: [Row] = [
-        Row(keys: "⌘⇧3", what: "Captura de TODA la pantalla (se guarda en el escritorio)"),
-        Row(keys: "⌘⇧4", what: "Captura de una ZONA que seleccionas"),
-        Row(keys: "⌘⇧5", what: "Herramientas de captura y grabación de pantalla"),
-        Row(keys: "⌘⇧⌃4", what: "Captura de zona directo AL PORTAPAPELES (aparece en Klip)")
-    ]
+    private var macShortcuts: [Row] {
+        [
+            Row(keys: "⌘⇧3", what: L10n.t("guide.mac.full")),
+            Row(keys: "⌘⇧4", what: L10n.t("guide.mac.area")),
+            Row(keys: "⌘⇧5", what: L10n.t("guide.mac.tools")),
+            Row(keys: "⌘⇧⌃4", what: L10n.t("guide.mac.clipboard"))
+        ]
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
 
-                section("⌨️ Atajos de Klip", klipShortcuts)
-                section("📸 Atajos de captura de macOS", macShortcuts,
-                        footer: "Klip guarda las capturas que copies. Usa ⌘⇧⌃4 para copiar una zona directo al portapapeles.")
+                section("⌨️ " + L10n.t("guide.section.klip"), klipShortcuts)
+                section("📸 " + L10n.t("guide.section.mac"), macShortcuts,
+                        footer: L10n.t("guide.mac.footer"))
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("💡 Cómo se usa").font(.headline)
-                    bullet("Copia texto o imágenes con normalidad: aparecen en el historial.")
-                    bullet("Pulsa \(settings.combo.displayString) y haz clic (o Enter) para volver a pegar algo.")
-                    bullet("Las contraseñas/tokens se detectan y guardan aparte, enmascarados (filtro 🔑).")
-                    bullet("Graba notas de voz y se transcriben a texto con OpenAI.")
+                    Text("💡 " + L10n.t("guide.howto.title")).font(.headline)
+                    bullet(L10n.t("guide.howto.copy"))
+                    bullet(String(format: L10n.t("guide.howto.paste"), settings.combo.displayString))
+                    bullet(L10n.t("guide.howto.creds"))
+                    bullet(L10n.t("guide.howto.voice"))
                 }
             }
             .padding(20)
@@ -54,7 +56,7 @@ struct GuideView: View {
                 Image(nsImage: logo).resizable().frame(width: 48, height: 48)
             }
             VStack(alignment: .leading) {
-                Text("Guía de Klip").font(.title2).bold()
+                Text(L10n.t("win.guide")).font(.title2).bold()
                 Text("v\(AppInfo.version)").font(.caption).foregroundStyle(.secondary)
             }
         }

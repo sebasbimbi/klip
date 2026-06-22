@@ -26,8 +26,8 @@ final class GeminiClient {
         let data = try Data(contentsOf: audioURL)
         let base64 = data.base64EncodedString()
         let lang = (language?.isEmpty == false) ? language! : "es"
-        let prompt = "Transcribe este audio a texto literal. Devuelve SOLO la transcripción, "
-            + "sin comentarios, encabezados ni formato. Idioma principal: \(lang)."
+        let prompt = "Transcribe this audio verbatim. Return ONLY the transcription, "
+            + "with no comments, headings or formatting. Primary language: \(lang)."
 
         let payload: [String: Any] = [
             "contents": [[

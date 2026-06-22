@@ -255,8 +255,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func enableAutoPaste() {
         if Paster.ensureAccessibilityPermission(prompt: true) {
             let a = NSAlert()
-            a.messageText = "Pegado automático activado"
-            a.informativeText = "Klip ya puede pegar automáticamente al elegir un elemento del historial."
+            a.messageText = L10n.t("autopaste.enabled.title")
+            a.informativeText = L10n.t("autopaste.enabled.info")
             a.runModal()
         }
     }
@@ -298,6 +298,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         op.begin { [weak self] resp in
             guard let self, resp == .OK, let url = op.url else { return }
+            // Don't import while a voice note is still transcribing: the import replaces the audio
+            // directory and items, and the in-flight transcription would resolve against stale ids.
+            guard !self.manager.hasActiveTranscription else {
+                self.showAlert(L10n.t("import.busy.title"), L10n.t("import.busy.info")); return
+            }
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = L10n.t("import.title")

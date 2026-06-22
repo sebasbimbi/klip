@@ -508,7 +508,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private func retryTranscription(_ item: ClipboardItem) {
         guard let af = item.audioFileName, Storage.shared.audioExists(fileName: af) else { return }
         // Prevents a second retry (double-click) while one is already in progress → doesn't duplicate the API call.
-        guard manager.items.first(where: { $0.id == item.id })?.preview != ClipboardManager.voiceTranscribing else { return }
+        guard manager.items.first(where: { $0.id == item.id })?.transcribing != true else { return }
         guard AIProvider.hasKey else { onOpenPreferences?(); return }   // no key: offer to configure it
         MainActor.assumeIsolated { recorder.retry(itemID: item.id, audioFileName: af) }
     }

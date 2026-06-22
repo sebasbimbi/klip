@@ -36,17 +36,18 @@ final class ClipboardManager: ObservableObject {
     /// if they still have their audio, they move to "no transcription" (recoverable); otherwise they are discarded.
     private func reconcileVoiceNotesOnLoad() {
         var changed = false
-        for idx in items.indices where items[idx].isVoiceNote == true && items[idx].preview == Self.voiceTranscribing {
+        for idx in items.indices where items[idx].isVoiceNote == true && items[idx].transcribing == true {
             if let af = items[idx].audioFileName, storage.audioExists(fileName: af) {
                 items[idx].text = nil
                 items[idx].preview = Self.voiceFailed
+                items[idx].transcribing = false   // recoverable: no longer "in progress"
             } else {
-                items[idx].audioFileName = nil   // mark for removal
+                items[idx].audioFileName = nil     // mark for removal (keeps transcribing == true)
             }
             changed = true
         }
         let before = items.count
-        items.removeAll { $0.isVoiceNote == true && $0.preview == Self.voiceTranscribing && $0.audioFileName == nil }
+        items.removeAll { $0.isVoiceNote == true && $0.transcribing == true && $0.audioFileName == nil }
         if changed || items.count != before { storage.saveItems(items) }
     }
 
@@ -109,12 +110,19 @@ final class ClipboardManager: ObservableObject {
         let remote = settings.detectRemoteSource
             && RemoteClipboardHeuristic.looksRemote(pb: pb, source: source,
                                                     captureSourceEnabled: settings.captureSource)
-        if hasImageData(pb), let image = NSImage(pasteboard: pb) {
-            addImage(image, source: source, remote: remote); return
+        // A Finder file copy (and some rich copies) carry BOTH a thumbnail image and the file URL/text.
+        // Prefer the text/URL so we don't lose it by storing the thumbnail as the content.
+        let trimmedString = pb.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if (trimmedString?.isEmpty ?? true),
+           let urls = pb.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty {
+            addText(urls.map { $0.isFileURL ? $0.path : $0.absoluteString }.joined(separator: "\n"),
+                    source: source, remote: remote); return
         }
-        if let str = pb.string(forType: .string),
-           !str.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            addText(str, source: source, remote: remote)
+        if let str = trimmedString, !str.isEmpty {
+            addText(pb.string(forType: .string) ?? str, source: source, remote: remote); return
+        }
+        if hasImageData(pb), let image = NSImage(pasteboard: pb) {
+            addImage(image, source: source, remote: remote)
         }
     }
 
@@ -149,7 +157,7 @@ final class ClipboardManager: ObservableObject {
         let fileName = "\(UUID().uuidString).png"
         storage.saveImage(image, fileName: fileName)
         let size = image.pixelDimensions
-        let preview = "Imagen · \(Int(size.width))×\(Int(size.height))"
+        let preview = String(format: L10n.t("preview.image"), Int(size.width), Int(size.height))
         items.insert(ClipboardItem(kind: .image, imageFileName: fileName, preview: preview,
                                    sourceName: source.name, sourceBundleID: source.bundleID,
                                    isRemote: remote ? true : nil), at: 0)
@@ -164,7 +172,7 @@ final class ClipboardManager: ObservableObject {
         let fileName = "\(UUID().uuidString).png"
         storage.saveImage(image, fileName: fileName)
         let size = image.pixelDimensions   // real pixels (not points): consistent badge on Retina
-        let preview = "Captura · \(Int(size.width))×\(Int(size.height))"
+        let preview = String(format: L10n.t("preview.capture"), Int(size.width), Int(size.height))
         let item = ClipboardItem(kind: .image, imageFileName: fileName, preview: preview)
         items.insert(item, at: 0)
         trimAndSave()
@@ -178,9 +186,9 @@ final class ClipboardManager: ObservableObject {
 
     // MARK: - Voice notes (saved audio + 3-step transcription)
 
-    static let voiceTranscribing = "🎙 Transcribiendo…"
-    static let voiceFailed = "🎙 Nota de voz (sin transcripción · reproduce el audio)"
-    static let voiceFailedNoAudio = "🎙 Nota de voz (no se pudo transcribir)"
+    static var voiceTranscribing: String { "🎙 " + L10n.t("voice.transcribing") }
+    static var voiceFailed: String { "🎙 " + L10n.t("voice.failed") }
+    static var voiceFailedNoAudio: String { "🎙 " + L10n.t("voice.failedNoAudio") }
 
     private static func voicePreview(_ clean: String) -> String {
         "🎙 " + String(clean.prefix(160))
@@ -196,7 +204,8 @@ final class ClipboardManager: ObservableObject {
     @discardableResult
     func beginVoiceNote(audioFileName: String?, duration: Double?) -> UUID {
         let item = ClipboardItem(kind: .text, preview: Self.voiceTranscribing,
-                                 isVoiceNote: true, audioFileName: audioFileName, audioDuration: duration)
+                                 isVoiceNote: true, transcribing: true,
+                                 audioFileName: audioFileName, audioDuration: duration)
         items.insert(item, at: 0)
         voicePasteGuards[item.id] = NSPasteboard.general.changeCount
         trimAndSave()
@@ -208,6 +217,7 @@ final class ClipboardManager: ObservableObject {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].text = nil
         items[idx].preview = Self.voiceTranscribing
+        items[idx].transcribing = true
         // Re-register the pasteboard guard: otherwise a successful retry would never auto-paste
         // (removeValue would return nil → canPaste=false). Auto-paste on retries was dead.
         voicePasteGuards[id] = NSPasteboard.general.changeCount
@@ -226,6 +236,7 @@ final class ClipboardManager: ObservableObject {
         }
         items[idx].text = clean.isEmpty ? nil : clean
         items[idx].preview = clean.isEmpty ? Self.voiceFailed : Self.voicePreview(clean)
+        items[idx].transcribing = false
         let item = items[idx]
         trimAndSave()
         if !clean.isEmpty, canPaste { copyToPasteboard(item) }   // only if nothing changed the pasteboard
@@ -237,13 +248,14 @@ final class ClipboardManager: ObservableObject {
         voicePasteGuards.removeValue(forKey: id)
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].text = nil
+        items[idx].transcribing = false
         items[idx].preview = items[idx].audioFileName != nil ? Self.voiceFailed : Self.voiceFailedNoAudio
         storage.saveItems(items)
     }
 
     /// Not trimmed: neither pinned items nor a voice note still being transcribed (its audio/text would be lost).
     private func isProtectedFromTrim(_ it: ClipboardItem) -> Bool {
-        it.pinned || (it.isVoiceNote == true && it.preview == Self.voiceTranscribing)
+        it.pinned || (it.isVoiceNote == true && it.transcribing == true)
     }
 
     private func trimAndSave() {
@@ -303,9 +315,14 @@ final class ClipboardManager: ObservableObject {
     }
 
     /// Replaces the in-memory history after importing a backup.
+    /// True while at least one voice note is still being transcribed in the background.
+    var hasActiveTranscription: Bool { items.contains { $0.transcribing == true } }
+
     func reload(_ newItems: [ClipboardItem]) {
         AudioPlayer.shared.stop()
+        voicePasteGuards.removeAll()   // old ids are gone after a reload/import: don't paste a stale transcription
         items = newItems
+        storage.saveItems(items)
     }
 
     func clearAll() {
