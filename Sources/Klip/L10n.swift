@@ -230,7 +230,10 @@ enum L10n {
         "import.busy.title": "Espera a que terminen las transcripciones",
         "import.busy.info": "Hay notas de voz transcribiéndose. Importar ahora podría perderlas. Inténtalo de nuevo cuando terminen.",
         "perm.mic.title": "Klip necesita permiso de Micrófono",
-        "perm.mic.info": "Para grabar notas de voz, concede acceso a Klip en Ajustes del Sistema › Privacidad y seguridad › Micrófono."
+        "perm.mic.info": "Para grabar notas de voz, concede acceso a Klip en Ajustes del Sistema › Privacidad y seguridad › Micrófono.",
+        "prefs.vocab.label": "Palabras de contexto",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Nombres, marcas o jerga que aparecen en tu audio. El transcriptor los usa para escribirlos bien."
     ]
 
     private static let en: [String: String] = [
@@ -444,7 +447,10 @@ enum L10n {
         "import.busy.title": "Wait for transcriptions to finish",
         "import.busy.info": "Some voice notes are still transcribing. Importing now could lose them. Try again once they finish.",
         "perm.mic.title": "Klip needs Microphone permission",
-        "perm.mic.info": "To record voice notes, grant Klip access in System Settings › Privacy & Security › Microphone."
+        "perm.mic.info": "To record voice notes, grant Klip access in System Settings › Privacy & Security › Microphone.",
+        "prefs.vocab.label": "Context words",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Names, brands or jargon that appear in your audio. The transcriber uses them to spell them correctly."
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation flow; any
@@ -661,7 +667,10 @@ enum L10n {
         "import.busy.title": "Attends la fin des transcriptions",
         "import.busy.info": "Des notes vocales sont encore en cours de transcription. Importer maintenant pourrait les perdre. Réessaie une fois terminées.",
         "perm.mic.title": "Klip a besoin de l'autorisation Microphone",
-        "perm.mic.info": "Pour enregistrer des notes vocales, autorise Klip dans Réglages Système › Confidentialité et sécurité › Microphone."
+        "perm.mic.info": "Pour enregistrer des notes vocales, autorise Klip dans Réglages Système › Confidentialité et sécurité › Microphone.",
+        "prefs.vocab.label": "Mots de contexte",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Noms, marques ou jargon présents dans ton audio. Le transcripteur les utilise pour bien les écrire."
     ]
 
     private static let de: [String: String] = [
@@ -876,7 +885,10 @@ enum L10n {
         "import.busy.title": "Warte, bis die Transkriptionen fertig sind",
         "import.busy.info": "Einige Sprachnotizen werden noch transkribiert. Ein Import jetzt könnte sie verlieren. Versuche es erneut, wenn sie fertig sind.",
         "perm.mic.title": "Klip benötigt die Mikrofon-Berechtigung",
-        "perm.mic.info": "Um Sprachnotizen aufzunehmen, gewähre Klip Zugriff unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon."
+        "perm.mic.info": "Um Sprachnotizen aufzunehmen, gewähre Klip Zugriff unter Systemeinstellungen › Datenschutz & Sicherheit › Mikrofon.",
+        "prefs.vocab.label": "Kontextwörter",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Namen, Marken oder Fachbegriffe in deinem Audio. Der Transkriptor nutzt sie für die richtige Schreibweise."
     ]
 
     private static let it: [String: String] = [
@@ -1091,7 +1103,10 @@ enum L10n {
         "import.busy.title": "Attendi la fine delle trascrizioni",
         "import.busy.info": "Alcune note vocali si stanno ancora trascrivendo. Importare ora potrebbe perderle. Riprova quando hanno finito.",
         "perm.mic.title": "Klip ha bisogno dell'autorizzazione Microfono",
-        "perm.mic.info": "Per registrare note vocali, concedi l'accesso a Klip in Impostazioni di Sistema › Privacy e sicurezza › Microfono."
+        "perm.mic.info": "Per registrare note vocali, concedi l'accesso a Klip in Impostazioni di Sistema › Privacy e sicurezza › Microfono.",
+        "prefs.vocab.label": "Parole di contesto",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Nomi, marchi o gergo presenti nel tuo audio. Il trascrittore li usa per scriverli correttamente."
     ]
 
     private static let pt: [String: String] = [
@@ -1306,7 +1321,10 @@ enum L10n {
         "import.busy.title": "Aguarda o fim das transcrições",
         "import.busy.info": "Algumas notas de voz ainda estão a ser transcritas. Importar agora pode perdê-las. Tenta de novo quando terminarem.",
         "perm.mic.title": "O Klip precisa de permissão de Microfone",
-        "perm.mic.info": "Para gravar notas de voz, concede acesso ao Klip em Definições do Sistema › Privacidade e Segurança › Microfone."
+        "perm.mic.info": "Para gravar notas de voz, concede acesso ao Klip em Definições do Sistema › Privacidade e Segurança › Microfone.",
+        "prefs.vocab.label": "Palavras de contexto",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "Nomes, marcas ou jargão que aparecem no teu áudio. O transcritor usa-os para os escrever corretamente."
     ]
 
     private static let zh: [String: String] = [
@@ -1521,7 +1539,10 @@ enum L10n {
         "import.busy.title": "请等待转写完成",
         "import.busy.info": "部分语音笔记仍在转写中。现在导入可能会丢失它们。请在完成后重试。",
         "perm.mic.title": "Klip 需要麦克风权限",
-        "perm.mic.info": "要录制语音笔记，请在系统设置 › 隐私与安全性 › 麦克风中授予 Klip 访问权限。"
+        "perm.mic.info": "要录制语音笔记，请在系统设置 › 隐私与安全性 › 麦克风中授予 Klip 访问权限。",
+        "prefs.vocab.label": "上下文词汇",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "你的音频中出现的名称、品牌或术语。转写器会用它们来正确拼写。"
     ]
 
     private static let ja: [String: String] = [
@@ -1736,6 +1757,9 @@ enum L10n {
         "import.busy.title": "文字起こしの完了をお待ちください",
         "import.busy.info": "一部の音声メモはまだ文字起こし中です。今インポートすると失われる可能性があります。完了後に再試行してください。",
         "perm.mic.title": "Klip にはマイクの許可が必要です",
-        "perm.mic.info": "音声メモを録音するには、システム設定 › プライバシーとセキュリティ › マイク で Klip にアクセスを許可してください。"
+        "perm.mic.info": "音声メモを録音するには、システム設定 › プライバシーとセキュリティ › マイク で Klip にアクセスを許可してください。",
+        "prefs.vocab.label": "コンテキスト単語",
+        "prefs.vocab.placeholder": "Kommo, CRM, Proper, funnel, KPI, Tami Bot…",
+        "prefs.vocab.info": "音声に出てくる名前・ブランド・専門用語。文字起こしが正しく表記するために使います。"
     ]
 }

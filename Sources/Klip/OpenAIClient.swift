@@ -38,7 +38,7 @@ final class OpenAIClient {
 
     // MARK: - Audio transcription
 
-    func transcribe(audioURL: URL, language: String?, model: String) async throws -> String {
+    func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
         let key = try apiKey()
         let fileData = try Data(contentsOf: audioURL)
 
@@ -57,6 +57,9 @@ final class OpenAIClient {
         append("\r\n")
         field("model", model)
         if let language, !language.isEmpty { field("language", language) }
+        // Bias recognition toward the user's context words/names (Whisper & gpt-4o-transcribe `prompt`).
+        let vocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !vocab.isEmpty { field("prompt", vocab) }
         field("response_format", "json")
         append("--\(boundary)--\r\n")
 

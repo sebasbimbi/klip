@@ -251,10 +251,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         let model = Settings.shared.aiProvider == "gemini"
             ? Settings.shared.geminiModel : Settings.shared.transcriptionModel
         let language = Settings.shared.transcriptionLanguage
+        let vocabulary = Settings.shared.transcriptionVocabulary
         Task { @MainActor in
             defer { transcribingCount -= 1 }
             do {
-                let text = try await AIProvider.transcribe(audioURL: url, language: language, model: model)
+                let text = try await AIProvider.transcribe(audioURL: url, language: language, model: model, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id) } }
                 else { if let id { onVoiceNoteTranscribed?(id, trimmed) } }

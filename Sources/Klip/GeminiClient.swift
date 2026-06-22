@@ -19,7 +19,7 @@ final class GeminiClient {
 
     /// `model` is resolved on the MainActor by the caller (Recorder) and passed in here, so we don't read
     /// `Settings.shared` from the transcription thread (avoids the data race with a @Published).
-    func transcribe(audioURL: URL, language: String?, model: String) async throws -> String {
+    func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
         let key = try apiKey()
         let resolvedModel = model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "gemini-flash-latest" : model.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -27,8 +27,11 @@ final class GeminiClient {
         let base64 = data.base64EncodedString()
         // No language hint when "auto-detect": let the model transcribe in the audio's own language.
         let langHint = (language?.isEmpty == false) ? " Primary language: \(language!)." : ""
+        let vocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let vocabHint = vocab.isEmpty ? ""
+            : " These names/terms may appear; spell them exactly as written: \(vocab)."
         let prompt = "Transcribe this audio verbatim. Return ONLY the transcription, "
-            + "with no comments, headings or formatting.\(langHint)"
+            + "with no comments, headings or formatting.\(langHint)\(vocabHint)"
 
         let payload: [String: Any] = [
             "contents": [[
@@ -98,10 +101,10 @@ enum AIProvider {
         return OpenAIClient.shared.hasAPIKey
     }
 
-    static func transcribe(audioURL: URL, language: String?, model: String) async throws -> String {
+    static func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
         if selected == "gemini", GeminiClient.shared.hasAPIKey {
-            return try await GeminiClient.shared.transcribe(audioURL: audioURL, language: language, model: model)
+            return try await GeminiClient.shared.transcribe(audioURL: audioURL, language: language, model: model, vocabulary: vocabulary)
         }
-        return try await OpenAIClient.shared.transcribe(audioURL: audioURL, language: language, model: model)
+        return try await OpenAIClient.shared.transcribe(audioURL: audioURL, language: language, model: model, vocabulary: vocabulary)
     }
 }

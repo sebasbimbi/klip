@@ -106,6 +106,7 @@ final class Settings: ObservableObject {
         static let transModel = "transcriptionModel"
         static let geminiModel = "geminiModel"
         static let transLang  = "transcriptionLanguage"
+        static let transVocab = "transcriptionVocabulary"
         static let aiProv     = "aiProvider"
         static let keyCode2   = "voiceHotKeyCode"
         static let mods2      = "voiceHotKeyModifiers"
@@ -130,6 +131,8 @@ final class Settings: ObservableObject {
     /// Google Gemini model for transcription (configurable; previously hard-coded to "gemini-flash-latest").
     @Published var geminiModel: String { didSet { d.set(geminiModel, forKey: K.geminiModel) } }
     @Published var transcriptionLanguage: String { didSet { d.set(transcriptionLanguage, forKey: K.transLang) } }
+    /// Context words / vocabulary (names, brands, jargon) sent to the transcriber so it spells them right.
+    @Published var transcriptionVocabulary: String { didSet { d.set(transcriptionVocabulary, forKey: K.transVocab) } }
     /// AI provider for transcription: "openai" or "gemini".
     @Published var aiProvider: String { didSet { d.set(aiProvider, forKey: K.aiProv) } }
     @Published var voiceCombo: KeyCombo   { didSet {
@@ -163,6 +166,7 @@ final class Settings: ObservableObject {
             K.transModel: "gpt-4o-mini-transcribe",
             K.geminiModel: "gemini-flash-latest",
             K.transLang: "es",
+            K.transVocab: "",
             K.aiProv: "openai",
             K.keyCode2: Int(kVK_ANSI_I),
             K.mods2: Int(cmdKey | shiftKey),
@@ -183,6 +187,7 @@ final class Settings: ObservableObject {
         transcriptionModel = d.string(forKey: K.transModel) ?? "gpt-4o-mini-transcribe"
         geminiModel = d.string(forKey: K.geminiModel) ?? "gemini-flash-latest"
         transcriptionLanguage = d.string(forKey: K.transLang) ?? "es"
+        transcriptionVocabulary = d.string(forKey: K.transVocab) ?? ""
         aiProvider = d.string(forKey: K.aiProv) ?? "openai"
         voiceCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode2)),
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
