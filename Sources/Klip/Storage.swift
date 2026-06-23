@@ -44,11 +44,22 @@ final class Storage {
 
     // MARK: - History (metadata)
 
+    /// Credential secrets are stored encrypted on disk (see CredentialCrypto). Decrypt them back to
+    /// plaintext for in-memory use; non-credential text and never-encrypted (legacy) text pass through.
+    private func decryptCredentials(_ items: [ClipboardItem]) -> [ClipboardItem] {
+        items.map { item in
+            guard item.isCredential == true, let t = item.text, CredentialCrypto.isSealed(t) else { return item }
+            var copy = item
+            copy.text = CredentialCrypto.open(t)   // nil if the key is from another machine (cross-device restore)
+            return copy
+        }
+    }
+
     func loadItems() -> [ClipboardItem] {
         guard let data = try? Data(contentsOf: itemsURL) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        if let items = try? decoder.decode([ClipboardItem].self, from: data) { return items }
+        if let items = try? decoder.decode([ClipboardItem].self, from: data) { return decryptCredentials(items) }
         // Decoding failed but the file exists → back it up before anything overwrites it.
         if !data.isEmpty {
             try? data.write(to: baseURL.appendingPathComponent("items.corrupt.json"), options: .atomic)
@@ -57,12 +68,21 @@ final class Storage {
     }
 
     func saveItems(_ items: [ClipboardItem]) {
+        // Encrypt credential secrets before they hit disk (and the backup zip). In-memory items are
+        // untouched; if encryption is unavailable we keep the plaintext rather than lose the value.
+        let toStore = items.map { item -> ClipboardItem in
+            guard item.isCredential == true, let t = item.text, !t.isEmpty, !CredentialCrypto.isSealed(t),
+                  let sealed = CredentialCrypto.seal(t) else { return item }
+            var copy = item
+            copy.text = sealed
+            return copy
+        }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted]
-        guard let data = try? encoder.encode(items) else { return }
+        guard let data = try? encoder.encode(toStore) else { return }
         try? data.write(to: itemsURL, options: .atomic)
-        // The history may contain credentials in plain text: restrict to the user only.
+        // Defense in depth on top of the encryption: restrict the file to the user only.
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: itemsURL.path)
     }
 
@@ -237,7 +257,7 @@ final class Storage {
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
         imageCache.removeAllObjects()
-        return decoded
+        return decryptCredentials(decoded)   // creds in the imported items.json are encrypted on disk
     }
 
     private static func err(_ msg: String) -> NSError {

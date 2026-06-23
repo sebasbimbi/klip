@@ -1,0 +1,62 @@
+import Foundation
+import CryptoKit
+import Security
+
+/// Encrypts credential text AT REST. The AES-256 key lives in the macOS Keychain (OS-protected, not just
+/// file perms), so items.json — and the backup .zip that copies it — never contain credential secrets in
+/// the clear. Encryption happens only at the persistence boundary (Storage.save/loadItems); everything in
+/// memory keeps working with plaintext. Ciphertext carries a version prefix so older cleartext histories
+/// migrate transparently on the next save, and so non-credential text is never touched.
+enum CredentialCrypto {
+    private static let prefix = "klipenc1:"
+    private static let keyAccount = "com.proper.klip.credentialKey"
+
+    /// True if the string is one of our sealed tokens (so we don't double-seal or try to decrypt plaintext).
+    static func isSealed(_ s: String) -> Bool { s.hasPrefix(prefix) }
+
+    /// Returns a sealed token for `plaintext`, or nil if encryption is unavailable (caller keeps plaintext).
+    static func seal(_ plaintext: String) -> String? {
+        guard let key = loadOrCreateKey(),
+              let sealed = try? AES.GCM.seal(Data(plaintext.utf8), using: key),
+              let combined = sealed.combined else { return nil }
+        return prefix + combined.base64EncodedString()
+    }
+
+    /// Decrypts a sealed token back to plaintext, or nil if it isn't ours / the key is from another machine.
+    static func open(_ token: String) -> String? {
+        guard token.hasPrefix(prefix),
+              let data = Data(base64Encoded: String(token.dropFirst(prefix.count))),
+              let key = loadKey(),
+              let box = try? AES.GCM.SealedBox(combined: data),
+              let plain = try? AES.GCM.open(box, using: key) else { return nil }
+        return String(data: plain, encoding: .utf8)
+    }
+
+    // MARK: - Keychain-stored symmetric key
+
+    private static func loadKey() -> SymmetricKey? {
+        let q: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: keyAccount,
+            kSecReturnData as String: true,
+        ]
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data else { return nil }
+        return SymmetricKey(data: data)
+    }
+
+    private static func loadOrCreateKey() -> SymmetricKey? {
+        if let k = loadKey() { return k }
+        let key = SymmetricKey(size: .bits256)
+        let data = key.withUnsafeBytes { Data(Array($0)) }
+        let add: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: keyAccount,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,   // available to the background poll
+        ]
+        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return loadKey() }
+        return key
+    }
+}
