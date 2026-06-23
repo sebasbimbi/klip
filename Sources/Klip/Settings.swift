@@ -170,7 +170,7 @@ final class Settings: ObservableObject {
             K.geminiModel: "gemini-flash-latest",
             K.transLang: "es",
             K.transVocab: "",
-            K.localModel: "base",
+            K.localModel: "small",   // best accuracy/speed balance on Apple Silicon (downloads ~480 MB once)
             K.aiProv: "local",   // on-device (WhisperKit) by default; cloud is opt-in (needs an API key)
             K.keyCode2: Int(kVK_ANSI_I),
             K.mods2: Int(cmdKey | shiftKey),
@@ -192,7 +192,7 @@ final class Settings: ObservableObject {
         geminiModel = d.string(forKey: K.geminiModel) ?? "gemini-flash-latest"
         transcriptionLanguage = d.string(forKey: K.transLang) ?? "es"
         transcriptionVocabulary = d.string(forKey: K.transVocab) ?? ""
-        localModel = d.string(forKey: K.localModel) ?? "base"
+        localModel = d.string(forKey: K.localModel) ?? "small"
         aiProvider = d.string(forKey: K.aiProv) ?? "local"
         voiceCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode2)),
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
