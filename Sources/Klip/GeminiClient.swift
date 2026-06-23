@@ -83,7 +83,7 @@ final class GeminiClient {
             .joined()
         // A 200 with no usable text means the model returned nothing (safety block, token-budget cutoff,
         // empty candidate) — surface it as an error so it's logged and distinguishable from real silence.
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw OpenAIError.invalidResponse
         }
         return text
