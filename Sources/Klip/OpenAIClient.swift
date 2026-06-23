@@ -114,7 +114,7 @@ final class OpenAIClient {
     private static func contentType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
         case "mp3", "mpeg", "mpga": return "audio/mpeg"
-        case "mp4", "m4a":          return "audio/mp4"
+        case "mp4", "m4a", "m4b":   return "audio/mp4"
         case "wav":                 return "audio/wav"
         case "webm":                return "audio/webm"
         case "ogg", "oga", "opus":  return "audio/ogg"
@@ -123,12 +123,14 @@ final class OpenAIClient {
         }
     }
 
-    /// OpenAI validates the format by the filename extension. WhatsApp records in .opus (Ogg-Opus),
-    /// an extension the API does NOT accept, but it DOES accept the same container as .ogg → we rename it.
+    /// OpenAI validates the format by the filename extension. Rename extensions the API doesn't accept to
+    /// an equivalent it does: .opus (Ogg-Opus) → .ogg; .m4b (MP4 audiobook) → .m4a (same MP4 container).
     private static func uploadFilename(for url: URL) -> String {
-        guard url.pathExtension.lowercased() == "opus" else { return url.lastPathComponent }
+        let ext = url.pathExtension.lowercased()
+        let rename: [String: String] = ["opus": "ogg", "m4b": "m4a"]
+        guard let newExt = rename[ext] else { return url.lastPathComponent }
         let base = url.deletingPathExtension().lastPathComponent
-        return base.isEmpty ? "audio.ogg" : base + ".ogg"
+        return (base.isEmpty ? "audio" : base) + "." + newExt
     }
 
     private static func checkHTTP(_ resp: URLResponse, _ data: Data) throws {

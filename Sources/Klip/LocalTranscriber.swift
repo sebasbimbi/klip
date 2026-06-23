@@ -9,6 +9,10 @@ actor LocalTranscriber {
 
     private var pipe: WhisperKit?
     private var loadedModel: String?
+    /// Serializes on-device decodes: the shared WhisperKit instance has mutable state (progress, timings,
+    /// Core ML decoder) that is NOT safe to run concurrently. Dropping several audio files at once would
+    /// otherwise race. Each call chains after the previous one's decode.
+    private var serialTail: Task<Void, Never> = Task {}
 
     /// Friendly model name → WhisperKit model identifier (WhisperKit resolves these against its HF repo).
     static let models: [(id: String, label: String, note: String)] = [
@@ -21,7 +25,18 @@ actor LocalTranscriber {
 
     /// Transcribes an audio file fully on-device. `model` is a WhisperKit model name (see `models`).
     /// `vocabulary` (context words/names) biases recognition via Whisper prompt tokens.
+    /// Public entry: serializes decodes on the shared pipeline (see `serialTail`).
     func transcribe(audioURL: URL, model: String, language: String?, vocabulary: String) async throws -> String {
+        let previous = serialTail
+        let job = Task<String, Error> {
+            _ = await previous.value   // wait for any in-flight decode before touching the shared WhisperKit
+            return try await self.performTranscribe(audioURL: audioURL, model: model, language: language, vocabulary: vocabulary)
+        }
+        serialTail = Task { _ = try? await job.value }   // next call chains after this one
+        return try await job.value
+    }
+
+    private func performTranscribe(audioURL: URL, model: String, language: String?, vocabulary: String) async throws -> String {
         let wk = try await pipeline(for: model.isEmpty ? Self.defaultModel : model)
         var opts = DecodingOptions()
         opts.task = .transcribe

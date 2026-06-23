@@ -5,7 +5,6 @@ import AppKit
 /// using the Carbon RegisterEventHotKey API. Does not require Accessibility permissions.
 final class HotKey {
     private var hotKeyRef: EventHotKeyRef?
-    private var eventHandler: EventHandlerRef?
     private let id: UInt32
     private let callback: () -> Void
 
@@ -72,7 +71,8 @@ final class HotKey {
 
     deinit {
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
-        if let eventHandler { RemoveEventHandler(eventHandler) }
+        // The Carbon event handler is a single process-lifetime global (installHandlerIfNeeded), shared by
+        // all HotKey instances via the static `instances` map — intentionally not removed per-instance.
         HotKey.instances[id] = nil
     }
 }

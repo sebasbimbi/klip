@@ -248,7 +248,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         transcribingCount += 1
         // Resolve the active provider's model here, on the MainActor (avoids reading Settings.shared
         // from the transcription thread). Gemini and OpenAI each have their own model setting.
-        let provider = Settings.shared.aiProvider
+        // Resolve the EFFECTIVE provider + its model here, on the MainActor (one snapshot — avoids both a
+        // data race reading Settings.shared off-thread and a provider/model TOCTOU). A Gemini selection
+        // with no Gemini key falls back to OpenAI, so resolve that here too.
+        let selected = Settings.shared.aiProvider
+        let provider = (selected == "gemini" && !GeminiClient.shared.hasAPIKey) ? "openai" : selected
         let model = provider == "gemini" ? Settings.shared.geminiModel
                   : provider == "local"  ? Settings.shared.localModel
                   : Settings.shared.transcriptionModel
@@ -257,7 +261,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         Task { @MainActor in
             defer { transcribingCount -= 1 }
             do {
-                let text = try await AIProvider.transcribe(audioURL: url, language: language, model: model, vocabulary: vocabulary)
+                let text = try await AIProvider.transcribe(provider: provider, audioURL: url, language: language, model: model, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id) } }
                 else { if let id { onVoiceNoteTranscribed?(id, trimmed) } }

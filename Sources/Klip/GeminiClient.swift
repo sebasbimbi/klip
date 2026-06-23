@@ -81,10 +81,16 @@ final class GeminiClient {
             .filter { $0.thought != true }      // skip reasoning parts; keep only the answer
             .compactMap { $0.text }
             .joined()
+        // A 200 with no usable text means the model returned nothing (safety block, token-budget cutoff,
+        // empty candidate) — surface it as an error so it's logged and distinguishable from real silence.
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw OpenAIError.invalidResponse
+        }
         return text
     }
 
-    /// Audio MIME types that Gemini accepts (best-effort; .m4a/AAC → audio/aac).
+    /// Audio MIME types that Gemini accepts. .m4a/.mp4/.m4b are MP4 containers (audio/mp4); reserve
+    /// audio/aac for genuine ADTS .aac streams.
     private static func mimeType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
         case "mp3", "mpeg", "mpga":        return "audio/mp3"
@@ -92,8 +98,9 @@ final class GeminiClient {
         case "aiff", "aif":                return "audio/aiff"
         case "ogg", "oga", "opus":         return "audio/ogg"
         case "flac":                       return "audio/flac"
-        case "m4a", "aac", "mp4", "m4b":   return "audio/aac"
-        default:                           return "audio/aac"
+        case "aac":                        return "audio/aac"
+        case "m4a", "mp4", "m4b":          return "audio/mp4"
+        default:                           return "audio/mp4"
         }
     }
 }
@@ -112,17 +119,17 @@ enum AIProvider {
         }
     }
 
-    static func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
-        if selected == "local" {
+    /// Routes on the EFFECTIVE provider resolved by the caller on the MainActor (no Settings re-read here,
+    /// so there's no off-main data race and no provider/model TOCTOU). `model` already matches `provider`.
+    static func transcribe(provider: String, audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
+        switch provider {
+        case "local":
             // On-device (WhisperKit): no audio leaves the Mac. `model` is the on-device model name.
             return try await LocalTranscriber.shared.transcribe(audioURL: audioURL, model: model, language: language, vocabulary: vocabulary)
-        }
-        if selected == "gemini", GeminiClient.shared.hasAPIKey {
+        case "gemini":
             return try await GeminiClient.shared.transcribe(audioURL: audioURL, language: language, model: model, vocabulary: vocabulary)
+        default:
+            return try await OpenAIClient.shared.transcribe(audioURL: audioURL, language: language, model: model, vocabulary: vocabulary)
         }
-        // OpenAI path (selected openai, OR a gemini selection with no Gemini key falling back here). Use an
-        // OpenAI model — forwarding the Gemini model name would make OpenAI reject every request.
-        let openAIModel = (selected == "openai") ? model : Settings.shared.transcriptionModel
-        return try await OpenAIClient.shared.transcribe(audioURL: audioURL, language: language, model: openAIModel, vocabulary: vocabulary)
     }
 }

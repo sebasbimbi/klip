@@ -123,6 +123,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         selection.reset()
+        selection.selecting = false               // authoritative on open (don't rely on SwiftUI onChange timing)
         selection.openToken &+= 1                 // triggers search/focus reset in the view
         if recordingPanel?.isVisible != true { recorder.reset() }  // don't close the voice popup if it's open
 
@@ -493,8 +494,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         p.allowedContentTypes = types
         p.allowsMultipleSelection = true
         p.canChooseDirectories = false
+        modalCount += 1   // keep the history panel from dismissing while this open panel is up
         NSApp.activate(ignoringOtherApps: true)
         p.begin { [weak self] resp in
+            self?.modalCount -= 1
             guard resp == .OK, !p.urls.isEmpty else { return }
             MainActor.assumeIsolated { self?.submitAudioFiles(p.urls) }
         }

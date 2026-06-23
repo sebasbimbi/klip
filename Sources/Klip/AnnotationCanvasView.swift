@@ -16,6 +16,13 @@ final class AnnotationCanvasView: NSView {
     private(set) var selectedTextID: UUID?    // selected text (highlighted box)
     private var movingTextID: UUID?           // text currently being dragged
     private var moveOffset = CGSize.zero
+    private var movedDuringDrag = false
+    /// Full-state undo snapshots: add / move / edit / recolor / resize / delete are all reversible.
+    private var undoStack: [[Annotation]] = []
+    private var preMoveSnapshot: [Annotation]?
+    /// Fired when in-place text editing starts (true) / ends (false), so the editor can disable its
+    /// ⌘C/⌘Z/⌘S/Esc key equivalents while the user types into the field (otherwise they hijack editing).
+    var onTextEditingChanged: ((Bool) -> Void)?
 
     var currentTool: SnapTool = .arrow
     var currentColor: NSColor = .systemRed
@@ -77,6 +84,8 @@ final class AnnotationCanvasView: NSView {
                     selectedTextID = ann.id
                     movingTextID = ann.id
                     moveOffset = CGSize(width: p.x - ann.start.x, height: p.y - ann.start.y)
+                    preMoveSnapshot = annotations   // snapshot in case the drag moves it (undoable)
+                    movedDuringDrag = false
                     onSelectionChange?()
                 }
                 needsDisplay = true
@@ -104,6 +113,7 @@ final class AnnotationCanvasView: NSView {
         // Move a selected text.
         if let movingID = movingTextID, let idx = annotations.firstIndex(where: { $0.id == movingID }) {
             annotations[idx].points = [CGPoint(x: p.x - moveOffset.width, y: p.y - moveOffset.height)]
+            movedDuringDrag = true
             needsDisplay = true
             return
         }
@@ -119,12 +129,19 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if movingTextID != nil { movingTextID = nil; return }
+        if movingTextID != nil {
+            if movedDuringDrag, let snap = preMoveSnapshot { pushUndo(snap) }   // record the move for undo
+            movingTextID = nil; preMoveSnapshot = nil; movedDuringDrag = false
+            return
+        }
         guard let d = draft else { return }
-        if d.points.count > 1 || d.tool == .pencil || d.tool == .marker {
+        draft = nil
+        // Require an actual stroke: a no-drag click (count == 1) must not create an invisible annotation
+        // that silently consumes an Undo press.
+        if d.points.count > 1 {
+            pushUndo()
             annotations.append(d)
         }
-        draft = nil
         needsDisplay = true
     }
 
@@ -155,6 +172,7 @@ final class AnnotationCanvasView: NSView {
         activeTextField = field
         editFontSize = fontSize
         editColor = color
+        onTextEditingChanged?(true)   // let the toolbar release ⌘C/⌘Z/⌘S/Esc while typing
     }
 
     @objc private func textFieldCommitted(_ sender: NSTextField) { commitActiveText() }
@@ -168,6 +186,9 @@ final class AnnotationCanvasView: NSView {
         activeTextField = nil
         editingID = nil
         field.removeFromSuperview()
+        onTextEditingChanged?(false)   // restore the toolbar key equivalents
+        // Record undo only if this commit actually changes the annotations (new text, or re-edit).
+        if !text.isEmpty || id != nil { pushUndo() }
         // If a text was being re-edited, remove the original: we replace it below, or (if it ended up
         // empty) we delete it by committing empty.
         if let id { annotations.removeAll { $0.id == id } }
@@ -207,6 +228,7 @@ final class AnnotationCanvasView: NSView {
             editFontSize = clamped
         }
         if let id = selectedTextID, let idx = annotations.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             annotations[idx].fontSize = clamped
         }
         needsDisplay = true
@@ -220,6 +242,7 @@ final class AnnotationCanvasView: NSView {
         currentColor = color
         if let field = activeTextField { field.textColor = color; editColor = color }
         if let id = selectedTextID, let idx = annotations.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             annotations[idx].color = color
         }
         needsDisplay = true
@@ -235,18 +258,42 @@ final class AnnotationCanvasView: NSView {
 
     // MARK: - Actions
 
+    private func pushUndo(_ snapshot: [Annotation]? = nil) {
+        undoStack.append(snapshot ?? annotations)
+        if undoStack.count > 50 { undoStack.removeFirst() }   // bound memory
+    }
+
     func undo() {
-        // If text is being edited, cancel the edit: the original stays in the array (hidden by
+        // If text is being edited, cancel the edit first: the original stays in the array (hidden by
         // editingID) and reappears once editingID is cleared. The re-edited text is not lost.
         if activeTextField != nil {
             activeTextField?.removeFromSuperview(); activeTextField = nil; editingID = nil
+            onTextEditingChanged?(false)
             needsDisplay = true
             return
         }
-        guard !annotations.isEmpty else { return }
-        annotations.removeLast()
+        // Restore the last snapshot — reverses ANY operation (add/move/edit/recolor/resize/delete),
+        // not just the most-recently-added annotation.
+        guard let prev = undoStack.popLast() else { return }
+        annotations = prev
         selectedTextID = nil
+        onSelectionChange?()
         needsDisplay = true
+    }
+
+    /// Deletes the currently selected text annotation (Delete / Backspace), undoably.
+    override func keyDown(with event: NSEvent) {
+        let isDelete = event.keyCode == 51 || event.keyCode == 117   // Backspace / Forward-Delete
+        if isDelete, activeTextField == nil, let id = selectedTextID,
+           annotations.contains(where: { $0.id == id }) {
+            pushUndo()
+            annotations.removeAll { $0.id == id }
+            selectedTextID = nil
+            onSelectionChange?()
+            needsDisplay = true
+            return
+        }
+        super.keyDown(with: event)
     }
 
     /// Flattens base + annotations into an NSImage at full pixel resolution (Retina).

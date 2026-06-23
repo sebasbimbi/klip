@@ -150,7 +150,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private enum ShortcutKind { case panel, voice, capture }
+
+    /// Carbon registers each shortcut under a distinct id, so it does NOT reject assigning the SAME combo
+    /// to two of our shortcuts — we must catch that ourselves.
+    private func collidesWithOtherShortcut(_ combo: KeyCombo, _ kind: ShortcutKind) -> Bool {
+        switch kind {
+        case .panel:   return combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo
+        case .voice:   return combo == Settings.shared.combo || combo == Settings.shared.captureCombo
+        case .capture: return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo
+        }
+    }
+
     private func applyCaptureHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .capture) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.captureCombo = lastGoodCaptureCombo; buildMenu(); return
+        }
         let ok: Bool
         if captureHotKey == nil { makeCaptureHotKey(combo); ok = (captureHotKey != nil) }   // was dead: re-create
         else { ok = captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
@@ -160,6 +176,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func applyHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .panel) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.combo = lastGoodCombo; buildMenu(); return
+        }
         let ok: Bool
         if hotKey == nil { makePanelHotKey(combo); ok = (hotKey != nil) }
         else { ok = hotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
@@ -169,6 +189,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func applyVoiceHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .voice) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.voiceCombo = lastGoodVoiceCombo; buildMenu(); return
+        }
         let ok: Bool
         if voiceHotKey == nil { makeVoiceHotKey(combo); ok = (voiceHotKey != nil) }
         else { ok = voiceHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }

@@ -86,9 +86,10 @@ struct HistoryView: View {
         guard !search.isEmpty else { return base }
         let q = search.lowercased()
         base = base.filter {
-            ($0.name ?? "").lowercased().contains(q)
-            || ($0.text ?? "").lowercased().contains(q)
-            || $0.preview.lowercased().contains(q)
+            // Don't match the cleartext of a credential (the preview is masked) — otherwise typing part
+            // of a known token would surface/confirm the secret.
+            let inText = $0.isCredential == true ? false : ($0.text ?? "").lowercased().contains(q)
+            return ($0.name ?? "").lowercased().contains(q) || inText || $0.preview.lowercased().contains(q)
         }
         return base
     }
@@ -126,6 +127,7 @@ struct HistoryView: View {
         .onChange(of: selection.openToken) { _, _ in
             search = ""; filter = .all; collectionFilter = nil
             selecting = false; selectedBatch = []
+            ocrResultID = nil; ocrText = ""; ocrRunning = false   // don't show a stale OCR box on reopen
             selection.updateVisible(sortedItems.map(\.id))
             selection.selectedIndex = sortedItems.isEmpty ? -1 : 0
             searchFocused = true
@@ -249,7 +251,7 @@ struct HistoryView: View {
 
     private var batchBar: some View {
         HStack(spacing: 8) {
-            Text("\(selectedBatch.count) sel.").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+            Text(String(format: L10n.t("sel.count"), selectedBatch.count)).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
             batchButton("doc.richtext", "PDF") { onCombinePDF(batchItems) }
             batchButton("doc.zipper", "ZIP") { onExportZip(batchItems) }
@@ -338,7 +340,7 @@ struct HistoryView: View {
 
     private var ocrBox: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(ocrRunning ? L10n.t("rec.transcribing") : "OCR:")
+            Text(ocrRunning ? L10n.t("rec.transcribing") : L10n.t("ocr.label"))
                 .font(.system(size: 10)).foregroundStyle(.secondary)
             if !ocrRunning {
                 Text(ocrText.isEmpty ? "—" : ocrText)

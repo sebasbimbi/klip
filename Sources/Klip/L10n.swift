@@ -239,7 +239,9 @@ enum L10n {
         "prefs.local.info": "El primer uso descarga el modelo. Luego funciona sin conexión — sin API key, y tu audio nunca sale de tu Mac. Es un poco más lento que los motores en la nube; los modelos más grandes son más precisos pero más lentos.",
         "editor.text.placeholder": "Escribe…",
         "autopaste.denied.title": "Conceder Accesibilidad",
-        "autopaste.denied.info": "Klip abrió Ajustes del Sistema. Activa Klip en Privacidad y seguridad › Accesibilidad para que pueda pegar automáticamente (puede aplicar en el próximo pegado)."
+        "autopaste.denied.info": "Klip abrió Ajustes del Sistema. Activa Klip en Privacidad y seguridad › Accesibilidad para que pueda pegar automáticamente (puede aplicar en el próximo pegado).",
+        "sel.count": "%d sel.",
+        "ocr.label": "OCR:"
     ]
 
     private static let en: [String: String] = [
@@ -462,7 +464,9 @@ enum L10n {
         "prefs.local.info": "First use downloads the model. Then it runs fully offline — no API key, and your audio never leaves your Mac. It's a bit slower than the cloud engines; bigger models are more accurate but slower.",
         "editor.text.placeholder": "Type…",
         "autopaste.denied.title": "Grant Accessibility",
-        "autopaste.denied.info": "Klip opened System Settings. Enable Klip under Privacy & Security › Accessibility, then it can auto-paste (it may take effect on the next paste)."
+        "autopaste.denied.info": "Klip opened System Settings. Enable Klip under Privacy & Security › Accessibility, then it can auto-paste (it may take effect on the next paste).",
+        "sel.count": "%d sel.",
+        "ocr.label": "OCR:"
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation flow; any
@@ -688,7 +692,9 @@ enum L10n {
         "prefs.local.info": "La première utilisation télécharge le modèle. Ensuite tout est hors ligne — sans clé API, et ton audio ne quitte jamais ton Mac. Un peu plus lent que les moteurs cloud ; les modèles plus grands sont plus précis mais plus lents.",
         "editor.text.placeholder": "Saisir…",
         "autopaste.denied.title": "Autoriser l'accessibilité",
-        "autopaste.denied.info": "Klip a ouvert les Réglages Système. Active Klip dans Confidentialité et sécurité › Accessibilité pour le collage automatique (effet au prochain collage)."
+        "autopaste.denied.info": "Klip a ouvert les Réglages Système. Active Klip dans Confidentialité et sécurité › Accessibilité pour le collage automatique (effet au prochain collage).",
+        "sel.count": "%d sél.",
+        "ocr.label": "OCR :"
     ]
 
     private static let de: [String: String] = [
@@ -912,7 +918,9 @@ enum L10n {
         "prefs.local.info": "Bei der ersten Nutzung wird das Modell geladen. Danach läuft alles offline — ohne API-Key, und dein Audio verlässt nie deinen Mac. Etwas langsamer als die Cloud-Engines; größere Modelle sind genauer, aber langsamer.",
         "editor.text.placeholder": "Tippen…",
         "autopaste.denied.title": "Bedienungshilfen erlauben",
-        "autopaste.denied.info": "Klip hat die Systemeinstellungen geöffnet. Aktiviere Klip unter Datenschutz & Sicherheit › Bedienungshilfen, damit es automatisch einfügen kann (wirkt beim nächsten Einfügen)."
+        "autopaste.denied.info": "Klip hat die Systemeinstellungen geöffnet. Aktiviere Klip unter Datenschutz & Sicherheit › Bedienungshilfen, damit es automatisch einfügen kann (wirkt beim nächsten Einfügen).",
+        "sel.count": "%d ausgew.",
+        "ocr.label": "OCR:"
     ]
 
     private static let it: [String: String] = [
@@ -1136,7 +1144,9 @@ enum L10n {
         "prefs.local.info": "Al primo utilizzo scarica il modello. Poi funziona offline — senza chiave API, e il tuo audio non lascia mai il Mac. Un po' più lento dei motori cloud; i modelli più grandi sono più precisi ma più lenti.",
         "editor.text.placeholder": "Scrivi…",
         "autopaste.denied.title": "Concedi Accessibilità",
-        "autopaste.denied.info": "Klip ha aperto Impostazioni di Sistema. Abilita Klip in Privacy e sicurezza › Accessibilità per l'incolla automatico (effetto al prossimo incolla)."
+        "autopaste.denied.info": "Klip ha aperto Impostazioni di Sistema. Abilita Klip in Privacy e sicurezza › Accessibilità per l'incolla automatico (effetto al prossimo incolla).",
+        "sel.count": "%d sel.",
+        "ocr.label": "OCR:"
     ]
 
     private static let pt: [String: String] = [
@@ -1360,7 +1370,9 @@ enum L10n {
         "prefs.local.info": "A primeira utilização descarrega o modelo. Depois funciona offline — sem chave API, e o teu áudio nunca sai do Mac. Um pouco mais lento que os motores na nuvem; modelos maiores são mais precisos mas mais lentos.",
         "editor.text.placeholder": "Escrever…",
         "autopaste.denied.title": "Conceder Acessibilidade",
-        "autopaste.denied.info": "O Klip abriu as Definições do Sistema. Ativa o Klip em Privacidade e Segurança › Acessibilidade para colar automaticamente (efeito na próxima colagem)."
+        "autopaste.denied.info": "O Klip abriu as Definições do Sistema. Ativa o Klip em Privacidade e Segurança › Acessibilidade para colar automaticamente (efeito na próxima colagem).",
+        "sel.count": "%d sel.",
+        "ocr.label": "OCR:"
     ]
 
     private static let zh: [String: String] = [
@@ -1584,7 +1596,9 @@ enum L10n {
         "prefs.local.info": "首次使用会下载模型。之后完全离线运行——无需 API 密钥，音频绝不离开你的 Mac。 比云端引擎稍慢；模型越大越准确但越慢。",
         "editor.text.placeholder": "输入…",
         "autopaste.denied.title": "授予辅助功能权限",
-        "autopaste.denied.info": "Klip 已打开系统设置。请在隐私与安全性 › 辅助功能中启用 Klip，即可自动粘贴（下次粘贴生效）。"
+        "autopaste.denied.info": "Klip 已打开系统设置。请在隐私与安全性 › 辅助功能中启用 Klip，即可自动粘贴（下次粘贴生效）。",
+        "sel.count": "已选 %d",
+        "ocr.label": "OCR："
     ]
 
     private static let ja: [String: String] = [
@@ -1808,6 +1822,8 @@ enum L10n {
         "prefs.local.info": "初回はモデルをダウンロードします。以降は完全オフラインで動作—APIキー不要で、音声がMacから出ることはありません。 クラウドエンジンより少し遅く、大きいモデルほど高精度ですが遅くなります。",
         "editor.text.placeholder": "入力…",
         "autopaste.denied.title": "アクセシビリティを許可",
-        "autopaste.denied.info": "Klip がシステム設定を開きました。プライバシーとセキュリティ › アクセシビリティ で Klip を有効にすると自動ペーストできます（次回のペーストから有効）。"
+        "autopaste.denied.info": "Klip がシステム設定を開きました。プライバシーとセキュリティ › アクセシビリティ で Klip を有効にすると自動ペーストできます（次回のペーストから有効）。",
+        "sel.count": "%d 件選択",
+        "ocr.label": "OCR："
     ]
 }

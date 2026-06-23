@@ -10,6 +10,9 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     private var colorButtons: [NSButton] = []
     private var colorIndex = 0
     private var lastToolWasMarker = false
+    /// Buttons whose ⌘-key equivalents must be released while the user types into the in-place text field
+    /// (otherwise ⌘C/⌘Z/⌘S/Esc hit the toolbar instead of the field editor).
+    private var keyEquivControls: [(button: NSButton, key: String, mods: NSEvent.ModifierFlags)] = []
     /// Palette for normal drawing and a palette of highlighter tones (used with the marker).
     private let normalColors: [NSColor] = [.systemRed, .systemBlue, .black, .white]
     private let markerColors: [NSColor] = [.systemYellow, .systemGreen, .systemPink, .systemOrange]
@@ -63,7 +66,18 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         selectTool(.arrow)
         // When selecting/deselecting a text, reflect its color in the toolbar palette.
         canvas.onSelectionChange = { [weak self] in self?.syncColorSelectionFromCanvas() }
+        // While typing into the in-place text field, release the toolbar's ⌘C/⌘Z/⌘S/Esc so they edit the
+        // text (copy/undo/cancel) instead of firing the toolbar actions.
+        canvas.onTextEditingChanged = { [weak self] editing in self?.setKeyEquivalents(enabled: !editing) }
         self.window = win
+    }
+
+    /// Enables/disables the toolbar buttons' key equivalents (used to free them while editing text).
+    private func setKeyEquivalents(enabled: Bool) {
+        for c in keyEquivControls {
+            c.button.keyEquivalent = enabled ? c.key : ""
+            c.button.keyEquivalentModifierMask = enabled ? c.mods : []
+        }
     }
 
     // MARK: - Toolbar
@@ -132,6 +146,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         undo.translatesAutoresizingMaskIntoConstraints = false
         undo.widthAnchor.constraint(equalToConstant: size).isActive = true
         leading.addArrangedSubview(undo)
+        keyEquivControls.append((undo, "z", [.command]))
 
         // Right group: copy + save + close.
         let trailing = NSStackView()
@@ -148,6 +163,9 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         close.keyEquivalent = "\u{1b}"   // Esc
         close.translatesAutoresizingMaskIntoConstraints = false
         close.widthAnchor.constraint(equalToConstant: size).isActive = true
+        keyEquivControls.append((copy, "c", [.command]))
+        keyEquivControls.append((save, "s", [.command]))
+        keyEquivControls.append((close, "\u{1b}", []))
         trailing.addArrangedSubview(copy)
         trailing.addArrangedSubview(save)
         trailing.addArrangedSubview(close)

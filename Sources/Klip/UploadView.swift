@@ -13,8 +13,10 @@ struct UploadView: View {
 
     @State private var hovering = false
 
-    private let exts = ["m4a", "mp3", "wav", "mp4", "aac", "aiff", "flac", "ogg", "oga", "opus",
-                        "webm", "mpga", "mpeg", "m4b"]
+    // Formats the transcribers actually accept. (Dropped aac/aiff: OpenAI rejects them and they'd fail
+    // silently; .m4b is treated as .m4a on upload.)
+    private let exts = ["m4a", "m4b", "mp3", "wav", "mp4", "flac", "ogg", "oga", "opus",
+                        "webm", "mpga", "mpeg"]
 
     var body: some View {
         VStack(spacing: 14) {

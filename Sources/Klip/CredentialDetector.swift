@@ -15,15 +15,31 @@ enum CredentialDetector {
     ]
 
     static func looksLikeCredential(_ text: String) -> Bool {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard t.count >= 12, t.count <= 4096, !t.contains("\n") || t.count < 200 else { return false }
-        for p in patterns where t.range(of: p, options: .regularExpression) != nil { return true }
-        return false
+        matchedSecret(in: text) != nil
     }
 
-    /// Masked version to display without revealing the secret (••••1234).
+    /// The substring that matched a secret pattern, or nil. Scans LINE BY LINE so a secret inside a
+    /// larger multi-line blob (e.g. a pasted .env, a config block, or a chat message with a token) is
+    /// still caught — the previous `(newline && >=200 chars) → not a credential` rule let those through
+    /// and showed them in cleartext. Only an upper byte cap remains, purely for performance.
+    static func matchedSecret(in text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count >= 12, t.count <= 20_000 else { return nil }
+        for line in t.split(separator: "\n", omittingEmptySubsequences: true) {
+            let s = line.trimmingCharacters(in: .whitespaces)
+            guard s.count >= 12 else { continue }
+            for p in patterns {
+                if let r = s.range(of: p, options: .regularExpression) { return String(s[r]) }
+            }
+        }
+        return nil
+    }
+
+    /// Masked version to display without revealing the secret. For multi-line blobs we never echo the
+    /// content (masking just the tail would hide a harmless trailing line, not the secret).
     static func masked(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.contains("\n") { return "🔑 ••••••" }
         guard t.count > 4 else { return "••••" }
         return "••••" + String(t.suffix(4))
     }
