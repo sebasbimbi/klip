@@ -12,10 +12,10 @@ actor LocalTranscriber {
 
     /// Friendly model name → WhisperKit model identifier (WhisperKit resolves these against its HF repo).
     static let models: [(id: String, label: String, note: String)] = [
-        ("tiny",        "Tiny",        "~75 MB · fastest, lowest accuracy"),
-        ("base",        "Base",        "~145 MB · good balance (recommended)"),
-        ("small",       "Small",       "~480 MB · more accurate, slower"),
-        ("large-v3_turbo", "Large v3 Turbo", "~1.5 GB · best accuracy"),
+        ("tiny",        "Tiny",        "~75 MB · fastest · lowest accuracy"),
+        ("base",        "Base",        "~145 MB · fast · good balance (recommended)"),
+        ("small",       "Small",       "~480 MB · slower · more accurate"),
+        ("large-v3_turbo", "Large v3 Turbo", "~1.5 GB · slowest · best accuracy"),
     ]
     static let defaultModel = "base"
 
