@@ -199,6 +199,12 @@ final class PanelController: NSObject, NSWindowDelegate {
             if n <= selection.visibleCount { selection.selectQuick(n); pickSelected() }
             return nil
         }
+        // ⌘↩ → copy the selected text item as a code block (the flagship vibe-coder action), keyboard-only.
+        if flags == .command, event.keyCode == 36,
+           let id = selection.selectedID, let item = manager.items.first(where: { $0.id == id }),
+           item.kind == .text, !(item.text?.isEmpty ?? true) {
+            copyAsCode(of: item); return nil
+        }
         if flags.contains(.command) { return event }   // don't break ⌘A/⌘C/⌘V in the search field
 
         switch event.keyCode {
@@ -284,7 +290,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private func copyAsCode(of item: ClipboardItem) {
         guard let t = item.text, !t.isEmpty else { return }
         let target = previousApp
-        manager.setClipboardText("```\n\(t)\n```")
+        manager.setClipboardText("```\(Markdownify.inferCodeLanguage(t))\n\(t)\n```")
         hide(restoreFocus: false)
         pasteOrRestore(target)
     }

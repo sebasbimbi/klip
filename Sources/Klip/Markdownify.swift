@@ -10,9 +10,9 @@ enum Markdownify {
         if t.range(of: "^https?://\\S+$", options: .regularExpression) != nil {
             return "[\(t)](\(t))"
         }
-        // Looks like code? → fenced block.
+        // Looks like code? → fenced block (with a best-effort language tag).
         if looksLikeCode(t) {
-            return "```\n\(text)\n```"
+            return "```\(inferCodeLanguage(t))\n\(text)\n```"
         }
         // Normal text → paragraphs separated by a blank line.
         let paras = text.replacingOccurrences(of: "\r\n", with: "\n")
@@ -30,6 +30,22 @@ enum Markdownify {
         let codeChars = Set("{};=<>()[]")
         let symbolCount = s.filter { codeChars.contains($0) }.count
         return s.count > 0 && Double(symbolCount) / Double(s.count) > 0.06
+    }
+
+    /// Best-effort language tag for a fenced code block (cheap heuristics). Returns "" when unsure —
+    /// a wrong/empty tag still renders fine, it just helps the AI/editor highlight when we're confident.
+    static func inferCodeLanguage(_ s: String) -> String {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = t.lowercased()
+        if (t.hasPrefix("{") || t.hasPrefix("[")), t.contains("\""), t.contains(":") { return "json" }
+        if t.hasPrefix("#!"), lower.contains("sh") { return "bash" }
+        if t.range(of: "(?m)^\\s*(\\$ |sudo |npm |yarn |pnpm |brew |git |cd |curl |echo |export )", options: .regularExpression) != nil { return "bash" }
+        if t.hasPrefix("<") { return (lower.contains("<!doctype html") || lower.contains("<html")) ? "html" : "xml" }
+        if t.range(of: "(?i)\\b(select|insert into|update |delete from|create table)\\b", options: .regularExpression) != nil { return "sql" }
+        if t.contains("func ") || t.contains("->") || t.range(of: "@(MainActor|objc|State|Published)", options: .regularExpression) != nil { return "swift" }
+        if t.range(of: "(?m)^\\s*(def |class .*:|from \\w+ import |import \\w)", options: .regularExpression) != nil { return "python" }
+        if t.range(of: "(function |=>|\\bconst |\\bexport |require\\()", options: .regularExpression) != nil { return "javascript" }
+        return ""
     }
 }
 
