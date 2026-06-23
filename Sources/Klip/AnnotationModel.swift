@@ -98,17 +98,17 @@ struct Annotation {
     }
 
     private func drawArrow(from a: CGPoint, to b: CGPoint, width: CGFloat) {
-        let line = NSBezierPath(); line.move(to: a); line.line(to: b)
-        line.lineWidth = width; line.lineCapStyle = .round; line.stroke()
+        // `a` = where you press, `b` = where you release → the tip points at `b`. A FILLED triangle head
+        // makes it unmistakable which end is the point.
         let angle = atan2(b.y - a.y, b.x - a.x)
-        let head = max(12, width * 4)
-        let a1 = angle + .pi - .pi / 7
-        let a2 = angle + .pi + .pi / 7
-        let p1 = CGPoint(x: b.x + cos(a1) * head, y: b.y + sin(a1) * head)
-        let p2 = CGPoint(x: b.x + cos(a2) * head, y: b.y + sin(a2) * head)
-        let headPath = NSBezierPath()
-        headPath.move(to: b); headPath.line(to: p1)
-        headPath.move(to: b); headPath.line(to: p2)
-        headPath.lineWidth = width; headPath.lineCapStyle = .round; headPath.stroke()
+        let head = max(14, width * 4.5)
+        // Stop the shaft at the base of the head so the line doesn't poke through the filled tip.
+        let base = CGPoint(x: b.x - cos(angle) * head, y: b.y - sin(angle) * head)
+        let shaft = NSBezierPath(); shaft.move(to: a); shaft.line(to: base)
+        shaft.lineWidth = width; shaft.lineCapStyle = .round; shaft.stroke()
+        let w1 = CGPoint(x: b.x + cos(angle + .pi - .pi / 7) * head, y: b.y + sin(angle + .pi - .pi / 7) * head)
+        let w2 = CGPoint(x: b.x + cos(angle + .pi + .pi / 7) * head, y: b.y + sin(angle + .pi + .pi / 7) * head)
+        let tri = NSBezierPath(); tri.move(to: b); tri.line(to: w1); tri.line(to: w2); tri.close()
+        tri.fill()
     }
 }
