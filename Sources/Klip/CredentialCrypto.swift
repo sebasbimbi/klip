@@ -57,7 +57,12 @@ enum CredentialCrypto {
         return SymmetricKey(data: data)
     }
 
+    /// Serializes loadKey()+SecItemAdd so a concurrent warmKey() (off-main) and saveItems→seal (main) can't
+    /// both generate a key and race the insert (which could otherwise diverge or hit errSecDuplicateItem).
+    private static let keyLock = NSLock()
+
     private static func loadOrCreateKey() -> SymmetricKey? {
+        keyLock.lock(); defer { keyLock.unlock() }
         if let k = loadKey() { return k }
         let key = SymmetricKey(size: .bits256)
         let data = key.withUnsafeBytes { Data(Array($0)) }
@@ -67,7 +72,8 @@ enum CredentialCrypto {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,   // available to the background poll
         ]
-        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return loadKey() }
-        return key
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status == errSecSuccess { return key }
+        return loadKey()   // errSecDuplicateItem (another path won the race) or transient → use what's stored
     }
 }
