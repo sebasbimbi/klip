@@ -25,6 +25,38 @@ enum CredentialDetector {
         matchedSecret(in: text) != nil
     }
 
+    /// Stricter, UNAMBIGUOUS-PREFIX subset used ONLY for the silent at-rest promotion on load (Storage
+    /// .decryptCredentials). The loose `sk-…` (which matches kebab/CSS like `sk-modal-overlay-backdrop`) and
+    /// the prose-prone `key:value` / `bearer …` patterns are deliberately EXCLUDED here, so loading history
+    /// never silently encrypts+hides an ordinary clip. Live capture still uses the broader `looksLikeCredential`
+    /// (where a false positive is visible and one click to undo).
+    private static let strongPatterns: [String] = [
+        "sk-(proj|svcacct|admin|ant)-[A-Za-z0-9_-]{20,}",      // OpenAI/Anthropic structured keys
+        "sk-[A-Za-z0-9]{40,}",                                 // legacy bare key: a long pure-alnum run (kebab can't)
+        "ghp_[A-Za-z0-9]{20,}", "github_pat_[A-Za-z0-9_]{20,}", "gho_[A-Za-z0-9]{20,}",
+        "xox[baprs]-[A-Za-z0-9-]{10,}",
+        "AKIA[0-9A-Z]{16}",
+        "AIza[0-9A-Za-z_-]{30,}", "ya29\\.[0-9A-Za-z_-]+",
+        "(sk|rk|pk)_(live|test)_[A-Za-z0-9]{16,}", "whsec_[A-Za-z0-9]{16,}",
+        "SG\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}",
+        "SK[0-9a-fA-F]{32}", "AC[0-9a-fA-F]{32}",
+        "(?i)npm_[A-Za-z0-9]{20,}", "glpat-[A-Za-z0-9_-]{20,}", "hf_[A-Za-z0-9]{20,}",
+        "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+        "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{6,}",   // JWT
+    ]
+
+    /// True only on a high-confidence, structured secret — safe for silent at-rest promotion (see above).
+    static func looksLikeHighConfidenceCredential(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count >= 16, t.count <= 20_000 else { return false }
+        for line in t.split(separator: "\n", omittingEmptySubsequences: true) {
+            let s = line.trimmingCharacters(in: .whitespaces)
+            guard s.count >= 16 else { continue }
+            for p in strongPatterns where s.range(of: p, options: .regularExpression) != nil { return true }
+        }
+        return false
+    }
+
     /// The substring that matched a secret pattern, or nil. Scans LINE BY LINE so a secret inside a
     /// larger multi-line blob (e.g. a pasted .env, a config block, or a chat message with a token) is
     /// still caught — the previous `(newline && >=200 chars) → not a credential` rule let those through

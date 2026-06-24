@@ -271,6 +271,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     }
 
     private func copyMarkdown(of item: ClipboardItem) {
+        guard item.isCredential != true else { return }   // never auto-paste a secret as Markdown
         let md = Markdownify.fromText(item.text ?? "")
         let target = previousApp
         manager.setClipboardText(md)
@@ -299,6 +300,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     /// Saves the item's text as a file (.txt/.md) so it can be dragged into an AI tool
     /// when the chat won't accept pasting it (very large texts/logs).
     private func saveTextAsFile(_ item: ClipboardItem) {
+        guard item.isCredential != true else { return }   // don't write a secret to a plaintext file
         guard let t = item.text, !t.isEmpty else { return }
         let sp = NSSavePanel()
         var types: [UTType] = [.plainText]

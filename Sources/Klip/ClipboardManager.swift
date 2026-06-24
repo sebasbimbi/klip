@@ -401,6 +401,15 @@ final class ClipboardManager: ObservableObject {
     /// Marks or unmarks an item as a credential (mini manager).
     func toggleCredential(_ item: ClipboardItem) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        if let t = items[idx].text, CredentialCrypto.isSealed(t) {
+            // Sealed-but-undecryptable on this Mac (encrypted on another machine): the "text" is ciphertext,
+            // not the secret. Don't let unmarking echo the raw klipenc1: token into the preview — keep it a
+            // credential with the constant placeholder.
+            items[idx].isCredential = true
+            items[idx].preview = CredentialDetector.maskedPlaceholder
+            storage.saveItems(items)
+            return
+        }
         let nowCred = !(items[idx].isCredential == true)
         items[idx].isCredential = nowCred ? true : nil
         if let t = items[idx].text {   // regenerate the preview (mask / unmask)

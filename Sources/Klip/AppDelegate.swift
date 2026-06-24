@@ -125,7 +125,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// A migration (or a manual edit) can leave two of the three shortcuts on the SAME combo. Carbon registers
+    /// each under a distinct id, so BOTH succeed and one keypress fires two actions. Break duplicates before
+    /// registering: keep the panel combo, move voice/capture off any clash to a free suggestion (or default).
+    private func deduplicateShortcuts() {
+        let s = Settings.shared
+        func free(_ taken: [KeyCombo], _ fallback: KeyCombo) -> KeyCombo {
+            if !taken.contains(fallback) { return fallback }
+            return KeyCombo.suggestions.first { !taken.contains($0) } ?? fallback
+        }
+        if s.voiceCombo == s.combo {
+            let fixed = free([s.combo], .defaultVoiceCombo); s.voiceCombo = fixed; lastGoodVoiceCombo = fixed
+        }
+        if s.captureCombo == s.combo || s.captureCombo == s.voiceCombo {
+            let fixed = free([s.combo, s.voiceCombo], .defaultCaptureCombo); s.captureCombo = fixed; lastGoodCaptureCombo = fixed
+        }
+    }
+
     private func setupHotKeys() {
+        deduplicateShortcuts()
         makePanelHotKey(Settings.shared.combo)
         makeVoiceHotKey(Settings.shared.voiceCombo)
         makeCaptureHotKey(Settings.shared.captureCombo)

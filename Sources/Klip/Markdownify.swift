@@ -75,8 +75,8 @@ enum MarkdownExporter {
             switch item.kind {
             case .text:
                 if item.isCredential == true {
-                    // Don't export secrets in the clear: masked only.
-                    out += "🔑 _Credencial oculta (\(CredentialDetector.masked(item.text ?? "")))_\n\n"
+                    // Don't export secrets in the clear, and don't leak the real last-4 either: constant placeholder.
+                    out += "🔑 _Credencial oculta (\(CredentialDetector.maskedPlaceholder))_\n\n"
                 } else {
                     out += Markdownify.fromText(item.text ?? "") + "\n\n"
                 }

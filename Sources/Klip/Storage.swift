@@ -59,8 +59,10 @@ final class Storage {
             }
             // Promote legacy/never-flagged plaintext secrets (captured before this feature, or imported from
             // an old backup) so the next save seals them — otherwise they'd sit in items.json in the clear.
+            // Uses the HIGH-CONFIDENCE detector: a silent at-rest encrypt+hide must not fire on a kebab/CSS
+            // identifier or a prose "key: value" line.
             if item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
-               let t = item.text, !CredentialCrypto.isSealed(t), CredentialDetector.looksLikeCredential(t) {
+               let t = item.text, !CredentialCrypto.isSealed(t), CredentialDetector.looksLikeHighConfidenceCredential(t) {
                 var copy = item
                 copy.isCredential = true
                 copy.preview = CredentialDetector.maskedPlaceholder   // constant: never persist secret-derived chars
@@ -312,7 +314,9 @@ final class Storage {
     /// (mirrors MarkdownExporter). Returns nil if there's no text to export.
     static func exportableText(_ item: ClipboardItem) -> String? {
         guard let t = item.text, !t.isEmpty else { return nil }
-        return item.isCredential == true ? CredentialDetector.masked(t) : t
+        // Use the chars-free placeholder (not masked(), which would leak the secret's real last 4 into a
+        // shared PDF/ZIP/Markdown export).
+        return item.isCredential == true ? CredentialDetector.maskedPlaceholder : t
     }
 
     func combinedPDF(from items: [ClipboardItem]) -> (data: Data, exported: Int)? {
