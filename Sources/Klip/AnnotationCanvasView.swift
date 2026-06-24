@@ -305,19 +305,28 @@ final class AnnotationCanvasView: NSView {
 
         let pxW = baseImage.representations.first?.pixelsWide ?? Int(bounds.width)
         let pxH = baseImage.representations.first?.pixelsHigh ?? Int(bounds.height)
-        if pxW > 0, pxH > 0,
-           let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pxW, pixelsHigh: pxH,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) {
-            rep.size = bounds.size
+        // Rasterize in the base image's OWN color space. Using a generic `.deviceRGB` bitmap rep would
+        // strip a Display P3 (wide-gamut) profile and produce a washed-out PNG on capable displays; a
+        // CGContext in `baseCG.colorSpace` preserves the colors the user actually saw.
+        let baseCG = baseImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        let colorSpace = baseCG?.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)
+        if pxW > 0, pxH > 0, bounds.width > 0, bounds.height > 0, let colorSpace,
+           let ctx = CGContext(data: nil, width: pxW, height: pxH, bitsPerComponent: 8,
+                               bytesPerRow: 0, space: colorSpace,
+                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+            ctx.scaleBy(x: CGFloat(pxW) / bounds.width, y: CGFloat(pxH) / bounds.height)
             NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
             baseImage.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
             for a in annotations { a.draw() }
             NSGraphicsContext.restoreGraphicsState()
-            let out = NSImage(size: bounds.size)
-            out.addRepresentation(rep)
-            return out
+            if let outCG = ctx.makeImage() {
+                let rep = NSBitmapImageRep(cgImage: outCG)
+                rep.size = bounds.size
+                let out = NSImage(size: bounds.size)
+                out.addRepresentation(rep)
+                return out
+            }
         }
 
         // Fallback (couldn't create the pixel-resolution bitmap): rasterize at point size
