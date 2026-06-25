@@ -40,7 +40,9 @@ struct UploadView: View {
                 if recorder.transcribingCount > 0 {
                     HStack(spacing: 7) {
                         ProgressView().controlSize(.small)
-                        Text(String(format: L10n.t(recorder.transcribingCount == 1 ? "upload.transcribing.one" : "upload.transcribing.many"), recorder.transcribingCount))
+                        Text(recorder.preparingModel
+                             ? L10n.t("upload.preparing")
+                             : String(format: L10n.t(recorder.transcribingCount == 1 ? "upload.transcribing.one" : "upload.transcribing.many"), recorder.transcribingCount))
                     }
                     .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 10).padding(.vertical, 6)

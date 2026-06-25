@@ -23,6 +23,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @Published private(set) var silenceWarning = false
     /// Number of transcriptions running in the background (for the header indicator).
     @Published private(set) var transcribingCount = 0
+    /// True while an on-device transcription is waiting for the model to load for the first time this
+    /// session (the one-time ~20 s Neural-Engine warm-up). Lets the UI say "Preparing model…" so the first
+    /// note doesn't look stuck on a bare "Transcribing…" spinner.
+    @Published private(set) var preparingModel = false
 
     /// The audio is already saved: creates the voice-note item (placeholder) and returns its id.
     /// `audioFileName` may be nil if the file couldn't be saved (the transcription is still saved).
@@ -266,8 +270,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         let vocabulary = Settings.shared.transcriptionVocabulary
         // First on-device use downloads the model: show "Downloading model…" so it doesn't look stuck.
         if provider == "local", !LocalTranscriber.isModelReady(model), let id { onVoiceNoteDownloadingModel?(id) }
+        // First on-device transcription of the session pays a one-time Core ML / Neural-Engine warm-up
+        // (~20 s, then cached): surface it as "Preparing model…" instead of a bare "Transcribing…" spinner.
+        if provider == "local", !LocalTranscriber.pipelineReady { preparingModel = true }
         Task { @MainActor in
-            defer { transcribingCount -= 1 }
+            defer { transcribingCount -= 1; if transcribingCount == 0 { preparingModel = false } }
             do {
                 let text = try await AIProvider.transcribe(provider: provider, audioURL: url, language: language, model: model, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

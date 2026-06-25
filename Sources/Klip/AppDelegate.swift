@@ -16,9 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hotKey: HotKey?
     private var voiceHotKey: HotKey?
     private var captureHotKey: HotKey?
+    private var uploadHotKey: HotKey?
     private var lastGoodCombo = Settings.shared.combo
     private var lastGoodVoiceCombo = Settings.shared.voiceCombo
     private var lastGoodCaptureCombo = Settings.shared.captureCombo
+    private var lastGoodUploadCombo = Settings.shared.uploadCombo
     private var prefsController: PreferencesWindowController?
     private var launchItem: NSMenuItem?
     private var cancellables = Set<AnyCancellable>()
@@ -85,6 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      action: #selector(startVoice), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("menu.capture"))   \(Settings.shared.captureCombo.displayString)",
                      action: #selector(startCapture), keyEquivalent: "")
+        menu.addItem(withTitle: "\(L10n.t("act.upload"))   \(Settings.shared.uploadCombo.displayString)",
+                     action: #selector(startUpload), keyEquivalent: "")
         menu.addItem(.separator())
         let recents = NSMenuItem(title: L10n.t("menu.recents"), action: nil, keyEquivalent: "")
         recentsMenu.delegate = self
@@ -124,6 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.snapController.start()
         }
     }
+    private func makeUploadHotKey(_ c: KeyCombo) {
+        uploadHotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 4) { [weak self] in
+            self?.panelController.uploadAudio()
+        }
+    }
 
     /// A migration (or a manual edit) can leave two of the three shortcuts on the SAME combo. Carbon registers
     /// each under a distinct id, so BOTH succeed and one keypress fires two actions. Break duplicates before
@@ -140,6 +149,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if s.captureCombo == s.combo || s.captureCombo == s.voiceCombo {
             let fixed = free([s.combo, s.voiceCombo], .defaultCaptureCombo); s.captureCombo = fixed; lastGoodCaptureCombo = fixed
         }
+        if s.uploadCombo == s.combo || s.uploadCombo == s.voiceCombo || s.uploadCombo == s.captureCombo {
+            let fixed = free([s.combo, s.voiceCombo, s.captureCombo], .defaultUploadCombo); s.uploadCombo = fixed; lastGoodUploadCombo = fixed
+        }
     }
 
     private func setupHotKeys() {
@@ -147,6 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         makePanelHotKey(Settings.shared.combo)
         makeVoiceHotKey(Settings.shared.voiceCombo)
         makeCaptureHotKey(Settings.shared.captureCombo)
+        makeUploadHotKey(Settings.shared.uploadCombo)
         // If a persisted combination collides with another at startup (HotKey.init returns nil), the
         // shortcut would stay dead for the whole session. Recover with its default shortcut so it isn't lost.
         if hotKey == nil, Settings.shared.combo != .defaultCombo {
@@ -171,23 +184,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         }
+        // Upload is reachable from the menu bar and the history-panel button too, so a dead shortcut here is
+        // not critical: recover quietly (default → free suggestion) without interrupting the user with an alert.
+        if uploadHotKey == nil, Settings.shared.uploadCombo != .defaultUploadCombo {
+            Settings.shared.uploadCombo = .defaultUploadCombo; lastGoodUploadCombo = .defaultUploadCombo
+            makeUploadHotKey(.defaultUploadCombo)
+        }
+        if uploadHotKey == nil {
+            for s in KeyCombo.suggestions where s != Settings.shared.combo && s != Settings.shared.voiceCombo && s != Settings.shared.captureCombo {
+                makeUploadHotKey(s)
+                if uploadHotKey != nil { Settings.shared.uploadCombo = s; lastGoodUploadCombo = s; break }
+            }
+        }
         // If the panel/voice shortcuts are still dead after the default-reset (another app globally owns
         // even the default combo), tell the user instead of leaving a silently-inert shortcut (deferred so it
         // doesn't block launch).
         if hotKey == nil || voiceHotKey == nil {
             Task { @MainActor in NSSound.beep(); self.showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")) }
         }
+        // Reflect any startup remaps: deduplicate/recovery above can change a combo AFTER the initial
+        // buildMenu(), so rebuild once more here to keep the menu's shortcut labels truthful.
+        buildMenu()
     }
 
-    private enum ShortcutKind { case panel, voice, capture }
+    private enum ShortcutKind { case panel, voice, capture, upload }
 
     /// Carbon registers each shortcut under a distinct id, so it does NOT reject assigning the SAME combo
     /// to two of our shortcuts — we must catch that ourselves.
     private func collidesWithOtherShortcut(_ combo: KeyCombo, _ kind: ShortcutKind) -> Bool {
         switch kind {
-        case .panel:   return combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo
-        case .voice:   return combo == Settings.shared.combo || combo == Settings.shared.captureCombo
-        case .capture: return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo
+        case .panel:   return combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo || combo == Settings.shared.uploadCombo
+        case .voice:   return combo == Settings.shared.combo || combo == Settings.shared.captureCombo || combo == Settings.shared.uploadCombo
+        case .capture: return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo || combo == Settings.shared.uploadCombo
+        case .upload:  return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo
         }
     }
 
@@ -227,6 +256,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         else { ok = voiceHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodVoiceCombo = combo }
         else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.voiceCombo = lastGoodVoiceCombo }
+        buildMenu()
+    }
+
+    private func applyUploadHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .upload) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.uploadCombo = lastGoodUploadCombo; buildMenu(); return
+        }
+        let ok: Bool
+        if uploadHotKey == nil { makeUploadHotKey(combo); ok = (uploadHotKey != nil) }
+        else { ok = uploadHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodUploadCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.uploadCombo = lastGoodUploadCombo }
         buildMenu()
     }
 
@@ -285,6 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showPanel() { panelController.show() }
     @objc private func startVoice() { panelController.toggleVoiceRecording() }
     @objc private func startCapture() { snapController.start() }
+    @objc private func startUpload() { panelController.uploadAudio() }
     @objc private func showGuideMenu() { panelController.showGuide() }
 
     @objc private func openPreferences() {
@@ -293,6 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onHotKeyChange: { [weak self] combo in self?.applyHotKey(combo) },
                 onVoiceHotKeyChange: { [weak self] combo in self?.applyVoiceHotKey(combo) },
                 onCaptureHotKeyChange: { [weak self] combo in self?.applyCaptureHotKey(combo) },
+                onUploadHotKeyChange: { [weak self] combo in self?.applyUploadHotKey(combo) },
                 onMaxItemsChange: { [weak self] in self?.manager.applyMaxItems() })
         }
         prefsController?.show()

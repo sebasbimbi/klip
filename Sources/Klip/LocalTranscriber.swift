@@ -9,6 +9,10 @@ actor LocalTranscriber {
 
     private var pipe: WhisperKit?
     private var loadedModel: String?
+    /// Flips to true once a pipeline has finished loading this session. The first on-device load pays a
+    /// one-time Core ML / Neural-Engine specialization (~20 s, cached on disk afterwards); the UI reads this
+    /// (best-effort, hence nonisolated) to show "Preparing model…" instead of a bare spinner until ready.
+    nonisolated(unsafe) static private(set) var pipelineReady = false
     /// Serializes on-device decodes: the shared WhisperKit instance has mutable state (progress, timings,
     /// Core ML decoder) that is NOT safe to run concurrently. Dropping several audio files at once would
     /// otherwise race. Each call chains after the previous one's decode.
@@ -110,6 +114,7 @@ actor LocalTranscriber {
             fallbackFor[model] = Self.defaultModel
         }
         pipe = wk
+        Self.pipelineReady = true
         return wk
     }
 }

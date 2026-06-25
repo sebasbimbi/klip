@@ -55,6 +55,7 @@ struct PreferencesView: View {
     var onHotKeyChange: (KeyCombo) -> Void
     var onVoiceHotKeyChange: (KeyCombo) -> Void
     var onCaptureHotKeyChange: (KeyCombo) -> Void
+    var onUploadHotKeyChange: (KeyCombo) -> Void
     var onMaxItemsChange: () -> Void
 
     @StateObject private var apiKey = APIKeyModel(.openai)
@@ -155,6 +156,8 @@ struct PreferencesView: View {
                     HotKeyField(combo: $settings.voiceCombo, onChange: onVoiceHotKeyChange) }
                 HStack { Text(L10n.t("prefs.sc.capture")); Spacer()
                     HotKeyField(combo: $settings.captureCombo, onChange: onCaptureHotKeyChange) }
+                HStack { Text(L10n.t("prefs.sc.upload")); Spacer()
+                    HotKeyField(combo: $settings.uploadCombo, onChange: onUploadHotKeyChange) }
                 Text(L10n.t("prefs.sc.hint"))
                     .font(.caption).foregroundStyle(.secondary)
             }

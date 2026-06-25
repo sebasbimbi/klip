@@ -476,7 +476,9 @@ final class PanelController: NSObject, NSWindowDelegate {
         guideWindow?.makeKeyAndOrderFront(nil)
     }
 
-    private func uploadAudio() {
+    /// Opens the "Upload audio to transcribe" window. Shared entry point for the history-panel button,
+    /// the menu-bar item and the global shortcut.
+    func uploadAudio() {
         // recorder.state is shared; clear a previous .error/.missingAPIKey to show the dropzone.
         if recorder.state != .recording { recorder.reset() }
         showUploadWindow()
