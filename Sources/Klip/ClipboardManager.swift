@@ -170,8 +170,11 @@ final class ClipboardManager: ObservableObject {
 
     private func hasImageData(_ pb: NSPasteboard) -> Bool {
         guard let types = pb.types else { return false }
-        return types.contains(.tiff) || types.contains(.png)
-            || types.contains(NSPasteboard.PasteboardType("public.jpeg"))
+        if types.contains(.tiff) || types.contains(.png)
+            || types.contains(NSPasteboard.PasteboardType("public.jpeg")) { return true }
+        // Accept anything NSImage can actually decode (HEIC, GIF, WebP, …) instead of silently dropping it.
+        let readable = Set(NSImage.imageTypes)
+        return types.contains { readable.contains($0.rawValue) }
     }
 
     private func addText(_ text: String, source: CaptureSource, remote: Bool) {

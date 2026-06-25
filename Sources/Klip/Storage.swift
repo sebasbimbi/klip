@@ -286,7 +286,14 @@ final class Storage {
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
         imageCache.removeAllObjects()
-        return decryptCredentials(decoded)   // creds in the imported items.json are encrypted on disk
+        let result = decryptCredentials(decoded)   // creds in the imported items.json are encrypted on disk
+        // importBackup runs OFF the main thread. If any imported credential will need sealing on the next
+        // save (a legacy plaintext secret just promoted), pre-create the Keychain key HERE so the on-main
+        // reload→saveItems only READS it — never a Keychain WRITE on the main thread (avoids the hang class).
+        if result.contains(where: { $0.isCredential == true && ($0.text.map { !CredentialCrypto.isSealed($0) } ?? false) }) {
+            CredentialCrypto.warmKey()
+        }
+        return result
     }
 
     private static func err(_ msg: String) -> NSError {

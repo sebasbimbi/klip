@@ -356,11 +356,14 @@ struct HistoryView: View {
 
     private func runOCR(_ item: ClipboardItem) {
         ocrResultID = item.id; ocrText = ""; ocrRunning = true
+        let pbCount = NSPasteboard.general.changeCount   // don't clobber a clip the user makes during OCR
         DispatchQueue.global(qos: .userInitiated).async {
             let text = manager.extractText(from: item) ?? ""
             DispatchQueue.main.async {
                 ocrRunning = false; ocrText = text
-                if !text.isEmpty { manager.setClipboardText(text) }
+                // Only push the recognized text to the clipboard if the user hasn't copied something else
+                // meanwhile (the result is still shown in the UI either way).
+                if !text.isEmpty, NSPasteboard.general.changeCount == pbCount { manager.setClipboardText(text) }
             }
         }
     }
@@ -642,13 +645,15 @@ struct ItemRow: View {
         return "\(df(fmt, en).string(from: date)) · \(time)"
     }
 
-    /// DateFormatters cached by (language, format) — avoids recreating them on every render.
+    /// DateFormatters cached by (language, format, time zone) — avoids recreating them on every render, while
+    /// still reflecting a system time-zone change mid-session (the TZ in the key busts a stale formatter).
     private static var dfCache: [String: DateFormatter] = [:]
     private static func df(_ format: String, _ en: Bool) -> DateFormatter {
-        let cacheKey = "\(en ? "en" : "es")|\(format)"
+        let cacheKey = "\(en ? "en" : "es")|\(format)|\(TimeZone.current.identifier)"
         if let f = dfCache[cacheKey] { return f }
         let f = DateFormatter()
         f.locale = Locale(identifier: en ? "en_US" : "es_ES")
+        f.timeZone = .current
         f.dateFormat = format
         dfCache[cacheKey] = f
         return f
