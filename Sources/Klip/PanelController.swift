@@ -481,6 +481,8 @@ final class PanelController: NSObject, NSWindowDelegate {
     func uploadAudio() {
         // recorder.state is shared; clear a previous .error/.missingAPIKey to show the dropzone.
         if recorder.state != .recording { recorder.reset() }
+        // Fresh session (nothing in flight): start the result list empty so old results don't linger.
+        if recorder.transcribingCount == 0 { recorder.clearUploadResults() }
         showUploadWindow()
     }
 
@@ -493,10 +495,11 @@ final class PanelController: NSObject, NSWindowDelegate {
                 onClose: { [weak self] in self?.uploadWindow?.orderOut(nil) },
                 onOpenPreferences: { [weak self] in self?.onOpenPreferences?() }
             )
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 300),
-                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 440),
+                             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             w.title = L10n.t("win.upload")
             w.isReleasedWhenClosed = false
+            w.contentMinSize = NSSize(width: 400, height: 360)
             w.contentView = NSHostingView(rootView: view)
             w.center()
             uploadWindow = w

@@ -12,6 +12,14 @@ enum RecorderState: Equatable {
     case error(String)      // error BEFORE recording starts (permission/key). Transcription runs in the background.
 }
 
+/// One uploaded audio file's transcription, shown live in the Upload window. `text == nil` while it runs.
+struct UploadTranscription: Identifiable, Equatable {
+    let id: UUID            // the voice-note item id
+    let name: String        // original file name
+    var text: String?       // filled in when transcription completes
+    var failed: Bool = false
+}
+
 /// Records a voice note to .m4a and transcribes it with OpenAI (not live: the whole note at once).
 /// Transcription runs in the background: once stopped, the recorder is free to record another.
 @MainActor
@@ -27,6 +35,9 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// session (the one-time ~20 s Neural-Engine warm-up). Lets the UI say "Preparing model…" so the first
     /// note doesn't look stuck on a bare "Transcribing…" spinner.
     @Published private(set) var preparingModel = false
+    /// Transcriptions of files dropped/picked in the Upload window, newest first — so the result shows up
+    /// right there when it finishes (not only in history). Capped; cleared when a fresh upload session opens.
+    @Published private(set) var uploadResults: [UploadTranscription] = []
 
     /// The audio is already saved: creates the voice-note item (placeholder) and returns its id.
     /// `audioFileName` may be nil if the file couldn't be saved (the transcription is still saved).
@@ -223,8 +234,17 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         for url in urls {
             let stored = storage.importAudio(from: url)                       // copies to audio/ (nil if it fails)
             let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
-            enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL)
+            enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL, uploadName: url.lastPathComponent)
         }
+    }
+
+    /// Clears the Upload window's result list (called when a fresh upload session opens, see PanelController).
+    @MainActor func clearUploadResults() { uploadResults.removeAll() }
+
+    private func fillUploadResult(_ id: UUID, text: String?, failed: Bool) {
+        guard let i = uploadResults.firstIndex(where: { $0.id == id }) else { return }   // not an upload: no-op
+        uploadResults[i].text = text
+        uploadResults[i].failed = failed
     }
 
     /// Creates the voice-note item with its audio already saved and kicks off the transcription.
@@ -240,9 +260,13 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// Kicks off a background transcription: creates the placeholder item and fills it in when done.
     /// Doesn't touch `state` (only the counter), so it won't interfere with a new recording in progress.
     @MainActor
-    private func enqueueTranscription(audioFileName: String?, transcribeURL: URL) {
+    private func enqueueTranscription(audioFileName: String?, transcribeURL: URL, uploadName: String? = nil) {
         let duration = AudioPlayer.duration(of: transcribeURL)
         let id = onVoiceNoteStarted?(audioFileName, duration)
+        if let uploadName, let id {   // show this file's progress + result in the Upload window
+            uploadResults.insert(UploadTranscription(id: id, name: uploadName), at: 0)
+            if uploadResults.count > 25 { uploadResults.removeLast() }
+        }
         transcribeInBackground(id: id, url: transcribeURL)
     }
 
@@ -278,11 +302,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             do {
                 let text = try await AIProvider.transcribe(provider: provider, audioURL: url, language: language, model: model, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id) } }
-                else { if let id { onVoiceNoteTranscribed?(id, trimmed) } }
+                if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id); fillUploadResult(id, text: nil, failed: true) } }
+                else { if let id { onVoiceNoteTranscribed?(id, trimmed); fillUploadResult(id, text: trimmed, failed: false) } }
             } catch {
                 NSLog("Klip: transcription failed — %@", String(describing: error))   // surface, don't fail silently
-                if let id { onVoiceNoteFailed?(id) }   // the audio stays in history to retry/recover
+                if let id { onVoiceNoteFailed?(id); fillUploadResult(id, text: nil, failed: true) }   // the audio stays in history to retry/recover
             }
         }
     }

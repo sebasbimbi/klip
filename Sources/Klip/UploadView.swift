@@ -48,10 +48,62 @@ struct UploadView: View {
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .background(Capsule().fill(Color.accentColor.opacity(0.14)))
                 }
+                if !recorder.uploadResults.isEmpty { resultsSection }
                 Button(L10n.t("common.close")) { onClose() }
             }
         }
-        .frame(width: 380, height: 330).padding()
+        .frame(minWidth: 400, maxWidth: .infinity, minHeight: 360, maxHeight: .infinity, alignment: .top)
+        .padding()
+    }
+
+    /// The transcriptions of the just-uploaded files, filled in live as each one finishes.
+    private var resultsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.t("upload.results")).font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(recorder.uploadResults) { resultRow($0) }
+                }
+            }
+            .frame(maxHeight: 220)
+        }
+    }
+
+    private func resultRow(_ r: UploadTranscription) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "waveform").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(r.name).font(.system(size: 11, weight: .medium))
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 4)
+                if r.text == nil && !r.failed {
+                    ProgressView().controlSize(.small)
+                } else if r.failed {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundStyle(.orange)
+                } else {
+                    Button { copyText(r.text ?? "") } label: {
+                        Image(systemName: "doc.on.doc").font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderless).help(L10n.t("row.copy"))
+                }
+            }
+            if let t = r.text {
+                Text(t).font(.system(size: 12)).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).lineLimit(8)
+            } else if r.failed {
+                Text(L10n.t("upload.failed")).font(.system(size: 11)).foregroundStyle(.orange)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+    }
+
+    private func copyText(_ text: String) {
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private var dropZone: some View {
