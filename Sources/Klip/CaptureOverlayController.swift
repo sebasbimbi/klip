@@ -1,11 +1,21 @@
 import AppKit
 
+/// Shield-level window that CAN become key (unlike a plain borderless NSWindow, which by default
+/// never receives keyboard events → Esc would not cancel). Required so keyboard cancellation works
+/// while the window sits at the system shield level.
+private final class ShieldWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 /// Borderless full-screen window that shows the frozen, dimmed capture and lets
 /// the user drag out a region. On release, it crops and returns an NSImage of the chosen area.
 final class CaptureOverlayController {
     private var window: NSWindow?
     private let shot: DisplayShot
     private let onComplete: (NSImage?) -> Void
+    private var resolved = false               // avoids double-dismiss / firing onComplete twice
+    private var escMonitor: Any?               // safety net: Esc even if the window never becomes key
 
     init(shot: DisplayShot, onComplete: @escaping (NSImage?) -> Void) {
         self.shot = shot
@@ -14,7 +24,7 @@ final class CaptureOverlayController {
 
     func present() {
         let frame = shot.screen.frame
-        let win = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        let win = ShieldWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         win.isOpaque = false
         win.backgroundColor = .clear
         win.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
@@ -33,11 +43,19 @@ final class CaptureOverlayController {
         NSApp.activate(ignoringOtherApps: true)
         win.makeFirstResponder(view)
         self.window = win
+
+        // Safety net: even if for any reason the window never becomes key, Esc (keyCode 53) always
+        // cancels. Without this, a focus failure would leave the user with no keyboard way out.
+        escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { self?.dismiss(nil); return nil }
+            return event
+        }
     }
 
     /// Converts the selection (points, bottom-left origin of the view) to bitmap pixels
     /// (top-left origin) and crops the CGImage.
     private func finish(selectionInView rect: NSRect) {
+        guard !resolved else { return }
         guard rect.width >= 4, rect.height >= 4 else { dismiss(nil); return }
         let scale = shot.scale
         let viewH = shot.screen.frame.height
@@ -56,6 +74,9 @@ final class CaptureOverlayController {
     }
 
     private func dismiss(_ image: NSImage?) {
+        guard !resolved else { return }
+        resolved = true
+        if let m = escMonitor { NSEvent.removeMonitor(m); escMonitor = nil }
         window?.orderOut(nil)
         window = nil
         onComplete(image)
@@ -178,4 +199,7 @@ private final class CaptureOverlayView: NSView {
         if event.keyCode == 53 { onCancel() }   // Esc
         else { super.keyDown(with: event) }
     }
+
+    /// Esc through the standard responder chain (in addition to keyDown and the safety-net monitor).
+    override func cancelOperation(_ sender: Any?) { onCancel() }
 }
