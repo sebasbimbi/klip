@@ -30,6 +30,9 @@ struct KeyCombo: Equatable {
     /// Default capture shortcut: ⌥⌘T.
     static let defaultCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_T),
                                               carbonModifiers: UInt32(cmdKey | optionKey))
+    /// Default upload/transcribe-file shortcut: ⌥⌘G (the next free ⌥⌘ suggestion after Y/R/T).
+    static let defaultUploadCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_G),
+                                             carbonModifiers: UInt32(cmdKey | optionKey))
 
     // Previous defaults, kept only to migrate anyone still on them onto the current set (see migration in init).
     static let legacyPanelCombo   = KeyCombo(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(cmdKey | shiftKey)) // ⌘⇧E
@@ -127,6 +130,8 @@ final class Settings: ObservableObject {
         static let mods2      = "voiceHotKeyModifiers"
         static let keyCode3   = "captureHotKeyCode"
         static let mods3      = "captureHotKeyModifiers"
+        static let keyCode4   = "uploadHotKeyCode"
+        static let mods4      = "uploadHotKeyModifiers"
         static let uiLang     = "uiLanguage"
     }
 
@@ -160,6 +165,11 @@ final class Settings: ObservableObject {
         d.set(Int(captureCombo.keyCode), forKey: K.keyCode3)
         d.set(Int(captureCombo.carbonModifiers), forKey: K.mods3)
     } }
+    /// Global shortcut to open the "Upload audio to transcribe" window.
+    @Published var uploadCombo: KeyCombo  { didSet {
+        d.set(Int(uploadCombo.keyCode), forKey: K.keyCode4)
+        d.set(Int(uploadCombo.carbonModifiers), forKey: K.mods4)
+    } }
     @Published var uiLanguage: String     { didSet { d.set(uiLanguage, forKey: K.uiLang) } }
 
     /// Simple toggle that controls all three privacy filters at once.
@@ -190,6 +200,8 @@ final class Settings: ObservableObject {
             K.mods2: Int(cmdKey | optionKey),
             K.keyCode3: Int(kVK_ANSI_T),
             K.mods3: Int(cmdKey | optionKey),
+            K.keyCode4: Int(kVK_ANSI_G),
+            K.mods4: Int(cmdKey | optionKey),
             K.uiLang: "en"   // English is the base/default UI language (open-source collaboration)
         ])
         maxItems = d.integer(forKey: K.maxItems)
@@ -212,6 +224,8 @@ final class Settings: ObservableObject {
                               carbonModifiers: UInt32(d.integer(forKey: K.mods2)))
         captureCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode3)),
                                 carbonModifiers: UInt32(d.integer(forKey: K.mods3)))
+        uploadCombo = KeyCombo(keyCode: UInt32(d.integer(forKey: K.keyCode4)),
+                               carbonModifiers: UInt32(d.integer(forKey: K.mods4)))
         uiLanguage = d.string(forKey: K.uiLang) ?? "en"
 
         // One-time migration: the capture default changed from ⌘⇧2 to ⌘⇧U (⌘⇧2 was hijacked by apps like Loom).
