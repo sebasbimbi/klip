@@ -206,13 +206,6 @@ final class PanelController: NSObject, NSWindowDelegate {
             }
         }
 
-        // ⌘1..⌘9 → quick selection + paste (only if that index exists).
-        if flags.contains(.command),
-           let ch = event.charactersIgnoringModifiers,
-           let n = Int(ch), (1...9).contains(n) {
-            if n <= selection.visibleCount { selection.selectQuick(n); pickSelected() }
-            return nil
-        }
         // ⌘↩ → copy the selected text item as a code block (the flagship vibe-coder action), keyboard-only.
         if flags == .command, event.keyCode == 36,
            let id = selection.selectedID, let item = manager.items.first(where: { $0.id == id }),

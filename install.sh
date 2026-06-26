@@ -89,12 +89,18 @@ else
     echo "  (stable signature '$SIGN_ID': the microphone permission is remembered across updates)"
 fi
 
+# Local default language (UI + audio transcription). Only on a FRESH install (respects a later choice).
+# Override with KLIP_DEFAULT_LANG=en ./install.sh
+KLIP_LANG="${KLIP_DEFAULT_LANG:-es}"
+defaults read com.proper.klip uiLanguage            >/dev/null 2>&1 || defaults write com.proper.klip uiLanguage            -string "$KLIP_LANG"
+defaults read com.proper.klip transcriptionLanguage >/dev/null 2>&1 || defaults write com.proper.klip transcriptionLanguage -string "$KLIP_LANG"
+
 echo "==> 4) Launching…"
 open "$DEST"
 
 echo ""
 echo "✓ Installed at $DEST"
-echo "  · Default shortcuts:  History ⌥⌘Y  ·  Voice note ⌥⌘R  ·  Capture ⌥⌘T  ·  Upload audio ⌥⌘G"
+echo "  · Default shortcuts:  History ⌥⇧E · Voice ⌥⇧R · Annotate ⌥⇧D · OCR text ⌥⇧F · Upload ⌥⇧O"
 echo "    (the exact ones are shown in the Klip menu and can be changed in Preferences › Shortcuts)"
 echo "  · Launch at login: registered automatically the first time."
 echo "    If Settings › General › Login Items asks for approval, enable it there."

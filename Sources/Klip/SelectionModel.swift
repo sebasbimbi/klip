@@ -16,8 +16,6 @@ final class SelectionModel: ObservableObject {
     /// paste or close the panel (it would break the batch the user is assembling). Synced by HistoryView.
     @Published var selecting: Bool = false
 
-    var visibleCount: Int { visibleIDs.count }
-
     var selectedID: UUID? {
         guard visibleIDs.indices.contains(selectedIndex) else { return nil }
         return visibleIDs[selectedIndex]
@@ -41,12 +39,6 @@ final class SelectionModel: ObservableObject {
     func moveUp() {
         guard !visibleIDs.isEmpty else { return }
         selectedIndex = max(selectedIndex - 1, 0)
-    }
-
-    /// ⌘1..⌘9 → index 0..8 (if it exists).
-    func selectQuick(_ n: Int) {
-        let i = n - 1
-        if visibleIDs.indices.contains(i) { selectedIndex = i }
     }
 
     func reset() {

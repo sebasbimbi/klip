@@ -16,28 +16,27 @@ struct KeyCombo: Equatable {
     var keyCode: UInt32
     var carbonModifiers: UInt32
 
-    // Defaults use ⌥⌘ (Option+Cmd) with LESS-USED letters (Y / R / T). The ⌘⇧+letter space is heavily mined
-    // for the vibe-coder stack — ⌘⇧E = VS Code Explorer, ⌘⇧I = browser DevTools, ⌘⇧U = others — and a global
-    // Carbon hotkey does NOT reliably beat a Chromium/Electron app (VS Code, Chrome, Cursor) that consumes the
-    // accelerator first. ⌥⌘ + an uncommon letter is almost never an app accelerator, so the hotkey fires.
-    // (⌥⌘V was avoided too — it was already taken in the user's setup.)
-    /// Default panel shortcut: ⌥⌘Y.
-    static let defaultCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_Y),
-                                       carbonModifiers: UInt32(cmdKey | optionKey))
-    /// Default voice shortcut: ⌥⌘R (R = record).
-    static let defaultVoiceCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_R),
-                                            carbonModifiers: UInt32(cmdKey | optionKey))
-    /// Default capture shortcut: ⌥⌘T.
-    static let defaultCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_T),
-                                              carbonModifiers: UInt32(cmdKey | optionKey))
-    /// Default upload/transcribe-file shortcut: ⌥⌘G (the next free ⌥⌘ suggestion after Y/R/T).
-    static let defaultUploadCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_G),
-                                             carbonModifiers: UInt32(cmdKey | optionKey))
-    /// Default OCR-capture shortcut: ⌥⌘E (E = extract text). Capture a region → text on the clipboard.
-    static let defaultTextCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_E),
-                                                  carbonModifiers: UInt32(cmdKey | optionKey))
+    // Defaults are ⌥⇧ (Option+Shift) + a letter, grouped by function on the left of the keyboard for comfort:
+    // E history · R record · D draw/annotate · F fast text (OCR) · O upload. ⌥⇧ is easy to hold and rarely an
+    // app accelerator, so the global Carbon hotkey fires; ⌘⇧+letter is avoided (mined by VS Code/browsers).
+    static let defaultCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(optionKey | shiftKey))            // ⌥⇧E history
+    static let defaultVoiceCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_R), carbonModifiers: UInt32(optionKey | shiftKey))       // ⌥⇧R record
+    static let defaultCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(optionKey | shiftKey))     // ⌥⇧D draw/annotate
+    static let defaultTextCaptureCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_F), carbonModifiers: UInt32(optionKey | shiftKey)) // ⌥⇧F fast OCR
+    static let defaultUploadCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_O), carbonModifiers: UInt32(optionKey | shiftKey))      // ⌥⇧O upload
 
-    // Previous defaults, kept only to migrate anyone still on them onto the current set (see migration in init).
+    // Previous ⌥⌘ defaults and the brief ⌥⇧ Y/R/T/G/E set — migrate anyone still on them onto the new set.
+    static let prevOptCmdPanel   = KeyCombo(keyCode: UInt32(kVK_ANSI_Y), carbonModifiers: UInt32(cmdKey | optionKey))
+    static let prevOptCmdVoice   = KeyCombo(keyCode: UInt32(kVK_ANSI_R), carbonModifiers: UInt32(cmdKey | optionKey))
+    static let prevOptCmdCapture = KeyCombo(keyCode: UInt32(kVK_ANSI_T), carbonModifiers: UInt32(cmdKey | optionKey))
+    static let prevOptCmdUpload  = KeyCombo(keyCode: UInt32(kVK_ANSI_G), carbonModifiers: UInt32(cmdKey | optionKey))
+    static let prevOptCmdText    = KeyCombo(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(cmdKey | optionKey))
+    static let prevShiftPanel    = KeyCombo(keyCode: UInt32(kVK_ANSI_Y), carbonModifiers: UInt32(optionKey | shiftKey))
+    static let prevShiftCapture  = KeyCombo(keyCode: UInt32(kVK_ANSI_T), carbonModifiers: UInt32(optionKey | shiftKey))
+    static let prevShiftUpload   = KeyCombo(keyCode: UInt32(kVK_ANSI_G), carbonModifiers: UInt32(optionKey | shiftKey))
+    static let prevShiftText     = KeyCombo(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(optionKey | shiftKey))
+
+    // Older defaults, kept only to migrate anyone still on them onto the current set (see migration in init).
     static let legacyPanelCombo   = KeyCombo(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(cmdKey | shiftKey)) // ⌘⇧E
     static let legacyVoiceCombo   = KeyCombo(keyCode: UInt32(kVK_ANSI_I), carbonModifiers: UInt32(cmdKey | shiftKey)) // ⌘⇧I
     static let legacyCaptureUCombo = KeyCombo(keyCode: UInt32(kVK_ANSI_U), carbonModifiers: UInt32(cmdKey | shiftKey)) // ⌘⇧U
@@ -86,12 +85,12 @@ struct KeyCombo: Equatable {
     /// Suggested combinations to pick without recording (shown in Preferences). Leads with ⌥⌘ combos, which
     /// rarely collide with app accelerators (so the global hotkey reliably fires); ⌘⇧ options come after.
     static let suggestions: [KeyCombo] = [
-        KeyCombo(keyCode: UInt32(kVK_ANSI_Y), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘Y (panel)
-        KeyCombo(keyCode: UInt32(kVK_ANSI_R), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘R (voice)
-        KeyCombo(keyCode: UInt32(kVK_ANSI_T), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘T (capture)
-        KeyCombo(keyCode: UInt32(kVK_ANSI_G), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘G
-        KeyCombo(keyCode: UInt32(kVK_ANSI_K), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘K
-        KeyCombo(keyCode: UInt32(kVK_ANSI_J), carbonModifiers: UInt32(cmdKey | optionKey)),  // ⌥⌘J
+        KeyCombo(keyCode: UInt32(kVK_ANSI_Y), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧Y (panel)
+        KeyCombo(keyCode: UInt32(kVK_ANSI_R), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧R (voice)
+        KeyCombo(keyCode: UInt32(kVK_ANSI_T), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧T (capture)
+        KeyCombo(keyCode: UInt32(kVK_ANSI_G), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧G
+        KeyCombo(keyCode: UInt32(kVK_ANSI_K), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧K
+        KeyCombo(keyCode: UInt32(kVK_ANSI_J), carbonModifiers: UInt32(optionKey | shiftKey)),  // ⌥⇧J
         KeyCombo(keyCode: UInt32(kVK_Space),  carbonModifiers: UInt32(optionKey)),           // ⌥Space
         KeyCombo(keyCode: UInt32(kVK_ANSI_M), carbonModifiers: UInt32(cmdKey | shiftKey))    // ⌘⇧M
     ]
@@ -204,8 +203,8 @@ final class Settings: ObservableObject {
         Settings.migrateLegacyDefaultsIfNeeded()
         d.register(defaults: [
             K.maxItems: 200,
-            K.keyCode: Int(kVK_ANSI_Y),
-            K.mods: Int(cmdKey | optionKey),
+            K.keyCode: Int(kVK_ANSI_E),
+            K.mods: Int(optionKey | shiftKey),
             K.autoPaste: true,
             K.concealed: true,
             K.transient: true,
@@ -219,13 +218,13 @@ final class Settings: ObservableObject {
             K.localModel: "small",   // best accuracy/speed balance on Apple Silicon (downloads ~480 MB once)
             K.aiProv: "local",   // on-device (WhisperKit) by default; cloud is opt-in (needs an API key)
             K.keyCode2: Int(kVK_ANSI_R),
-            K.mods2: Int(cmdKey | optionKey),
-            K.keyCode3: Int(kVK_ANSI_T),
-            K.mods3: Int(cmdKey | optionKey),
-            K.keyCode4: Int(kVK_ANSI_G),
-            K.mods4: Int(cmdKey | optionKey),
-            K.keyCode5: Int(kVK_ANSI_E),
-            K.mods5: Int(cmdKey | optionKey),
+            K.mods2: Int(optionKey | shiftKey),
+            K.keyCode3: Int(kVK_ANSI_D),
+            K.mods3: Int(optionKey | shiftKey),
+            K.keyCode4: Int(kVK_ANSI_O),
+            K.mods4: Int(optionKey | shiftKey),
+            K.keyCode5: Int(kVK_ANSI_F),
+            K.mods5: Int(optionKey | shiftKey),
             K.uiLang: "en"   // English is the base/default UI language (open-source collaboration)
         ])
         maxItems = d.integer(forKey: K.maxItems)
@@ -273,6 +272,28 @@ final class Settings: ObservableObject {
             if voiceCombo == KeyCombo.legacyVoiceCombo { voiceCombo = KeyCombo.defaultVoiceCombo }
             if captureCombo == KeyCombo.legacyCaptureUCombo || captureCombo == KeyCombo.interimCaptureCombo { captureCombo = KeyCombo.defaultCaptureCombo }
             d.set(true, forKey: migHotkeysV3)
+        }
+
+        // One-time migration from the ⌥⌘ defaults to the new ⌥⇧ set (⌥⌘ was awkward to press). Anyone still
+        // on an ⌥⌘ default moves over; a custom combo is kept.
+        let migHotkeysV4 = "migratedHotkeysV4"
+        if !d.bool(forKey: migHotkeysV4) {
+            if combo == KeyCombo.prevOptCmdPanel { combo = KeyCombo.defaultCombo }
+            if voiceCombo == KeyCombo.prevOptCmdVoice { voiceCombo = KeyCombo.defaultVoiceCombo }
+            if captureCombo == KeyCombo.prevOptCmdCapture { captureCombo = KeyCombo.defaultCaptureCombo }
+            if uploadCombo == KeyCombo.prevOptCmdUpload { uploadCombo = KeyCombo.defaultUploadCombo }
+            if textCaptureCombo == KeyCombo.prevOptCmdText { textCaptureCombo = KeyCombo.defaultTextCaptureCombo }
+            d.set(true, forKey: migHotkeysV4)
+        }
+
+        // Reletter migration: the brief ⌥⇧ Y/T/G/E set → the function-grouped E/R/D/F/O set (voice ⌥⇧R kept).
+        let migHotkeysV5 = "migratedHotkeysV5"
+        if !d.bool(forKey: migHotkeysV5) {
+            if combo == KeyCombo.prevShiftPanel { combo = KeyCombo.defaultCombo }                       // ⌥⇧Y → ⌥⇧E
+            if captureCombo == KeyCombo.prevShiftCapture { captureCombo = KeyCombo.defaultCaptureCombo } // ⌥⇧T → ⌥⇧D
+            if uploadCombo == KeyCombo.prevShiftUpload { uploadCombo = KeyCombo.defaultUploadCombo }     // ⌥⇧G → ⌥⇧O
+            if textCaptureCombo == KeyCombo.prevShiftText { textCaptureCombo = KeyCombo.defaultTextCaptureCombo } // ⌥⇧E → ⌥⇧F
+            d.set(true, forKey: migHotkeysV5)
         }
 
         // One-time migration to on-device transcription (the new default). Existing cloud users predate
