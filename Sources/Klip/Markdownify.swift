@@ -2,6 +2,45 @@ import Foundation
 
 /// Local (offline) conversion of text to Markdown.
 enum Markdownify {
+
+    private static func rx(_ s: String, _ pattern: String, _ template: String) -> String {
+        s.replacingOccurrences(of: pattern, with: template, options: .regularExpression)
+    }
+
+    /// Reformats Markdown/rich text (e.g. an AI chat answer) into WhatsApp's own markup so it pastes cleanly:
+    /// *bold*, _italic_, ~strike~, • bullets; headers become bold; links become "text (url)". The clip is
+    /// plain text to begin with, so any dark background / rich styling is dropped automatically.
+    static func toWhatsApp(_ text: String) -> String {
+        var s = text.replacingOccurrences(of: "\r\n", with: "\n")
+        s = rx(s, "(?m)^#{1,6}[ \\t]+(.+)$", "\u{1}$1\u{1}")         // headers → bold (placeholder, protected from italic)
+        s = rx(s, "\\*\\*(.+?)\\*\\*", "\u{1}$1\u{1}")               // **bold** → placeholder
+        s = rx(s, "__(.+?)__", "\u{1}$1\u{1}")                        // __bold__ → placeholder
+        s = rx(s, "(?<![\\*\\w])\\*(?!\\*)(.+?)(?<!\\*)\\*(?![\\*\\w])", "_$1_")  // *italic* → _italic_
+        s = s.replacingOccurrences(of: "\u{1}", with: "*")           // restore bold → *bold*
+        s = rx(s, "~~(.+?)~~", "~$1~")                                // ~~strike~~ → ~strike~
+        s = rx(s, "`([^`\\n]+)`", "$1")                               // inline `code` → code (no inline mono)
+        s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)")                // [text](url) → text (url)
+        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets → •
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Reformats Markdown/rich text into clean plain text for an email body: strips Markdown symbols, keeps
+    /// readable structure (bullets, "text (url)" links), removes code fences. The email app adds its own styling.
+    static func toEmail(_ text: String) -> String {
+        var s = text.replacingOccurrences(of: "\r\n", with: "\n")
+        s = rx(s, "(?m)^#{1,6}[ \\t]+", "")                           // headers → plain line
+        s = rx(s, "\\*\\*(.+?)\\*\\*", "$1")                          // **bold**
+        s = rx(s, "__(.+?)__", "$1")                                  // __bold__
+        s = rx(s, "(?<![\\*\\w])\\*(?!\\*)(.+?)(?<!\\*)\\*(?![\\*\\w])", "$1")  // *italic*
+        s = rx(s, "(?<![_\\w])_(?!_)(.+?)(?<!_)_(?![_\\w])", "$1")    // _italic_
+        s = rx(s, "~~(.+?)~~", "$1")                                  // ~~strike~~
+        s = rx(s, "(?m)^```[a-zA-Z0-9]*\\n?", "")                     // code fences ```lang
+        s = rx(s, "`([^`\\n]+)`", "$1")                               // inline `code`
+        s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)")                // [text](url) → text (url)
+        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets → •
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     static func fromText(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return "" }

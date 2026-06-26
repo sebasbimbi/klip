@@ -601,6 +601,8 @@ struct ItemRow: View {
                     iconButton("arrow.up.right.square", L10n.t("row.openlink")) { NSWorkspace.shared.open(u) }
                 }
                 Menu {
+                    Button { manager.setClipboardText(Markdownify.toWhatsApp(item.text ?? "")) } label: { Label(L10n.t("row.whatsapp"), systemImage: "message") }
+                    Button { manager.setClipboardText(Markdownify.toEmail(item.text ?? "")) } label: { Label(L10n.t("row.email"), systemImage: "envelope") }
                     Button { onCopyMarkdown(item) } label: { Label(L10n.t("row.markdown"), systemImage: "doc.richtext") }
                     Button { onSaveAsFile(item) } label: { Label(L10n.t("row.savefile"), systemImage: "square.and.arrow.down") }
                     Divider()
