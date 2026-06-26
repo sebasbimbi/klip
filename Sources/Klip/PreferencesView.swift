@@ -74,11 +74,7 @@ struct PreferencesView: View {
     private let geminiModels = ["gemini-flash-latest", "gemini-flash-lite-latest",
                                 "gemini-pro-latest", "gemini-2.5-flash", "gemini-2.5-pro"]
     // Dictation/audio languages passed to the transcription provider (endonyms). "" = auto-detect.
-    private let dictationLanguages: [(code: String, name: String)] = [
-        ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
-        ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語"),
-        ("ko", "한국어"), ("ru", "Русский"), ("nl", "Nederlands"), ("hi", "हिन्दी")
-    ]
+    private let dictationLanguages = DictationLanguage.all
 
     private var appLogo: NSImage? {
         if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),

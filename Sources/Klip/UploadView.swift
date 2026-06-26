@@ -6,12 +6,15 @@ import UniformTypeIdentifiers
 struct UploadView: View {
     @ObservedObject var recorder: Recorder
     @ObservedObject var settings = Settings.shared   // re-localize live when the UI language changes
-    var onChoose: () -> Void
-    var onFiles: ([URL]) -> Void
+    var onChoose: (String) -> Void
+    var onFiles: ([URL], String) -> Void
     var onClose: () -> Void
     var onOpenPreferences: () -> Void
 
     @State private var hovering = false
+    /// nil = follow the global/platform language (stays reactive); set = override for this upload session.
+    @State private var languageOverride: String?
+    private var effectiveLanguage: String { languageOverride ?? settings.transcriptionLanguage }
 
     // Formats the transcribers actually accept. (Dropped aac/aiff: OpenAI rejects them and they'd fail
     // silently; .m4b is treated as .m4a on upload.)
@@ -35,6 +38,7 @@ struct UploadView: View {
             default:
                 Text(L10n.t("upload.title")).font(.headline)
                 dropZone
+                languagePicker
                 Text(L10n.t("upload.info"))
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if recorder.transcribingCount > 0 {
@@ -106,13 +110,27 @@ struct UploadView: View {
         NSPasteboard.general.setString(text, forType: .string)
     }
 
+    /// Per-upload language: defaults to the platform/global language but can be overridden for this specific
+    /// audio (e.g. a French clip while the app default is Spanish).
+    private var languagePicker: some View {
+        Picker(L10n.t("upload.audioLang"), selection: Binding(
+            get: { effectiveLanguage },
+            set: { languageOverride = $0 }
+        )) {
+            Text(L10n.t("lang.auto")).tag("")
+            ForEach(DictationLanguage.all, id: \.code) { Text($0.name).tag($0.code) }
+        }
+        .pickerStyle(.menu)
+        .frame(maxWidth: 260)
+    }
+
     private var dropZone: some View {
         VStack(spacing: 10) {
             Image(systemName: "arrow.down.doc.fill").font(.system(size: 38))
                 .foregroundStyle(hovering ? Color.accentColor : .secondary)
             Text(L10n.t("upload.drop")).font(.system(size: 14, weight: .medium))
             Text(L10n.t("upload.or")).font(.caption).foregroundStyle(.secondary)
-            Button(L10n.t("upload.choose")) { onChoose() }
+            Button(L10n.t("upload.choose")) { onChoose(effectiveLanguage) }
         }
         .frame(maxWidth: .infinity).frame(height: 150)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(hovering ? 0.12 : 0.05)))
@@ -142,7 +160,7 @@ struct UploadView: View {
         }
         group.notify(queue: .main) {
             let audio = urls.filter { exts.contains($0.pathExtension.lowercased()) }
-            if !audio.isEmpty { onFiles(audio) }
+            if !audio.isEmpty { onFiles(audio, effectiveLanguage) }
         }
     }
 }

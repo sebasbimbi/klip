@@ -72,12 +72,12 @@ struct KeyCombo: Equatable {
             UInt32(kVK_ANSI_3): "3", UInt32(kVK_ANSI_4): "4", UInt32(kVK_ANSI_5): "5",
             UInt32(kVK_ANSI_6): "6", UInt32(kVK_ANSI_7): "7", UInt32(kVK_ANSI_8): "8",
             UInt32(kVK_ANSI_9): "9",
-            UInt32(kVK_Space): "Espacio", UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥",
+            UInt32(kVK_Space): "Space", UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥",
             UInt32(kVK_Escape): "⎋", UInt32(kVK_Delete): "⌫",
             UInt32(kVK_ANSI_Period): ".", UInt32(kVK_ANSI_Comma): ",",
             UInt32(kVK_ANSI_Slash): "/", UInt32(kVK_ANSI_Semicolon): ";"
         ]
-        return map[keyCode] ?? String(format: "Tecla %02X", keyCode)
+        return map[keyCode] ?? String(format: "Key %02X", keyCode)
     }
 
     /// Suggested combinations to pick without recording (shown in Preferences). Leads with ⌥⌘ combos, which
@@ -170,7 +170,12 @@ final class Settings: ObservableObject {
         d.set(Int(uploadCombo.keyCode), forKey: K.keyCode4)
         d.set(Int(uploadCombo.carbonModifiers), forKey: K.mods4)
     } }
-    @Published var uiLanguage: String     { didSet { d.set(uiLanguage, forKey: K.uiLang) } }
+    @Published var uiLanguage: String     { didSet {
+        d.set(uiLanguage, forKey: K.uiLang)
+        // Selecting the platform language also sets the audio/transcription language to match (every UI
+        // language is a valid dictation code). The user can still override it per-upload or in Preferences.
+        if uiLanguage != oldValue { transcriptionLanguage = uiLanguage }
+    } }
 
     /// Simple toggle that controls all three privacy filters at once.
     var ignoreSensitive: Bool {
@@ -286,4 +291,14 @@ final class Settings: ObservableObject {
             }
         }
     }
+}
+
+/// Audio/dictation languages offered to the transcriber (endonyms), shared by Preferences and the Upload
+/// window. "" (auto-detect) is added at the UI layer via the "lang.auto" string.
+enum DictationLanguage {
+    static let all: [(code: String, name: String)] = [
+        ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
+        ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語"),
+        ("ko", "한국어"), ("ru", "Русский"), ("nl", "Nederlands"), ("hi", "हिन्दी")
+    ]
 }

@@ -227,14 +227,17 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     /// Transcribes one or more audio files uploaded by the user (in the background).
     /// Each audio is copied to our store so it can be played back and kept afterwards.
+    /// `language` overrides the spoken-language hint for THIS upload only (e.g. the user dropped a French
+    /// audio while the app default is Spanish). Pass "" for auto-detect, nil to use the global default.
     @MainActor
-    func transcribeFiles(_ urls: [URL]) {
+    func transcribeFiles(_ urls: [URL], language: String? = nil) {
         guard !urls.isEmpty else { return }
         guard AIProvider.hasKey else { state = .missingAPIKey; return }
         for url in urls {
             let stored = storage.importAudio(from: url)                       // copies to audio/ (nil if it fails)
             let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
-            enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL, uploadName: url.lastPathComponent)
+            enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL,
+                                 uploadName: url.lastPathComponent, language: language)
         }
     }
 
@@ -260,14 +263,14 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// Kicks off a background transcription: creates the placeholder item and fills it in when done.
     /// Doesn't touch `state` (only the counter), so it won't interfere with a new recording in progress.
     @MainActor
-    private func enqueueTranscription(audioFileName: String?, transcribeURL: URL, uploadName: String? = nil) {
+    private func enqueueTranscription(audioFileName: String?, transcribeURL: URL, uploadName: String? = nil, language: String? = nil) {
         let duration = AudioPlayer.duration(of: transcribeURL)
         let id = onVoiceNoteStarted?(audioFileName, duration)
         if let uploadName, let id {   // show this file's progress + result in the Upload window
             uploadResults.insert(UploadTranscription(id: id, name: uploadName), at: 0)
             if uploadResults.count > 25 { uploadResults.removeLast() }
         }
-        transcribeInBackground(id: id, url: transcribeURL)
+        transcribeInBackground(id: id, url: transcribeURL, languageOverride: language)
     }
 
     /// Retries transcribing the audio of an item that already exists (a failed note with its audio).
@@ -279,7 +282,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     /// Core of the background transcription (shared by record, upload and retry). Doesn't touch `state`.
     @MainActor
-    private func transcribeInBackground(id: UUID?, url: URL) {
+    private func transcribeInBackground(id: UUID?, url: URL, languageOverride: String? = nil) {
         transcribingCount += 1
         // Resolve the active provider's model here, on the MainActor (avoids reading Settings.shared
         // from the transcription thread). Gemini and OpenAI each have their own model setting.
@@ -290,7 +293,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         let model = provider == "gemini" ? Settings.shared.geminiModel
                   : provider == "local"  ? Settings.shared.localModel
                   : Settings.shared.transcriptionModel
-        let language = Settings.shared.transcriptionLanguage
+        let language = languageOverride ?? Settings.shared.transcriptionLanguage   // per-upload override wins
         let vocabulary = Settings.shared.transcriptionVocabulary
         // First on-device use downloads the model: show "Downloading model…" so it doesn't look stuck.
         if provider == "local", !LocalTranscriber.isModelReady(model), let id { onVoiceNoteDownloadingModel?(id) }

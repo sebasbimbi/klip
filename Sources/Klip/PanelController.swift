@@ -490,8 +490,8 @@ final class PanelController: NSObject, NSWindowDelegate {
         if uploadWindow == nil {
             let view = UploadView(
                 recorder: recorder,
-                onChoose: { [weak self] in self?.chooseAudioFiles() },
-                onFiles: { [weak self] urls in MainActor.assumeIsolated { self?.submitAudioFiles(urls) } },
+                onChoose: { [weak self] lang in self?.chooseAudioFiles(language: lang) },
+                onFiles: { [weak self] urls, lang in MainActor.assumeIsolated { self?.submitAudioFiles(urls, language: lang) } },
                 onClose: { [weak self] in self?.uploadWindow?.orderOut(nil) },
                 onOpenPreferences: { [weak self] in self?.onOpenPreferences?() }
             )
@@ -508,7 +508,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         uploadWindow?.makeKeyAndOrderFront(nil)
     }
 
-    private func chooseAudioFiles() {
+    private func chooseAudioFiles(language: String) {
         let p = NSOpenPanel()
         var types: [UTType] = [.audio]
         for ext in ["opus", "oga"] {   // WhatsApp's .opus doesn't always conform to public.audio
@@ -522,15 +522,15 @@ final class PanelController: NSObject, NSWindowDelegate {
         p.begin { [weak self] resp in
             self?.modalCount -= 1
             guard resp == .OK, !p.urls.isEmpty else { return }
-            MainActor.assumeIsolated { self?.submitAudioFiles(p.urls) }
+            MainActor.assumeIsolated { self?.submitAudioFiles(p.urls, language: language) }
         }
     }
 
     /// Sends the audios to be transcribed (in the background). The window stays open showing progress
     /// ("Transcribiendo N…"); the user closes it whenever they want (the notes appear in the history).
     @MainActor
-    private func submitAudioFiles(_ urls: [URL]) {
-        recorder.transcribeFiles(urls)
+    private func submitAudioFiles(_ urls: [URL], language: String) {
+        recorder.transcribeFiles(urls, language: language)
     }
 
     /// Retries transcribing a failed voice note (uses its saved audio).

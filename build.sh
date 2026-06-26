@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compila Pasta y arma el bundle .app (sin Xcode, solo Command Line Tools).
+# Builds Klip and assembles the .app bundle (no Xcode, just Command Line Tools).
 set -e
 
 APP_NAME="Klip"
@@ -11,18 +11,18 @@ ENTITLEMENTS="Resources/Klip.entitlements"
 
 cd "$(dirname "$0")"
 
-echo "→ Compilando ($CONFIG)…"
+echo "→ Building ($CONFIG)…"
 swift build -c "$CONFIG"
 
-echo "→ Armando $BUNDLE…"
+echo "→ Assembling $BUNDLE…"
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$BUNDLE/Contents/Info.plist"
 
-# Icono .icns desde Resources/AppIcon.png con iconutil/sips (sin Xcode).
+# .icns icon from Resources/AppIcon.png via iconutil/sips (no Xcode).
 if [ -f "Resources/AppIcon.png" ]; then
-    echo "→ Generando icono…"
+    echo "→ Generating icon…"
     ICONSET="$(mktemp -d)/AppIcon.iconset"
     mkdir -p "$ICONSET"
     for s in 16 32 128 256 512; do
@@ -32,7 +32,7 @@ if [ -f "Resources/AppIcon.png" ]; then
     iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
-echo "→ Firmando ad-hoc (reintentos por carpetas sincronizadas que re-añaden metadatos)…"
+echo "→ Signing ad-hoc (retries for synced folders that re-add metadata)…"
 SIGNED=0
 for attempt in 1 2 3; do
     xattr -cr "$BUNDLE" 2>/dev/null || true
@@ -42,11 +42,11 @@ for attempt in 1 2 3; do
     fi
 done
 if [ "$SIGNED" = "1" ] && codesign --verify --strict "$BUNDLE" 2>/dev/null; then
-    echo "  firma válida ✓"
+    echo "  valid signature ✓"
 else
-    echo "  ⚠ firma local no válida (carpeta sincronizada). Usa ./install.sh: firma en /Applications."
+    echo "  ⚠ local signature invalid (synced folder). Use ./install.sh: it signs in /Applications."
 fi
 
 echo ""
-echo "✓ Listo: $BUNDLE   (ejecuta:  open $BUNDLE)"
-echo "  Atajos: ⌘⇧E (historial) · ⌘⇧I (voz)   ·   Instalar: ./install.sh"
+echo "✓ Done: $BUNDLE   (run:  open $BUNDLE)"
+echo "  Shortcuts: ⌥⌘Y (history) · ⌥⌘R (voice) · ⌥⌘T (capture) · ⌥⌘G (upload)   ·   Install: ./install.sh"

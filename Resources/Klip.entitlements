@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Vacío a propósito: SIN App Sandbox, para poder escribir el historial en
-         ~/Library/Application Support/PastaClip y sintetizar ⌘V (auto-pegado). -->
+    <!-- Intentionally empty: NO App Sandbox, so the app can store its history in
+         ~/Library/Application Support/Klip and synthesize ⌘V (auto-paste).
+         A separate sandboxed entitlements file is required for a Mac App Store build. -->
 </dict>
 </plist>

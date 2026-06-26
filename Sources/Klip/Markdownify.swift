@@ -59,29 +59,29 @@ enum Markdownify {
 /// Exports the entire history as a Markdown document.
 enum MarkdownExporter {
     static func history(_ items: [ClipboardItem]) -> String {
-        var out = "# Klip — Historial del portapapeles\n\n"
+        var out = "# \(L10n.t("export.doc.title"))\n\n"
         let df = DateFormatter()
-        df.locale = Locale(identifier: "es")
+        df.locale = Locale.current
         df.dateFormat = "yyyy-MM-dd HH:mm"
 
         for item in items {
             let time = df.string(from: item.createdAt)
             var meta = time
-            if item.isRemote == true { meta += " · Otro dispositivo" }
+            if item.isRemote == true { meta += " · \(L10n.t("export.otherDevice"))" }
             else if let s = item.sourceName { meta += " · \(s)" }
-            if item.isVoiceNote == true { meta += " · 🎙 Nota de voz" }
+            if item.isVoiceNote == true { meta += " · 🎙 \(L10n.t("export.voiceNote"))" }
             out += "## \(meta)\n\n"
 
             switch item.kind {
             case .text:
                 if item.isCredential == true {
                     // Don't export secrets in the clear, and don't leak the real last-4 either: constant placeholder.
-                    out += "🔑 _Credencial oculta (\(CredentialDetector.maskedPlaceholder))_\n\n"
+                    out += "🔑 _\(String(format: L10n.t("export.credentialHidden"), CredentialDetector.maskedPlaceholder))_\n\n"
                 } else {
                     out += Markdownify.fromText(item.text ?? "") + "\n\n"
                 }
             case .image:
-                out += "![imagen](images/\(item.imageFileName ?? "imagen.png"))\n\n"
+                out += "![image](images/\(item.imageFileName ?? "image.png"))\n\n"
             }
         }
         return out
