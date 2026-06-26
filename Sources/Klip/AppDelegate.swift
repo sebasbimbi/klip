@@ -51,6 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Hop to main explicitly so buildMenu() (@MainActor) is safe no matter where uiLanguage is mutated.
         Settings.shared.$uiLanguage.dropFirst().receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.buildMenu() }.store(in: &cancellables)
+        // First-run onboarding (clipboard-monitoring + privacy disclosure). Deferred so it never stalls launch.
+        if !Settings.shared.hasSeenWelcome {
+            DispatchQueue.main.async { [weak self] in self?.panelController.showWelcome() }
+        }
     }
 
     // An accessory app (.accessory) has no main menu, so SwiftUI text fields don't receive

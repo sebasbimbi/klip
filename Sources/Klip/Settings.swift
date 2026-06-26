@@ -109,6 +109,12 @@ final class Settings: ObservableObject {
     static let shared = Settings()
     private let d = UserDefaults.standard
 
+    /// First-run onboarding flag (see WelcomeView). Plain UserDefaults — no need to publish it.
+    var hasSeenWelcome: Bool {
+        get { d.bool(forKey: "hasSeenWelcome") }
+        set { d.set(newValue, forKey: "hasSeenWelcome") }
+    }
+
     private enum K {
         static let maxItems   = "maxItems"
         static let keyCode    = "hotKeyCode"

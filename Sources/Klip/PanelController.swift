@@ -41,6 +41,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private var recordingPanel: NSPanel?
     private var guideWindow: NSWindow?
     private var uploadWindow: NSWindow?
+    private var welcomeWindow: NSWindow?
 
     init(manager: ClipboardManager, statusItem: NSStatusItem?) {
         self.manager = manager
@@ -460,6 +461,24 @@ final class PanelController: NSObject, NSWindowDelegate {
     private func closeRecordingPopup() {
         recordingPanel?.orderOut(nil)
         previousApp?.activate()   // transcription runs in the background; we just restore focus
+    }
+
+    /// First-run onboarding window. Shown once; "Get started" sets the flag and closes it.
+    func showWelcome() {
+        if welcomeWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 580),
+                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            w.title = L10n.t("win.welcome")
+            w.isReleasedWhenClosed = false
+            w.contentView = NSHostingView(rootView: WelcomeView(onStart: { [weak self] in
+                Settings.shared.hasSeenWelcome = true
+                self?.welcomeWindow?.orderOut(nil)
+            }))
+            w.center()
+            welcomeWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        welcomeWindow?.makeKeyAndOrderFront(nil)
     }
 
     func showGuide() {
