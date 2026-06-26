@@ -24,6 +24,7 @@ enum OCR {
         // dictionary words, dropped punctuation). Off is both more accurate for code and faster.
         request.usesLanguageCorrection = false
         request.recognitionLanguages = ["en-US", "es-ES"]
+        request.automaticallyDetectsLanguage = false   // we specify the languages → skip the detection pass (faster)
         request.customWords = codeWords
         request.minimumTextHeight = 0   // don't skip tiny terminal/log fonts
 

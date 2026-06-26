@@ -76,9 +76,12 @@ final class ClipboardManager: ObservableObject {
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.items = self.items.map { cur in
-                    guard let d = byId[cur.id],
-                          cur.text != d.text || cur.isCredential != d.isCredential || cur.preview != d.preview
-                    else { return cur }
+                    guard let d = byId[cur.id], let snap = snapById[cur.id] else { return cur }
+                    // Skip if the user edited this item during the off-main window (toggled credential,
+                    // re-copied, renamed…): apply the decrypt ONLY when it still matches the pre-decrypt
+                    // snapshot, so we never silently revert the user's change.
+                    guard cur.text == snap.text, cur.isCredential == snap.isCredential, cur.preview == snap.preview else { return cur }
+                    guard cur.text != d.text || cur.isCredential != d.isCredential || cur.preview != d.preview else { return cur }
                     var c = cur
                     c.text = d.text; c.isCredential = d.isCredential; c.preview = d.preview
                     return c
@@ -372,6 +375,17 @@ final class ClipboardManager: ObservableObject {
         pb.clearContents()
         pb.setString(text, forType: .string)
         lastChangeCount = pb.changeCount   // avoids re-capturing the Markdown/OCR output as a new item
+    }
+
+    /// OCR text-capture result: put it on the clipboard (ready to paste) AND add it to history. Returns
+    /// false if there was nothing to add (empty OCR).
+    @discardableResult
+    func addCapturedText(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return false }
+        setClipboardText(t)   // ready to paste; this also bumps lastChangeCount so the poll won't double-add it
+        addText(t, source: CaptureSource(name: nil, bundleID: nil), remote: false)
+        return true
     }
 
     func extractText(from item: ClipboardItem) -> String? {

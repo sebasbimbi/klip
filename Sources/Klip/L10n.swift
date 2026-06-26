@@ -22,6 +22,7 @@ enum L10n {
     private static let es: [String: String] = [
         "menu.show": "Mostrar historial",
         "menu.capture": "Capturar región",
+        "menu.captureText": "Capturar texto (OCR)",
         "menu.prefs": "Preferencias…",
         "menu.login": "Abrir al iniciar sesión",
         "menu.autopaste": "Activar pegado automático…",
@@ -114,6 +115,7 @@ enum L10n {
         "prefs.sc.show": "Mostrar historial:",
         "prefs.sc.voice": "Grabar nota de voz:",
         "prefs.sc.capture": "Capturar región:",
+        "prefs.sc.captureText": "Capturar texto (OCR):",
         "prefs.sc.upload": "Subir audio:",
         "prefs.sc.hint": "Pulsa el campo y teclea la combinación, o usa ⌄ para elegir una sugerida.",
         "prefs.voice.section": "Transcripción de voz",
@@ -269,6 +271,7 @@ enum L10n {
     private static let en: [String: String] = [
         "menu.show": "Show history",
         "menu.capture": "Capture region",
+        "menu.captureText": "Capture text (OCR)",
         "menu.prefs": "Preferences…",
         "menu.login": "Open at login",
         "menu.autopaste": "Enable auto-paste…",
@@ -361,6 +364,7 @@ enum L10n {
         "prefs.sc.show": "Show history:",
         "prefs.sc.voice": "Record voice note:",
         "prefs.sc.capture": "Capture region:",
+        "prefs.sc.captureText": "Capture text (OCR):",
         "prefs.sc.upload": "Upload audio:",
         "prefs.sc.hint": "Click the field and type the combo, or use ⌄ to pick a suggested one.",
         "prefs.voice.section": "Voice transcription",

@@ -72,6 +72,10 @@ actor LocalTranscriber {
         opts.task = .transcribe
         opts.skipSpecialTokens = true
         opts.withoutTimestamps = true
+        // SPEED: split long audio at silence (energy VAD) and decode chunks in parallel
+        // (concurrentWorkerCount defaults to 16). Short clips stay one chunk → no overhead; long uploads
+        // transcribe much faster. The model is loaded once and reused (see `pipeline`).
+        opts.chunkingStrategy = .vad
         if let language, !language.isEmpty {
             opts.language = language          // explicit audio language
             opts.detectLanguage = false

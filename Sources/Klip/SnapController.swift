@@ -11,15 +11,23 @@ final class SnapController {
     /// Invoked after adding a capture to the history (to reveal the panel: the item "flies" to Klip).
     var onCaptured: (() -> Void)?
 
+    /// What to do with the selected region: open the annotation editor, or OCR it straight to the clipboard.
+    enum Mode { case annotate, text }
+
     init(manager: ClipboardManager) {
         self.manager = manager
         ScreenCapturer.warmUp()
     }
 
-    /// Entry point (shortcut or menu).
-    func start() {
+    /// Entry point (shortcut or menu): capture a region and open the annotation editor.
+    func start() { begin(mode: .annotate) }
+
+    /// Entry point: capture a region and extract its text (OCR) straight to the clipboard — no editor.
+    func startTextCapture() { begin(mode: .text) }
+
+    private func begin(mode: Mode) {
         // Block re-entry for the WHOLE flow: while capturing (inProgress) and while the selection overlay
-        // or the editor is on screen. Otherwise a second ⌘⇧U would stack shield windows and leak the first.
+        // or the editor is on screen. Otherwise a second trigger would stack shield windows and leak the first.
         guard !inProgress, overlay == nil, editor == nil else { return }
 
         guard ScreenCapturer.hasPermission() else {
@@ -33,7 +41,7 @@ final class SnapController {
             do {
                 let shot = try await ScreenCapturer.captureDisplay(containing: mouse)
                 self.inProgress = false
-                self.presentOverlay(shot)
+                self.presentOverlay(shot, mode: mode)
             } catch CaptureError.noPermission {
                 self.inProgress = false          // release BEFORE the modal (avoids runloop reentrancy)
                 self.promptForPermission()
@@ -45,14 +53,31 @@ final class SnapController {
     }
 
     @MainActor
-    private func presentOverlay(_ shot: DisplayShot) {
+    private func presentOverlay(_ shot: DisplayShot, mode: Mode) {
         let overlay = CaptureOverlayController(shot: shot) { [weak self] image in
             self?.overlay = nil
             guard let self, let image else { return }
-            self.openEditor(with: image)
+            switch mode {
+            case .annotate: self.openEditor(with: image)
+            case .text:     self.extractText(from: image)
+            }
         }
         self.overlay = overlay
         overlay.present()
+    }
+
+    /// OCR the selected region OFF the main thread, then put the text on the clipboard + into history.
+    @MainActor
+    private func extractText(from image: NSImage) {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { NSSound.beep(); return }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let text = OCR.recognizeText(in: cg)
+            await MainActor.run {
+                guard let self else { return }
+                guard self.manager.addCapturedText(text) else { NSSound.beep(); return }   // nothing recognized
+                self.onCaptured?()
+            }
+        }
     }
 
     @MainActor

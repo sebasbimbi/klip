@@ -17,10 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var voiceHotKey: HotKey?
     private var captureHotKey: HotKey?
     private var uploadHotKey: HotKey?
+    private var textCaptureHotKey: HotKey?
     private var lastGoodCombo = Settings.shared.combo
     private var lastGoodVoiceCombo = Settings.shared.voiceCombo
     private var lastGoodCaptureCombo = Settings.shared.captureCombo
     private var lastGoodUploadCombo = Settings.shared.uploadCombo
+    private var lastGoodTextCaptureCombo = Settings.shared.textCaptureCombo
     private var prefsController: PreferencesWindowController?
     private var launchItem: NSMenuItem?
     private var cancellables = Set<AnyCancellable>()
@@ -91,6 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      action: #selector(startVoice), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("menu.capture"))   \(Settings.shared.captureCombo.displayString)",
                      action: #selector(startCapture), keyEquivalent: "")
+        menu.addItem(withTitle: "\(L10n.t("menu.captureText"))   \(Settings.shared.textCaptureCombo.displayString)",
+                     action: #selector(startTextCapture), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("act.upload"))   \(Settings.shared.uploadCombo.displayString)",
                      action: #selector(startUpload), keyEquivalent: "")
         menu.addItem(.separator())
@@ -137,6 +141,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.panelController.uploadAudio()
         }
     }
+    private func makeTextCaptureHotKey(_ c: KeyCombo) {
+        textCaptureHotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 5) { [weak self] in
+            self?.snapController.startTextCapture()
+        }
+    }
 
     /// A migration (or a manual edit) can leave two of the three shortcuts on the SAME combo. Carbon registers
     /// each under a distinct id, so BOTH succeed and one keypress fires two actions. Break duplicates before
@@ -156,6 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if s.uploadCombo == s.combo || s.uploadCombo == s.voiceCombo || s.uploadCombo == s.captureCombo {
             let fixed = free([s.combo, s.voiceCombo, s.captureCombo], .defaultUploadCombo); s.uploadCombo = fixed; lastGoodUploadCombo = fixed
         }
+        let used = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo]
+        if used.contains(s.textCaptureCombo) {
+            let fixed = free(used, .defaultTextCaptureCombo); s.textCaptureCombo = fixed; lastGoodTextCaptureCombo = fixed
+        }
     }
 
     private func setupHotKeys() {
@@ -164,6 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         makeVoiceHotKey(Settings.shared.voiceCombo)
         makeCaptureHotKey(Settings.shared.captureCombo)
         makeUploadHotKey(Settings.shared.uploadCombo)
+        makeTextCaptureHotKey(Settings.shared.textCaptureCombo)
         // If a persisted combination collides with another at startup (HotKey.init returns nil), the
         // shortcut would stay dead for the whole session. Recover with its default shortcut so it isn't lost.
         if hotKey == nil, Settings.shared.combo != .defaultCombo {
@@ -200,6 +214,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if uploadHotKey != nil { Settings.shared.uploadCombo = s; lastGoodUploadCombo = s; break }
             }
         }
+        // Text-capture (OCR) is also reachable from the menu bar, so recover quietly like upload.
+        if textCaptureHotKey == nil, Settings.shared.textCaptureCombo != .defaultTextCaptureCombo {
+            Settings.shared.textCaptureCombo = .defaultTextCaptureCombo; lastGoodTextCaptureCombo = .defaultTextCaptureCombo
+            makeTextCaptureHotKey(.defaultTextCaptureCombo)
+        }
+        if textCaptureHotKey == nil {
+            let taken = [Settings.shared.combo, Settings.shared.voiceCombo, Settings.shared.captureCombo, Settings.shared.uploadCombo]
+            for s in KeyCombo.suggestions where !taken.contains(s) {
+                makeTextCaptureHotKey(s)
+                if textCaptureHotKey != nil { Settings.shared.textCaptureCombo = s; lastGoodTextCaptureCombo = s; break }
+            }
+        }
         // If the panel/voice shortcuts are still dead after the default-reset (another app globally owns
         // even the default combo), tell the user instead of leaving a silently-inert shortcut (deferred so it
         // doesn't block launch).
@@ -211,17 +237,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         buildMenu()
     }
 
-    private enum ShortcutKind { case panel, voice, capture, upload }
+    private enum ShortcutKind { case panel, voice, capture, upload, textCapture }
 
     /// Carbon registers each shortcut under a distinct id, so it does NOT reject assigning the SAME combo
     /// to two of our shortcuts — we must catch that ourselves.
     private func collidesWithOtherShortcut(_ combo: KeyCombo, _ kind: ShortcutKind) -> Bool {
+        let s = Settings.shared
+        let others: [KeyCombo]
         switch kind {
-        case .panel:   return combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo || combo == Settings.shared.uploadCombo
-        case .voice:   return combo == Settings.shared.combo || combo == Settings.shared.captureCombo || combo == Settings.shared.uploadCombo
-        case .capture: return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo || combo == Settings.shared.uploadCombo
-        case .upload:  return combo == Settings.shared.combo || combo == Settings.shared.voiceCombo || combo == Settings.shared.captureCombo
+        case .panel:       others = [s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
+        case .voice:       others = [s.combo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
+        case .capture:     others = [s.combo, s.voiceCombo, s.uploadCombo, s.textCaptureCombo]
+        case .upload:      others = [s.combo, s.voiceCombo, s.captureCombo, s.textCaptureCombo]
+        case .textCapture: others = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo]
         }
+        return others.contains(combo)
     }
 
     private func applyCaptureHotKey(_ combo: KeyCombo) {
@@ -273,6 +303,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         else { ok = uploadHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodUploadCombo = combo }
         else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.uploadCombo = lastGoodUploadCombo }
+        buildMenu()
+    }
+
+    private func applyTextCaptureHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .textCapture) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.textCaptureCombo = lastGoodTextCaptureCombo; buildMenu(); return
+        }
+        let ok: Bool
+        if textCaptureHotKey == nil { makeTextCaptureHotKey(combo); ok = (textCaptureHotKey != nil) }
+        else { ok = textCaptureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodTextCaptureCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.textCaptureCombo = lastGoodTextCaptureCombo }
         buildMenu()
     }
 
@@ -331,6 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showPanel() { panelController.show() }
     @objc private func startVoice() { panelController.toggleVoiceRecording() }
     @objc private func startCapture() { snapController.start() }
+    @objc private func startTextCapture() { snapController.startTextCapture() }
     @objc private func startUpload() { panelController.uploadAudio() }
     @objc private func showGuideMenu() { panelController.showGuide() }
 
@@ -341,6 +385,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onVoiceHotKeyChange: { [weak self] combo in self?.applyVoiceHotKey(combo) },
                 onCaptureHotKeyChange: { [weak self] combo in self?.applyCaptureHotKey(combo) },
                 onUploadHotKeyChange: { [weak self] combo in self?.applyUploadHotKey(combo) },
+                onTextCaptureHotKeyChange: { [weak self] combo in self?.applyTextCaptureHotKey(combo) },
                 onMaxItemsChange: { [weak self] in self?.manager.applyMaxItems() })
         }
         prefsController?.show()

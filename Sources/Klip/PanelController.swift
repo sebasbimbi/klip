@@ -477,7 +477,9 @@ final class PanelController: NSObject, NSWindowDelegate {
             w.center()
             welcomeWindow = w
         }
+        Settings.shared.hasSeenWelcome = true   // shown once: don't reappear even if closed via the red button
         NSApp.activate(ignoringOtherApps: true)
+        welcomeWindow?.orderFrontRegardless()
         welcomeWindow?.makeKeyAndOrderFront(nil)
     }
 
