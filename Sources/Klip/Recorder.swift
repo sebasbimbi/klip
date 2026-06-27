@@ -305,7 +305,9 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         // (~20 s, then cached): surface it as "Preparing model…" instead of a bare "Transcribing…" spinner.
         if provider == "local", !LocalTranscriber.pipelineReady { preparingModel = true }
         Task { @MainActor in
-            defer { transcribingCount -= 1; if transcribingCount == 0 { preparingModel = false } }
+            // Clear "Preparing…" once the count drains OR the pipeline is warm (an overlapping transcription
+            // is then actually transcribing, not preparing).
+            defer { transcribingCount -= 1; if transcribingCount == 0 || LocalTranscriber.pipelineReady { preparingModel = false } }
             do {
                 let text = try await AIProvider.transcribe(provider: provider, audioURL: url, language: language, model: model, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -198,13 +198,9 @@ final class PanelController: NSObject, NSWindowDelegate {
 
         // In batch multi-selection mode, the keyboard does NOT paste/close (it would break the in-progress
         // batch): it only navigates with arrows; ⌘1-9 / Return don't pick. The mouse keeps toggling (onToggleCheck).
-        if selection.selecting {
-            switch event.keyCode {
-            case 125: selection.moveDown(); return nil   // ↓
-            case 126: selection.moveUp();   return nil   // ↑
-            default:  return event                       // let typing into the search field through
-            }
-        }
+        // Batch (multi-select) mode is mouse-driven (checkboxes). Don't move a keyboard cursor that has no
+        // visible highlight here — it just confused; let keys through (search typing, list scroll).
+        if selection.selecting { return event }
 
         // ⌘↩ → copy the selected text item as a code block (the flagship vibe-coder action), keyboard-only.
         if flags == .command, event.keyCode == 36,
@@ -504,8 +500,9 @@ final class PanelController: NSObject, NSWindowDelegate {
     /// Opens the "Upload audio to transcribe" window. Shared entry point for the history-panel button,
     /// the menu-bar item and the global shortcut.
     func uploadAudio() {
-        // recorder.state is shared; clear a previous .error/.missingAPIKey to show the dropzone.
-        if recorder.state != .recording { recorder.reset() }
+        // recorder.state is shared; clear a previous .error/.missingAPIKey to show the dropzone — but NOT
+        // while the recording popup is on screen (that would blank its own error/state).
+        if recorder.state != .recording, recordingPanel?.isVisible != true { recorder.reset() }
         // Fresh session (nothing in flight): start the result list empty so old results don't linger.
         if recorder.transcribingCount == 0 { recorder.clearUploadResults() }
         showUploadWindow()

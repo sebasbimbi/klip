@@ -58,6 +58,8 @@ struct UploadView: View {
         }
         .frame(minWidth: 400, maxWidth: .infinity, minHeight: 360, maxHeight: .infinity, alignment: .top)
         .padding()
+        // Each fresh upload session (results cleared by uploadAudio) starts back at the global language.
+        .onChange(of: recorder.uploadResults.isEmpty) { _, empty in if empty { languageOverride = nil } }
     }
 
     /// The transcriptions of the just-uploaded files, filled in live as each one finishes.
@@ -70,7 +72,7 @@ struct UploadView: View {
                     ForEach(recorder.uploadResults) { resultRow($0) }
                 }
             }
-            .frame(maxHeight: 220)
+            .frame(maxHeight: .infinity)   // take the remaining space → the Close button stays pinned + reachable
         }
     }
 
