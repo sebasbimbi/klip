@@ -167,7 +167,10 @@ final class ClipboardManager: ObservableObject {
             let raw = pb.string(forType: .string) ?? str
             // "Always paste clean": if the copy carries rich text, store a clean Markdown version that keeps
             // bold/italic + emojis but drops dark background / colours / fonts. Plain copies are unaffected.
-            let text = settings.cleanCapture ? (RichText.cleanMarkdown(from: pb) ?? raw) : raw
+            // Use the clean version only if it produced real content — an empty/blank result (e.g. a
+            // picture-only RTF) must NOT replace the user's plain text.
+            let cleaned = settings.cleanCapture ? RichText.cleanMarkdown(from: pb) : nil
+            let text = (cleaned?.isEmpty == false) ? cleaned! : raw
             addText(text, source: source, remote: remote); return
         }
         if hasImageData(pb), let image = NSImage(pasteboard: pb) {

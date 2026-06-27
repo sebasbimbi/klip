@@ -10,6 +10,7 @@ struct UploadView: View {
     var onFiles: ([URL], String) -> Void
     var onClose: () -> Void
     var onOpenPreferences: () -> Void
+    var onCopy: (String) -> Void
 
     @State private var hovering = false
     /// nil = follow the global/platform language (stays reactive); set = override for this upload session.
@@ -108,8 +109,7 @@ struct UploadView: View {
 
     private func copyText(_ text: String) {
         guard !text.isEmpty else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        onCopy(text)   // route through the manager so the poll doesn't re-capture it as a duplicate item
     }
 
     /// Per-upload language: defaults to the platform/global language but can be overridden for this specific

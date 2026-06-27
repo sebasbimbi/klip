@@ -6,13 +6,15 @@ import AppKit
 enum RichText {
     /// Clean Markdown for the pasteboard's rich text, or nil if it carries no usable rich text.
     static func cleanMarkdown(from pb: NSPasteboard) -> String? {
-        let rtf = pb.data(forType: .rtf)
-            ?? pb.data(forType: NSPasteboard.PasteboardType("public.rtf"))
-        if let rtf, let attr = try? NSAttributedString(
+        // Parsing rich text runs synchronously on the capture (poll/main) thread; a multi-MB blob can take
+        // seconds and freeze the UI. Cap it — over the limit, fall back to the plain string instantly.
+        let limit = 256_000
+        let rtf = pb.data(forType: .rtf) ?? pb.data(forType: NSPasteboard.PasteboardType("public.rtf"))
+        if let rtf, rtf.count < limit, let attr = try? NSAttributedString(
             data: rtf, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
             return markdown(from: attr)
         }
-        if let html = pb.data(forType: .html), let attr = try? NSAttributedString(
+        if let html = pb.data(forType: .html), html.count < limit, let attr = try? NSAttributedString(
             data: html, options: [.documentType: NSAttributedString.DocumentType.html], documentAttributes: nil) {
             return markdown(from: attr)
         }
@@ -34,7 +36,8 @@ enum RichText {
                 bold = traits.contains(.bold)
                 italic = traits.contains(.italic)
             }
-            let text = ns.substring(with: range)
+            // Slice on the String (grapheme-safe) so a run boundary can't split an emoji's surrogate pair.
+            let text = Range(range, in: attr.string).map { String(attr.string[$0]) } ?? ns.substring(with: range)
             if var last = spans.last, last.bold == bold, last.italic == italic {
                 last.text += text; spans[spans.count - 1] = last
             } else {

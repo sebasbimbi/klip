@@ -12,15 +12,17 @@ enum Markdownify {
     /// plain text to begin with, so any dark background / rich styling is dropped automatically.
     static func toWhatsApp(_ text: String) -> String {
         var s = text.replacingOccurrences(of: "\r\n", with: "\n")
+        s = s.replacingOccurrences(of: "\u{1}", with: "")            // strip any literal SOH so our bold placeholder is unambiguous
+        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets FIRST → line-start * isn't seen as italic
         s = rx(s, "(?m)^#{1,6}[ \\t]+(.+)$", "\u{1}$1\u{1}")         // headers → bold (placeholder, protected from italic)
+        s = rx(s, "\\*\\*\\*(.+?)\\*\\*\\*", "_\u{1}$1\u{1}_")       // ***bold-italic*** → _*x*_ (nested)
         s = rx(s, "\\*\\*(.+?)\\*\\*", "\u{1}$1\u{1}")               // **bold** → placeholder
         s = rx(s, "__(.+?)__", "\u{1}$1\u{1}")                        // __bold__ → placeholder
-        s = rx(s, "(?<![\\*\\w])\\*(?!\\*)(.+?)(?<!\\*)\\*(?![\\*\\w])", "_$1_")  // *italic* → _italic_
+        s = rx(s, "(?<![\\*\\w])\\*(\\S(?:.*?\\S)?)\\*(?![\\*\\w])", "_$1_")  // *italic* → _italic_ (non-space content)
         s = s.replacingOccurrences(of: "\u{1}", with: "*")           // restore bold → *bold*
         s = rx(s, "~~(.+?)~~", "~$1~")                                // ~~strike~~ → ~strike~
         s = rx(s, "`([^`\\n]+)`", "$1")                               // inline `code` → code (no inline mono)
-        s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)")                // [text](url) → text (url)
-        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets → •
+        if s.count < 20_000 { s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)") }   // links (bounded: avoid backtracking)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -28,16 +30,17 @@ enum Markdownify {
     /// readable structure (bullets, "text (url)" links), removes code fences. The email app adds its own styling.
     static func toEmail(_ text: String) -> String {
         var s = text.replacingOccurrences(of: "\r\n", with: "\n")
+        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets FIRST → line-start * isn't seen as italic
         s = rx(s, "(?m)^#{1,6}[ \\t]+", "")                           // headers → plain line
+        s = rx(s, "\\*\\*\\*(.+?)\\*\\*\\*", "$1")                    // ***bold-italic***
         s = rx(s, "\\*\\*(.+?)\\*\\*", "$1")                          // **bold**
         s = rx(s, "__(.+?)__", "$1")                                  // __bold__
-        s = rx(s, "(?<![\\*\\w])\\*(?!\\*)(.+?)(?<!\\*)\\*(?![\\*\\w])", "$1")  // *italic*
-        s = rx(s, "(?<![_\\w])_(?!_)(.+?)(?<!_)_(?![_\\w])", "$1")    // _italic_
+        s = rx(s, "(?<![\\*\\w])\\*(\\S(?:.*?\\S)?)\\*(?![\\*\\w])", "$1")  // *italic* (non-space content)
+        s = rx(s, "(?<![_\\w])_(\\S(?:.*?\\S)?)_(?![_\\w])", "$1")    // _italic_
         s = rx(s, "~~(.+?)~~", "$1")                                  // ~~strike~~
         s = rx(s, "(?m)^```[a-zA-Z0-9]*\\n?", "")                     // code fences ```lang
         s = rx(s, "`([^`\\n]+)`", "$1")                               // inline `code`
-        s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)")                // [text](url) → text (url)
-        s = rx(s, "(?m)^[ \\t]*[-*+][ \\t]+", "• ")                   // bullets → •
+        if s.count < 20_000 { s = rx(s, "\\[(.+?)\\]\\((.+?)\\)", "$1 ($2)") }   // links (bounded: avoid backtracking)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

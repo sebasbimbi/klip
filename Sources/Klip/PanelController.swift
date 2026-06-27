@@ -515,7 +515,8 @@ final class PanelController: NSObject, NSWindowDelegate {
                 onChoose: { [weak self] lang in self?.chooseAudioFiles(language: lang) },
                 onFiles: { [weak self] urls, lang in MainActor.assumeIsolated { self?.submitAudioFiles(urls, language: lang) } },
                 onClose: { [weak self] in self?.uploadWindow?.orderOut(nil) },
-                onOpenPreferences: { [weak self] in self?.onOpenPreferences?() }
+                onOpenPreferences: { [weak self] in self?.onOpenPreferences?() },
+                onCopy: { [weak self] in self?.manager.setClipboardText($0) }
             )
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 440),
                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

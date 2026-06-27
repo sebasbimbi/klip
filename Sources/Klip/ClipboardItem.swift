@@ -69,8 +69,8 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     var linkURL: URL? {
         guard kind == .text, isVoiceNote != true, isCredential != true,
               let t = text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              t.hasPrefix("http://") || t.hasPrefix("https://"),
-              !t.contains(" "), !t.contains("\n"),
+              t.lowercased().hasPrefix("http://") || t.lowercased().hasPrefix("https://"),
+              !t.contains(where: \.isWhitespace),   // a single URL: no spaces, tabs or newlines
               let u = URL(string: t), u.host != nil else { return nil }
         return u
     }

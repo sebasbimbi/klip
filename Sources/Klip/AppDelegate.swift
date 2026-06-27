@@ -156,18 +156,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !taken.contains(fallback) { return fallback }
             return KeyCombo.suggestions.first { !taken.contains($0) } ?? fallback
         }
+        // Re-register only when already live (i.e. when called AGAIN after startup recovery) — on the first
+        // call the make*HotKey calls right after handle registration.
         if s.voiceCombo == s.combo {
             let fixed = free([s.combo], .defaultVoiceCombo); s.voiceCombo = fixed; lastGoodVoiceCombo = fixed
+            if voiceHotKey != nil { makeVoiceHotKey(fixed) }
         }
         if s.captureCombo == s.combo || s.captureCombo == s.voiceCombo {
             let fixed = free([s.combo, s.voiceCombo], .defaultCaptureCombo); s.captureCombo = fixed; lastGoodCaptureCombo = fixed
+            if captureHotKey != nil { makeCaptureHotKey(fixed) }
         }
         if s.uploadCombo == s.combo || s.uploadCombo == s.voiceCombo || s.uploadCombo == s.captureCombo {
             let fixed = free([s.combo, s.voiceCombo, s.captureCombo], .defaultUploadCombo); s.uploadCombo = fixed; lastGoodUploadCombo = fixed
+            if uploadHotKey != nil { makeUploadHotKey(fixed) }
         }
         let used = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo]
         if used.contains(s.textCaptureCombo) {
             let fixed = free(used, .defaultTextCaptureCombo); s.textCaptureCombo = fixed; lastGoodTextCaptureCombo = fixed
+            if textCaptureHotKey != nil { makeTextCaptureHotKey(fixed) }
         }
     }
 
@@ -232,8 +238,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if hotKey == nil || voiceHotKey == nil {
             Task { @MainActor in NSSound.beep(); self.showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")) }
         }
-        // Reflect any startup remaps: deduplicate/recovery above can change a combo AFTER the initial
-        // buildMenu(), so rebuild once more here to keep the menu's shortcut labels truthful.
+        // The suggestion-recovery loops above can land one shortcut on a sibling's combo (they don't all
+        // exclude every sibling). Run dedup once more — now it re-registers what it moves — so no two
+        // shortcuts share a combo (which would fire two actions on one keypress).
+        deduplicateShortcuts()
+        // Reflect any startup remaps in the menu's shortcut labels.
         buildMenu()
     }
 
