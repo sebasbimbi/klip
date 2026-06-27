@@ -430,7 +430,6 @@ struct ItemRow: View {
         return result
     }
 
-    private var linkURL: URL? { item.linkURL }
 
     private var displayedPreview: String {
         // The eye toggles masked/real (item.preview is always masked for credentials).
@@ -590,7 +589,7 @@ struct ItemRow: View {
                 // Copy as a code block (``` ```): primary action for the vibe coder profile
                 // (pasting snippets into AI chats), previously buried in the ⋯ menu.
                 iconButton("chevron.left.forwardslash.chevron.right", L10n.t("row.code")) { onCopyAsCode(item) }
-                if let u = linkURL {
+                if let u = item.linkURL {
                     iconButton("arrow.up.right.square", L10n.t("row.openlink")) { NSWorkspace.shared.open(u) }
                 }
                 Menu {
