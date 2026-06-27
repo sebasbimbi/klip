@@ -532,10 +532,8 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     private func chooseAudioFiles(language: String) {
         let p = NSOpenPanel()
-        var types: [UTType] = [.audio]
-        for ext in ["opus", "oga"] {   // WhatsApp's .opus doesn't always conform to public.audio
-            if let t = UTType(filenameExtension: ext) { types.append(t) }
-        }
+        // WhatsApp's .opus doesn't always conform to public.audio, so add it (and .oga) explicitly.
+        let types = [UTType.audio] + ["opus", "oga"].compactMap { UTType(filenameExtension: $0) }
         p.allowedContentTypes = types
         p.allowsMultipleSelection = true
         p.canChooseDirectories = false

@@ -78,39 +78,6 @@ final class OpenAIClient {
         return r.text
     }
 
-    // MARK: - Reformat to Markdown with AI
-
-    func markdownify(text: String) async throws -> String {
-        let key = try apiKey()
-        let payload: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                ["role": "system", "content": "Convert the user's text into clean, well-structured Markdown (headings, lists, emphasis and code blocks where appropriate). Return ONLY the Markdown, with no explanations or wrapping code fences."],
-                ["role": "user", "content": text]
-            ],
-            "temperature": 0.2
-        ]
-        let bodyData = try JSONSerialization.data(withJSONObject: payload)
-
-        var req = URLRequest(url: URL(string: "https://api.openai.com/v1/chat/completions")!)
-        req.httpMethod = "POST"
-        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = bodyData
-        req.timeoutInterval = 60
-
-        let data: Data, resp: URLResponse
-        do { (data, resp) = try await session.data(for: req) } catch { throw OpenAIError.transport(error) }
-        try Self.checkHTTP(resp, data)
-        struct R: Decodable {
-            struct Choice: Decodable { struct M: Decodable { let content: String }; let message: M }
-            let choices: [Choice]
-        }
-        guard let r = try? JSONDecoder().decode(R.self, from: data),
-              let content = r.choices.first?.message.content else { throw OpenAIError.invalidResponse }
-        return content
-    }
-
     private static func contentType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
         case "mp3", "mpeg", "mpga": return "audio/mpeg"
