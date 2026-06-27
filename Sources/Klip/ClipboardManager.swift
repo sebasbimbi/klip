@@ -384,6 +384,43 @@ final class ClipboardManager: ObservableObject {
         lastChangeCount = pb.changeCount   // avoids re-capturing the Markdown/OCR output as a new item
     }
 
+    /// Copy for an email body as RICH text (RTF): renders **bold**/*italic*/links and KEEPS the line breaks,
+    /// so Mail/Gmail show it formatted instead of flat plain text. Headers/bullets are cleaned to plain/•.
+    func copyForEmail(_ text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        var md = t.replacingOccurrences(of: "\r\n", with: "\n")
+        md = md.replacingOccurrences(of: "(?m)^#{1,6}[ \\t]+", with: "", options: .regularExpression)        // headers → plain
+        md = md.replacingOccurrences(of: "(?m)^[ \\t]*[-*+][ \\t]+", with: "• ", options: .regularExpression) // bullets → •
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        // inlineOnlyPreservingWhitespace renders emphasis/links but keeps every newline (no paragraph collapse).
+        if let parsed = try? NSAttributedString(markdown: md, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+            // The parser marks bold/italic as `inlinePresentationIntent` (semantic), which RTF ignores —
+            // turn it into a real bold/italic FONT so Mail/Gmail actually render it.
+            let attr = NSMutableAttributedString(attributedString: parsed)
+            let full = NSRange(location: 0, length: attr.length)
+            attr.addAttribute(.font, value: NSFont.systemFont(ofSize: 13), range: full)
+            attr.enumerateAttribute(.inlinePresentationIntent, in: full) { value, range, _ in
+                guard let raw = (value as? NSNumber)?.uintValue else { return }
+                let intent = InlinePresentationIntent(rawValue: raw)
+                var f = NSFont.systemFont(ofSize: 13)
+                if intent.contains(.stronglyEmphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask) }
+                if intent.contains(.emphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .italicFontMask) }
+                attr.addAttribute(.font, value: f, range: range)
+            }
+            if let rtf = try? attr.data(from: full, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
+                pb.setData(rtf, forType: .rtf)
+                pb.setString(attr.string, forType: .string)   // plain fallback for apps that ignore RTF
+            } else {
+                pb.setString(attr.string, forType: .string)
+            }
+        } else {
+            pb.setString(Markdownify.toEmail(t), forType: .string)
+        }
+        lastChangeCount = pb.changeCount   // our own write — don't re-capture it
+    }
+
     /// OCR text-capture result: put it on the clipboard (ready to paste) AND add it to history. Returns
     /// false if there was nothing to add (empty OCR).
     @discardableResult

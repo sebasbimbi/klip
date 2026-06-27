@@ -58,7 +58,8 @@ struct HistoryView: View {
     }()
 
     private var sortedItems: [ClipboardItem] {
-        manager.items.sorted { ($0.pinned ? 1 : 0, $0.createdAt) > ($1.pinned ? 1 : 0, $1.createdAt) }
+        // Newest first. A starred item is NOT floated to the top — the star is just a mark you can filter by.
+        manager.items.sorted { $0.createdAt > $1.createdAt }
     }
 
     private func matches(_ item: ClipboardItem, _ f: HistoryFilter) -> Bool {
@@ -559,57 +560,56 @@ struct ItemRow: View {
 
     private var actions: some View {
         HStack(spacing: 4) {
+            // Inline: only the type's primary action + copy + star. Everything else lives in the ⋯ menu so
+            // the row stays readable (icons alone weren't clear).
             if item.isVoiceNote == true {
                 if let af = voiceAudioFile {
                     if hasText { VoicePlayButton(fileName: af, large: false) }
-                    else if !isTranscribing {   // failed note with audio: offer to retry
-                        iconButton("arrow.clockwise", L10n.t("voice.retry")) { onRetryTranscription(item) }
-                    }
-                    iconButton("folder", L10n.t("voice.reveal")) {
-                        NSWorkspace.shared.activateFileViewerSelecting([Storage.shared.audioURL(for: af)])
-                    }
+                    else if !isTranscribing { iconButton("arrow.clockwise", L10n.t("voice.retry")) { onRetryTranscription(item) } }
                 }
-                if hasText {
-                    iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
-                    iconButton("doc.richtext", L10n.t("row.markdown")) { onCopyMarkdown(item) }
-                }
-            } else if item.kind == .image {
-                iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
-                if let fn = item.imageFileName {
-                    iconButton("arrow.up.left.and.arrow.down.right", L10n.t("row.viewbig")) {
-                        NSWorkspace.shared.open(Storage.shared.imageURL(for: fn))
-                    }
-                }
-                iconButton("square.and.arrow.down", L10n.t("row.save")) { onSaveImage(item) }
-                iconButton("text.viewfinder", L10n.t("row.ocr")) { onOCR() }
+                if hasText { iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) } }
             } else if isCredential {
-                iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
                 iconButton(revealed ? "eye.slash" : "eye", L10n.t("row.reveal")) { revealed.toggle() }
-                iconButton("key.slash", L10n.t("row.unmarkcred")) { manager.toggleCredential(item) }
+                iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
             } else {
                 iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
-                // Copy as a code block (``` ```): primary action for the vibe coder profile
-                // (pasting snippets into AI chats), previously buried in the ⋯ menu.
-                iconButton("chevron.left.forwardslash.chevron.right", L10n.t("row.code")) { onCopyAsCode(item) }
-                if let u = item.linkURL {
-                    iconButton("arrow.up.right.square", L10n.t("row.openlink")) { NSWorkspace.shared.open(u) }
-                }
-                Menu {
-                    Button { manager.setClipboardText(Markdownify.toWhatsApp(item.text ?? "")) } label: { Label(L10n.t("row.whatsapp"), systemImage: "message") }
-                    Button { manager.setClipboardText(Markdownify.toEmail(item.text ?? "")) } label: { Label(L10n.t("row.email"), systemImage: "envelope") }
-                    Button { onCopyMarkdown(item) } label: { Label(L10n.t("row.markdown"), systemImage: "doc.richtext") }
-                    Button { onSaveAsFile(item) } label: { Label(L10n.t("row.savefile"), systemImage: "square.and.arrow.down") }
-                    Divider()
-                    Button { manager.toggleCredential(item) } label: { Label(L10n.t("row.markcred"), systemImage: "key") }
-                } label: { Image(systemName: "ellipsis.circle").font(.system(size: 12)) }
+            }
+            // Star: a filterable mark — it does NOT float the item to the top.
+            iconButton(item.pinned ? "star.fill" : "star", L10n.t(item.pinned ? "row.unpin" : "row.pin")) { manager.togglePin(item) }
+            Menu { moreMenu } label: { Image(systemName: "ellipsis.circle").font(.system(size: 12)) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(L10n.t("act.more"))
-            }
-            iconButton("tag", L10n.t("row.rename")) { onRename(item) }
-            iconButton(item.pinned ? "star.fill" : "star", L10n.t(item.pinned ? "row.unpin" : "row.pin")) {
-                manager.togglePin(item)
-            }
-            iconButton("trash", L10n.t("row.delete")) { manager.delete(item) }
         }
+    }
+
+    /// The ⋯ menu: every secondary action, with text labels so it's clear (unlike the bare icons).
+    @ViewBuilder private var moreMenu: some View {
+        if item.isVoiceNote == true {
+            if let af = voiceAudioFile {
+                Button { NSWorkspace.shared.activateFileViewerSelecting([Storage.shared.audioURL(for: af)]) } label: { Label(L10n.t("voice.reveal"), systemImage: "folder") }
+            }
+            if hasText { Button { onCopyMarkdown(item) } label: { Label(L10n.t("row.markdown"), systemImage: "doc.richtext") } }
+        } else if item.kind == .image {
+            if let fn = item.imageFileName {
+                Button { NSWorkspace.shared.open(Storage.shared.imageURL(for: fn)) } label: { Label(L10n.t("row.viewbig"), systemImage: "arrow.up.left.and.arrow.down.right") }
+            }
+            Button { onSaveImage(item) } label: { Label(L10n.t("row.save"), systemImage: "square.and.arrow.down") }
+            Button { onOCR() } label: { Label(L10n.t("row.ocr"), systemImage: "text.viewfinder") }
+        } else if isCredential {
+            Button { manager.toggleCredential(item) } label: { Label(L10n.t("row.unmarkcred"), systemImage: "key.slash") }
+        } else {
+            Button { manager.setClipboardText(Markdownify.toWhatsApp(item.text ?? "")) } label: { Label(L10n.t("row.whatsapp"), systemImage: "message") }
+            Button { manager.copyForEmail(item.text ?? "") } label: { Label(L10n.t("row.email"), systemImage: "envelope") }
+            Button { onCopyAsCode(item) } label: { Label(L10n.t("row.code"), systemImage: "chevron.left.forwardslash.chevron.right") }
+            if let u = item.linkURL {
+                Button { NSWorkspace.shared.open(u) } label: { Label(L10n.t("row.openlink"), systemImage: "arrow.up.right.square") }
+            }
+            Button { onCopyMarkdown(item) } label: { Label(L10n.t("row.markdown"), systemImage: "doc.richtext") }
+            Button { onSaveAsFile(item) } label: { Label(L10n.t("row.savefile"), systemImage: "square.and.arrow.down") }
+            Button { manager.toggleCredential(item) } label: { Label(L10n.t("row.markcred"), systemImage: "key") }
+        }
+        Divider()
+        Button { onRename(item) } label: { Label(L10n.t("row.rename"), systemImage: "tag") }
+        Button(role: .destructive) { manager.delete(item) } label: { Label(L10n.t("row.delete"), systemImage: "trash") }
     }
 
     private func iconButton(_ symbol: String, _ help: String, _ action: @escaping () -> Void) -> some View {
