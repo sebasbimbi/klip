@@ -392,13 +392,6 @@ final class ClipboardManager: ObservableObject {
         return true
     }
 
-    func extractText(from item: ClipboardItem) -> String? {
-        guard item.kind == .image,
-              let f = item.imageFileName,
-              let img = storage.loadImage(fileName: f) else { return nil }
-        return OCR.recognizeText(in: img)
-    }
-
     func delete(_ item: ClipboardItem) {
         if item.kind == .image, let f = item.imageFileName { storage.deleteImage(fileName: f) }
         if let af = item.audioFileName { AudioPlayer.shared.stopIfPlaying(af); storage.deleteAudio(fileName: af) }

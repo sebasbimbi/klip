@@ -373,8 +373,11 @@ final class PanelController: NSObject, NSWindowDelegate {
             self.modalCount -= 1
             guard resp == .OK, let url = sp.url else { self.exportInFlight = false; return }
             DispatchQueue.global(qos: .userInitiated).async {
-                try? Storage.shared.exportItemsZip(items, to: url)
-                DispatchQueue.main.async { self.exportInFlight = false }
+                let err: Error? = { do { try Storage.shared.exportItemsZip(items, to: url); return nil } catch { return error } }()
+                DispatchQueue.main.async {
+                    self.exportInFlight = false
+                    if let err { self.showAlert(L10n.t("export.empty.title"), err.localizedDescription) }   // don't fail silently
+                }
             }
         }
     }

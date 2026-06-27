@@ -70,13 +70,11 @@ final class SnapController {
     @MainActor
     private func extractText(from image: NSImage) {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { NSSound.beep(); return }
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let text = OCR.recognizeText(in: cg)
-            await MainActor.run {
-                guard let self else { return }
-                guard self.manager.addCapturedText(text) else { NSSound.beep(); return }   // nothing recognized
-                self.onCaptured?()
-            }
+        Task { @MainActor [weak self] in
+            let text = await Task.detached { OCR.recognizeText(in: cg) }.value   // OCR off the main thread
+            guard let self else { return }
+            guard self.manager.addCapturedText(text) else { NSSound.beep(); return }   // nothing recognized
+            self.onCaptured?()
         }
     }
 

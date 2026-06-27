@@ -357,8 +357,9 @@ struct HistoryView: View {
     private func runOCR(_ item: ClipboardItem) {
         ocrResultID = item.id; ocrText = ""; ocrRunning = true
         let pbCount = NSPasteboard.general.changeCount   // don't clobber a clip the user makes during OCR
-        DispatchQueue.global(qos: .userInitiated).async {
-            let text = manager.extractText(from: item) ?? ""
+        DispatchQueue.global(qos: .userInitiated).async {   // Storage.loadImage + OCR are both off-main safe
+            let img = item.imageFileName.flatMap { Storage.shared.loadImage(fileName: $0) }
+            let text = img.map { OCR.recognizeText(in: $0) } ?? ""
             DispatchQueue.main.async {
                 ocrRunning = false; ocrText = text
                 // Only push the recognized text to the clipboard if the user hasn't copied something else
@@ -463,6 +464,7 @@ struct ItemRow: View {
         .onHover { hovering = $0 }
         .onTapGesture { if selecting { onToggleCheck() } else { onPick(item) } }
         .onChange(of: resetToken) { _, _ in revealed = false }   // re-mask when reopening the panel
+        .onChange(of: hovering) { _, h in if !h { revealed = false } }   // re-mask once the pointer leaves the row (covers search/filter/scroll)
     }
 
     private var imageCard: some View {
