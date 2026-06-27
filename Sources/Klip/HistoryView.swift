@@ -2,17 +2,17 @@ import SwiftUI
 import AppKit
 
 enum HistoryFilter: String, CaseIterable, Identifiable {
-    case all, text, image, voice, credential, pinned
+    case all, text, link, image, voice, credential, pinned
     var id: String { rawValue }
     var labelKey: String {
         switch self {
-        case .all: "filter.all"; case .text: "filter.text"; case .image: "filter.image"
+        case .all: "filter.all"; case .text: "filter.text"; case .link: "filter.link"; case .image: "filter.image"
         case .voice: "filter.voice"; case .credential: "filter.cred"; case .pinned: "filter.pinned"
         }
     }
     var icon: String {
         switch self {
-        case .all: "square.grid.2x2"; case .text: "doc.text"; case .image: "photo"
+        case .all: "square.grid.2x2"; case .text: "doc.text"; case .link: "link"; case .image: "photo"
         case .voice: "waveform"; case .credential: "key.fill"; case .pinned: "star.fill"
         }
     }
@@ -65,6 +65,7 @@ struct HistoryView: View {
         switch f {
         case .all: return true
         case .text: return item.kind == .text && item.isVoiceNote != true && item.isCredential != true
+        case .link: return item.linkURL != nil
         case .image: return item.kind == .image
         case .voice: return item.isVoiceNote == true
         case .credential: return item.isCredential == true
@@ -429,15 +430,7 @@ struct ItemRow: View {
         return result
     }
 
-    /// URL if the text item is exactly an http(s) link (for the "Open link" action).
-    private var linkURL: URL? {
-        guard item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
-              let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              t.hasPrefix("http://") || t.hasPrefix("https://"),
-              !t.contains(" "), !t.contains("\n"),
-              let u = URL(string: t), u.host != nil else { return nil }
-        return u
-    }
+    private var linkURL: URL? { item.linkURL }
 
     private var displayedPreview: String {
         // The eye toggles masked/real (item.preview is always masked for credentials).

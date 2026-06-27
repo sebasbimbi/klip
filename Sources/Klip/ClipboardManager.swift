@@ -164,7 +164,11 @@ final class ClipboardManager: ObservableObject {
                     source: source, remote: remote); return
         }
         if let str = trimmedString, !str.isEmpty {
-            addText(pb.string(forType: .string) ?? str, source: source, remote: remote); return
+            let raw = pb.string(forType: .string) ?? str
+            // "Always paste clean": if the copy carries rich text, store a clean Markdown version that keeps
+            // bold/italic + emojis but drops dark background / colours / fonts. Plain copies are unaffected.
+            let text = settings.cleanCapture ? (RichText.cleanMarkdown(from: pb) ?? raw) : raw
+            addText(text, source: source, remote: remote); return
         }
         if hasImageData(pb), let image = NSImage(pasteboard: pb) {
             addImage(image, source: source, remote: remote)

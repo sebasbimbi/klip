@@ -64,6 +64,17 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
         self.collection = collection
     }
 
+    /// The clip as a web URL if it's exactly a single http(s) link — used by the Links filter and the
+    /// "Open link" row action.
+    var linkURL: URL? {
+        guard kind == .text, isVoiceNote != true, isCredential != true,
+              let t = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              t.hasPrefix("http://") || t.hasPrefix("https://"),
+              !t.contains(" "), !t.contains("\n"),
+              let u = URL(string: t), u.host != nil else { return nil }
+        return u
+    }
+
     // Full ==: SwiftUI uses it to decide whether to re-render a row. It must also reflect
     // text/preview/audioFileName so the voice note updates when it goes from "Transcribiendo…"
     // to its final text (and when its audio is saved).

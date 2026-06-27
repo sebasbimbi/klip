@@ -133,6 +133,7 @@ struct PreferencesView: View {
                 Toggle(L10n.t("prefs.openAtLogin"), isOn: Binding(
                     get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
+                Toggle(L10n.t("prefs.cleanpaste"), isOn: $settings.cleanCapture)
                 Toggle(L10n.t("prefs.autopaste"), isOn: $settings.autoPaste)
                 if settings.autoPaste && !accessibilityGranted {
                     HStack(spacing: 6) {
