@@ -390,8 +390,9 @@ final class ClipboardManager: ObservableObject {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
         var md = t.replacingOccurrences(of: "\r\n", with: "\n")
-        md = md.replacingOccurrences(of: "(?m)^#{1,6}[ \\t]+", with: "", options: .regularExpression)        // headers → plain
-        md = md.replacingOccurrences(of: "(?m)^[ \\t]*[-*+][ \\t]+", with: "• ", options: .regularExpression) // bullets → •
+        md = md.replacingOccurrences(of: "(?m)^#{1,6}[ \\t]+", with: "", options: .regularExpression)          // headers → plain
+        md = md.replacingOccurrences(of: "(?m)^[ \\t]*[-*+•◦][ \\t]+", with: "• ", options: .regularExpression) // bullets (incl. tab-bullets) → "• "
+        md = restoreParagraphSpacing(md)   // rich→text capture flattens blank lines; put a blank line back between prose paragraphs
         let pb = NSPasteboard.general
         pb.clearContents()
         // inlineOnlyPreservingWhitespace renders emphasis/links but keeps every newline (no paragraph collapse).
@@ -419,6 +420,25 @@ final class ClipboardManager: ObservableObject {
             pb.setString(Markdownify.toEmail(t), forType: .string)
         }
         lastChangeCount = pb.changeCount   // our own write — don't re-capture it
+    }
+
+    /// Rich-text capture flattens paragraph spacing to single newlines. Put a blank line back BETWEEN prose
+    /// lines (so the email isn't one dense block), while keeping a bullet list tight and not adding blanks
+    /// where one already exists.
+    private func restoreParagraphSpacing(_ md: String) -> String {
+        let lines = md.components(separatedBy: "\n")
+        func isBullet(_ s: String) -> Bool { s.hasPrefix("• ") }
+        var out = ""
+        for (i, line) in lines.enumerated() {
+            if i > 0 {
+                let prev = lines[i - 1].trimmingCharacters(in: .whitespaces)
+                let curr = line.trimmingCharacters(in: .whitespaces)
+                let tight = prev.isEmpty || curr.isEmpty || (isBullet(prev) && isBullet(curr))
+                out += tight ? "\n" : "\n\n"
+            }
+            out += line
+        }
+        return out
     }
 
     /// OCR text-capture result: put it on the clipboard (ready to paste) AND add it to history. Returns
