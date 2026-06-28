@@ -5,7 +5,7 @@
 **The clipboard manager for vibe coders — native to Mac.**
 Everything you copy while building with AI — code, errors, screenshots, prompts and keys — one shortcut away.
 
-Text & image history · **native capture + annotation** · **OCR** · **voice notes → text** (OpenAI or Gemini) · **copy as code block** · **bundle context into a PDF/ZIP** · credential manager. Lives in the menu bar: light, fast and private.
+Text & image history · **native capture + annotation** · **fast OCR capture** · **voice notes → text** (on-device, or OpenAI/Gemini) · **copy as code block / for WhatsApp / for email** · **always-paste-clean** · **encrypted credential manager**. Lives in the menu bar: light, fast and private.
 
 🆓 Free & open source (MIT) · 🔒 No telemetry · 🍎 Native Swift (no Electron)
 
@@ -33,29 +33,31 @@ Text & image history · **native capture + annotation** · **OCR** · **voice no
 - **Copy as a code block** (` ``` `) to paste cleanly into a chat.
 - **Dictate a prompt** and Klip transcribes it to text.
 - **Bundle several clips** (screenshots + text) into a **PDF or ZIP** to upload as context in one shot.
-- **Keep your API keys** detected and masked, named and searchable.
+- **Keep your API keys** detected, **encrypted at rest**, named and searchable.
 
 ## ✨ Features
 
 ### 📋 Clipboard
 - **Automatic history** of **text and images/screenshots**.
-- **Instant search** with **match highlighting** + **keyboard navigation** (↑/↓, Enter, `⌘1`–`⌘9`, `Esc`).
-- **Type filters** (text · images · voice · credentials · favorites); a type chip only shows up once you actually have items of that type.
+- **Instant search** with **match highlighting** + **keyboard navigation** (↑/↓, Enter, `⌘↩` copy-as-code, `Esc`).
+- **Type filters** (text · **links** · images · voice · credentials · favorites); a type chip only shows up once you actually have items of that type.
 - **Auto-paste** into the active app · **Favorite** ⭐ · **Delete** 🗑️ (with confirmation on clear-all).
 - **Readable date** on every item: *"Tue, Jul 04 · 10:43"*, *"Today"*, *"Yesterday"*.
 
 ### 📸 Native capture + annotation (Klip Snap)
-- Global shortcut **`⌘⇧U`** → snip a region of the screen (drag a selection over a dimmed *freeze-frame*, with a live dimension badge and correct Retina scale). Uses **ScreenCaptureKit** (not the deprecated API).
+- Global shortcut **`⌥⇧D`** → snip a region of the screen (drag a selection over a dimmed *freeze-frame*, with a live dimension badge and correct Retina scale). Uses **ScreenCaptureKit** (not the deprecated API).
 - Built-in **annotation editor**: pencil, line, **arrow**, rectangle, ellipse, highlighter, **editable/movable/resizable text**, color, stroke width and **undo**.
 - When you're done, the annotated capture lands in **history** (ready for **OCR** and search) and on the clipboard.
 - Also from the 📷 button in the panel or the menu-bar menu.
+- **Fast text capture** (`⌥⇧F`): snip a region and its **text is OCR'd straight to the clipboard** (and history) — skips the editor when you just need the text.
+- **Upload audio** (`⌥⇧O`): drop or pick audio files; each one's transcription appears right in the window as it finishes, with a per-file language override.
 
 ### 🖼️ Images
 - Large preview (cached thumbnails for smooth scrolling), **open large** and **save to file**.
 - **OCR** (extract text from an image) with Apple's **Vision** engine — free and on-device. Perfect for pulling the text out of a log or error you copied as a screenshot.
 
 ### 🎙️ Voice notes → text
-- **Record** (`⌘⇧I`) or **upload a file** (m4a, mp3, wav, **WhatsApp .opus**, ogg, flac…).
+- **Record** (`⌥⇧R`) or **upload a file** (`⌥⇧O`) (m4a, mp3, wav, **WhatsApp .opus**, ogg, flac…).
 - Transcribes **in the background** — you can record another one right away.
 - **The original audio is kept** with **duration** and a **progress bar**: play it (▶) or reveal it in Finder, and **retry (↻)** if a transcription fails.
 
@@ -63,10 +65,12 @@ Text & image history · **native capture + annotation** · **OCR** · **voice no
 - **On-device (default)** — transcribe **fully offline with Whisper** ([WhisperKit](https://github.com/argmaxinc/WhisperKit) on Core ML): **no API key, no audio ever leaves your Mac.** Pick the model (Tiny / Base / Small / Large v3 Turbo); it downloads once on first use, then runs offline.
 - **OpenAI** or **Google Gemini** — optional cloud engines if you'd rather use them; bring your own key. For **Gemini** you can pick the model (`gemini-flash-latest`, `-flash-lite-latest`, `-pro-latest`, `2.5-flash`, `2.5-pro`); for **OpenAI**, `gpt-4o-mini-transcribe` or `whisper-1`.
 - **Dictation language** is selectable (and auto-detect), so transcription is natural in your language.
-- **Context words** — list names, brands or jargon (e.g. `Kommo, CRM, Proper, KPI, Tami Bot`) so the cloud transcribers spell your proper nouns correctly.
+- **Context words** — list names, brands or jargon (e.g. `GitHub, React, Supabase, API, webhook`) so the transcriber spells your proper nouns correctly. Works for the on-device engine too.
 
 ### 🧰 Built for pasting into AI
-- **Copy as code block** — wraps the text in ` ``` ` to paste cleanly into a chat.
+- **Copy as code block** — wraps the text in ` ``` ` (with a detected language tag) to paste cleanly into a chat (`⌘↩` on the selected item).
+- **Copy for WhatsApp / for email** — reformats a clip so it pastes cleanly: WhatsApp markup (`*bold*`, `_italic_`, • bullets) or rich email text (renders bold/italic, keeps the paragraph spacing).
+- **Always paste clean** (on by default) — a copy from a rich source (e.g. an AI chat on a dark theme) is stored as clean text that keeps **bold/italic + emojis** but drops the dark background, colours and fonts.
 - **Copy as Markdown** for a single item, or export the **whole history** to Markdown.
 - **Save text as a file** (`.txt`/`.md`) to drag into a tool when the chat won't let you paste it.
 - **Batch multi-select** (☑️ icon in the header): mark several clips and…
@@ -78,7 +82,7 @@ Text & image history · **native capture + annotation** · **OCR** · **voice no
 - **Collections** — group related clips (e.g. the context of one task) and filter them with a chip.
 - **Name any item** and find it by that name (great for your credentials).
 - **Type-aware actions**: **open links** 🔗 and a **color swatch** for hex values (`#1E90FF`).
-- **Mini credential manager** 🔑: detects tokens and API keys when you copy them, stores them **masked** (👁 to reveal/copy), with their own filter. They are never auto-pasted (copied so you paste them by hand, for safety).
+- **Mini credential manager** 🔑: detects tokens and API keys when you copy them and **encrypts them at rest** (AES-256-GCM, key in the macOS Keychain — so `items.json` and backups never hold the secret in the clear). Shown **masked** (👁 to reveal/copy), with their own filter, and **never auto-pasted** (copied so you paste them by hand).
 
 ### 💾 Backup
 - **Export / import** the whole history (images and audio included) as a `.zip`. **Never** includes your API keys.
@@ -93,18 +97,21 @@ Text & image history · **native capture + annotation** · **OCR** · **voice no
 
 ## ⌨️ Shortcuts
 
+Global shortcuts use **⌥⇧ (Option+Shift)** + a letter, grouped by function on the left of the keyboard — comfortable to hold and rarely claimed by other apps (so the global hotkey actually fires; `⌘⇧`+letter clashes with VS Code / browsers):
+
 | Shortcut | Action |
 |---|---|
-| `⌘⇧E` | Open the history panel |
-| `⌘⇧I` | Record / stop a voice note |
-| `⌘⇧U` | **Capture and annotate** a region (Klip Snap) |
+| `⌥⇧E` | Open the history panel (**E**dit history) |
+| `⌥⇧R` | **R**ecord / stop a voice note |
+| `⌥⇧D` | Capture a region and annotate it (**D**raw — Klip Snap) |
+| `⌥⇧F` | **F**ast text capture: snip a region → OCR straight to the clipboard, no editor |
+| `⌥⇧O` | **O**pen the "upload audio to transcribe" window |
 | `↑` / `↓` · `Enter` | Navigate and pick an item |
-| `⌘1`–`⌘9` | Pick (and paste) item #1–9 |
+| `⌘↩` | Copy the selected item as a code block (``` ```) |
 | `Esc` | Close the panel |
 | `⌘⇧⌃4` | *(macOS)* screenshot to clipboard → also lands in Klip |
 
-> All three global shortcuts (`⌘⇧E`, `⌘⇧I`, `⌘⇧U`) are **configurable** in Preferences › Shortcuts.
-> A **letter** (`U`) is used instead of a number: `⌘⇧2` was hijacked by other apps (e.g. Loom), and `⌘⇧3`/`4`/`5` are the system screenshots.
+> All five global shortcuts are **configurable** in Preferences › Shortcuts.
 
 ## 🧰 Requirements
 
@@ -124,11 +131,11 @@ cd klip
 ```
 
 That builds Klip, signs it, copies it to `/Applications`, launches it and registers launch-at-login.
-You'll see the 📋 icon in the menu bar. Press **`⌘⇧E`** to open the history.
+You'll see the 📋 icon in the menu bar. Press **`⌥⇧E`** to open the history.
 
 > On first run, `install.sh` creates a **local signing certificate** (`Klip Code Signing`) in your Keychain so the signature is stable. That way macOS asks for permissions (microphone, accessibility, screen recording) **once** and remembers them across updates, instead of re-prompting on every reinstall. It's local and reversible (you can delete it from *Keychain Access*).
 >
-> macOS may ask you to approve the "login item" in *Settings › General*. For **auto-paste**, grant Accessibility when prompted (Klip menu → *Enable auto-paste…*). The first capture with `⌘⇧U` will ask for **Screen Recording**.
+> macOS may ask you to approve the "login item" in *Settings › General*. For **auto-paste**, grant Accessibility when prompted (Klip menu → *Enable auto-paste…*). The first capture with `⌥⇧D` will ask for **Screen Recording**.
 
 ### Build without installing
 
@@ -147,10 +154,10 @@ swift run Klip    # run directly
 ## 🚀 Usage (a vibe coder's typical flow)
 
 1. **Copy anything** while you code (code, terminal output, an error message). It all lands in Klip.
-2. **`⌘⇧E`** → open the panel. Type to **search**; use **↑/↓ + Enter** or **click** to pick an item (it auto-pastes if you enabled auto-paste).
+2. **`⌥⇧E`** → open the panel. Type to **search**; use **↑/↓ + Enter** or **click** to pick an item (it auto-pastes if you enabled auto-paste).
 3. To paste code into an AI chat, hover the row and hit **`</>`** (*copy as code block*).
-4. **`⌘⇧U`** → snip the error/UI from the screen, annotate it (arrow + text) and it lands in Klip. Hover and hit **OCR** if you want its text.
-5. 🎙️ **`⌘⇧I`** to dictate a prompt; on stop, it transcribes and lands in the history.
+4. **`⌥⇧D`** → snip the error/UI, annotate it (arrow + text) and it lands in Klip. Or **`⌥⇧F`** to snip a region and get its **text via OCR straight to the clipboard** (no editor).
+5. 🎙️ **`⌥⇧R`** to dictate a prompt; on stop, it transcribes and lands in the history.
 6. ☑️ Turn on **multi-select** in the header, mark several screenshots/texts and hit **PDF** or **ZIP** to upload them as context to the AI in one go.
 7. `Esc` or a click outside closes the panel.
 
@@ -158,21 +165,21 @@ swift run Klip    # run directly
 
 Open **Preferences** (`⌘,` from the Klip menu):
 
-- **Shortcuts** — record the combinations you prefer (panel, voice and capture).
-- **Voice transcription** — pick the **provider** (OpenAI or Google Gemini), **model** and language.
+- **Shortcuts** — record the combinations you prefer (history, voice, annotate, fast-OCR, upload). Defaults are `⌥⇧E / R / D / F / O`.
+- **Voice transcription** — pick the **provider** (on-device, OpenAI or Google Gemini), **model**, language and **context words**.
 - **OpenAI / Google Gemini** — paste the API key for the provider you chose (only that section shows). Stored in a local `0600` file.
 - **History** — maximum number of items.
-- **Privacy** — ignore passwords/sensitive content, exclude apps.
+- **Privacy** — ignore passwords/sensitive content, exclude apps, **always-paste-clean** toggle.
 - **Language** — interface language.
 
 ## 🔐 Privacy
 
 - **Local-first**: your history lives in `~/Library/Application Support/Klip/` (`items.json` + `images/` + `audio/`). Nothing leaves your Mac except the audio **you** send to the AI provider you choose (OpenAI or Gemini) to transcribe.
 - **No secrets in the repo**: API keys are stored in **local files** (`openai.key`, `gemini.key`, `0600` permissions), never in the code or the repository.
-- The **history** (`items.json`), **images** and voice-note **audio** are stored only on your Mac with `0600` permissions (`0700` folders). Credential masking is visual; the content lives locally like the rest of the history.
+- The **history** (`items.json`), **images** and voice-note **audio** are stored only on your Mac with `0600` permissions (`0700` folders). Credentials are additionally **encrypted at rest** (AES-256-GCM; the key lives in the macOS Keychain), so the secret is never written to `items.json` or backups in the clear.
 - **No telemetry**.
 - Klip **ignores** content marked as concealed by password managers, and you can **exclude** specific apps.
-- **Tokens/API keys** you copy are detected and stored **masked** (🔑 filter).
+- **Tokens/API keys** you copy are detected, **encrypted at rest**, and shown **masked** (🔑 filter).
 
 ## 🏗️ Architecture
 
@@ -186,7 +193,11 @@ Open **Preferences** (`⌘,` from the Klip menu):
 | `CaptureOverlayController.swift` | Region-selection overlay (freeze-frame + badge). |
 | `SnapEditorController.swift` / `AnnotationCanvasView.swift` / `AnnotationModel.swift` | Annotation editor and annotation model. |
 | `HotKey.swift` / `Settings.swift` | Shortcuts (Carbon) and preferences (UserDefaults). |
-| `OCR.swift` | Text extraction with Vision. |
+| `OCR.swift` | Text extraction with Vision (on-device). |
+| `SnapController.swift` | Capture flow incl. **fast OCR-to-clipboard** mode (`⌥⇧F`). |
+| `CredentialCrypto.swift` / `CredentialDetector.swift` | Credential detection + **AES-256-GCM encryption at rest** (Keychain key). |
+| `RichText.swift` | Rich clipboard text → clean Markdown (keeps bold/italic + emojis) for *always-paste-clean*. |
+| `UploadView.swift` | "Upload audio to transcribe" window with live per-file results. |
 | `Recorder.swift` / `AudioPlayer.swift` | Recording, background transcription and voice-note playback. |
 | `OpenAIClient.swift` / `GeminiClient.swift` | Transcription via OpenAI or Google Gemini (selectable provider and model). |
 | `L10n.swift` | Lightweight localization (8 languages). |
@@ -204,7 +215,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 - [ ] Favorites sync · optional sync between Macs.
 - [ ] Developer ID signing + notarization for warning-free distribution.
 
-**Already available:** text+image history · native capture + annotation (Klip Snap) · OCR · voice notes (OpenAI/Gemini with selectable model) with saved audio and retry · copy as code block · multi-select + combine into PDF/ZIP · collections · name and search · open links and color swatch · Markdown · export/import · stable signing · 8 UI languages.
+**Already available:** text+image history · native capture + annotation (Klip Snap) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio** with per-file language, saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
 
 ## 🤝 Contributing
 
