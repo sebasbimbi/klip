@@ -3,1534 +3,181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Klip — the clipboard manager for vibe coders</title>
-<meta name="description" content="The clipboard manager for vibe coders: text & image history, screen capture + annotation, fast OCR, on-device voice-to-text, favorites & rename, copy for WhatsApp/email, and encrypted credentials. Free & open source for macOS.">
-<meta property="og:title" content="Klip — the clipboard manager for vibe coders">
-<meta property="og:description" content="Everything you copy while building with AI — code, errors, screenshots, prompts and keys — one shortcut away. Free & open source.">
+<title>Klip — the copy manager for vibe coders</title>
+<meta name="description" content="Klip is a macOS menu-bar copy manager for people who build with AI: searchable clipboard history, screen capture + OCR, on-device voice-to-text, favorites & rename, copy for WhatsApp/email, and encrypted credentials. Free & open source.">
+<meta property="og:title" content="Klip — the copy manager for vibe coders">
+<meta property="og:description" content="Your clipboard history, screen captures, OCR and voice notes — one keystroke away while you build with AI. Free & open source for macOS.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://tamibot.github.io/klip/">
 <meta property="og:image" content="https://tamibot.github.io/klip/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Klip — the clipboard manager for vibe coders">
-<meta name="twitter:description" content="Everything you copy while building with AI — one shortcut away. Free & open source.">
+<meta name="twitter:title" content="Klip — the copy manager for vibe coders">
+<meta name="twitter:description" content="Your clipboard history, captures, OCR and voice notes — one keystroke away. Free & open source for macOS.">
 <meta name="twitter:image" content="https://tamibot.github.io/klip/og.png">
 <style>
   :root{
-    --bg:#ffffff; --bg2:#f5f7fb; --card:#ffffff; --line:#e6e9f0;
-    --txt:#1a1d26; --muted:#5a6270; --accent:#5b6bf0; --accent-deep:#4453d6; --accent2:#14b8a6; --amber:#f59e0b;
-    --radius:16px; --maxw:1060px;
+    --bg:#ffffff; --bg2:#f6f7f9; --line:#e6e9f0; --txt:#16181f; --muted:#5a6270;
+    --accent:#5b6bf0; --accent-deep:#4453d6; --maxw:980px;
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 24px -12px rgba(16,24,40,.12);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
   a{color:var(--accent-deep);text-decoration:none}
   a:hover{text-decoration:underline}
-  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
-  .pill{display:inline-block;font-size:.8rem;color:var(--accent-deep);border:1px solid var(--line);background:var(--bg2);padding:5px 12px;border-radius:999px;margin-bottom:18px;font-weight:500}
-  /* hero */
-  header{text-align:center;padding:64px 0 30px;background:radial-gradient(900px 440px at 50% -8%, #eef1ff 0%, rgba(238,241,255,0) 70%)}
-  .brand{display:flex;justify-content:center;align-items:center;gap:6px;font-size:1.05rem;font-weight:700;color:var(--txt);margin:18px 0 2px;letter-spacing:-.01em}
-  h1{font-size:clamp(2rem,5vw,3.3rem);margin:.1em auto .2em;letter-spacing:-.02em;max-width:18ch}
-  .tag{font-size:clamp(1.05rem,2.4vw,1.4rem);color:var(--txt);font-weight:600;margin:0 auto;max-width:720px}
-  .sub{color:var(--muted);max-width:640px;margin:14px auto 0}
-  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:28px 0 8px}
-  .btn{display:inline-block;padding:12px 22px;border-radius:12px;font-weight:600;border:1px solid var(--line)}
-  .btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-deep));color:#fff;border:none;box-shadow:0 8px 20px -8px rgba(91,107,240,.6)}
-  .btn.ghost{background:#fff;color:var(--txt)}
-  .badges{margin-top:16px;color:var(--muted);font-size:.9rem}
-  .shot{display:block;max-width:620px;width:100%;margin:34px auto 0;border-radius:var(--radius);border:1px solid var(--line);box-shadow:0 30px 70px -30px rgba(16,24,40,.35)}
-  .hero-anim{display:block;max-width:660px;width:100%;margin:30px auto 0;border-radius:var(--radius);border:1px solid var(--line);background:#fff;box-shadow:0 30px 70px -34px rgba(16,24,40,.3);overflow:hidden}
-  .hero-anim svg{display:block;width:100%;height:auto}
   a:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
-  .note{font-size:.85rem;color:var(--muted);margin-top:10px}
-  /* sections */
-  section{padding:48px 0}
-  h2{font-size:clamp(1.5rem,3.5vw,2rem);letter-spacing:-.01em;margin:0 0 6px;text-align:center}
-  .lead{color:var(--muted);text-align:center;max-width:680px;margin:0 auto 30px}
-  /* why grid */
-  .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
-  .why div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
-  .why b{color:var(--txt)}
-  .why p{margin:.3em 0 0;color:var(--muted);font-size:.95rem}
-  /* feature cards */
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);overflow:hidden}
-  .media{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:6px;margin-bottom:14px;aspect-ratio:320/180}
-  .media svg{display:block;width:100%;height:100%}
-  .card h3{margin:.2em 0 .25em;font-size:1.12rem;padding:0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .card p{margin:0 0 6px;color:var(--muted);font-size:.95rem;padding:0 6px}
-  kbd{font-family:var(--mono);font-size:.8em;background:#f0f2f8;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;color:#3a4252;white-space:nowrap;font-weight:500}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{padding:46px 0;border-top:1px solid var(--line)}
+  h2{font-size:1.45rem;letter-spacing:-.01em;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 26px}
+  kbd{font-family:var(--mono);font-size:.82em;background:#eef0f6;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;color:#39414f;white-space:nowrap;font-weight:600}
   code{font-family:var(--mono);font-size:.88em;background:var(--bg2);padding:1px 5px;border-radius:5px;color:var(--accent-deep);overflow-wrap:anywhere}
+  /* hero */
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:60px 0 54px}
+  .pill{display:inline-block;font-size:.78rem;color:var(--accent-deep);border:1px solid var(--line);background:var(--bg2);padding:5px 12px;border-radius:999px;font-weight:600;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:8px;font-size:1.1rem;font-weight:700;margin-bottom:6px}
+  h1{font-size:clamp(2.1rem,4.6vw,3.1rem);line-height:1.08;letter-spacing:-.025em;margin:.1em 0 .35em}
+  .hero p.sub{color:var(--muted);font-size:1.08rem;margin:0 0 26px;max-width:30ch}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-block;padding:12px 22px;border-radius:12px;font-weight:600;border:1px solid var(--line)}
+  .btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-deep));color:#fff;border:none;box-shadow:0 10px 22px -10px rgba(91,107,240,.7)}
+  .btn.ghost{background:#fff;color:var(--txt)}
+  .meta{margin-top:16px;color:var(--muted);font-size:.86rem}
+  .shotwrap{display:flex;justify-content:center}
+  .shot{width:100%;max-width:360px;height:auto;filter:drop-shadow(0 30px 60px rgba(16,24,40,.22))}
+  /* feature list */
+  .feat{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 34px}
+  .feat .it{display:flex;gap:12px}
+  .feat .ic{font-size:1.3rem;line-height:1.4;flex:0 0 auto}
+  .feat b{display:block}
+  .feat p{margin:.15em 0 0;color:var(--muted);font-size:.95rem}
   /* shortcuts */
-  .keys{max-width:560px;margin:0 auto;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff;box-shadow:var(--shadow)}
-  .keys .row{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;border-top:1px solid var(--line)}
+  .keys{border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:600px}
+  .keys .row{display:flex;justify-content:space-between;gap:14px;padding:12px 18px;border-top:1px solid var(--line);font-size:.96rem}
   .keys .row:first-child{border-top:none}
   .keys .row span:last-child{color:var(--muted);text-align:right}
   /* install */
-  .install{background:#0e1117;border:1px solid #1c2230;border-radius:var(--radius);padding:8px 0;max-width:720px;margin:0 auto;box-shadow:0 20px 50px -24px rgba(16,24,40,.5)}
-  pre{margin:0;padding:18px 22px;overflow:auto;font-family:var(--mono);font-size:.9rem;color:#cdd3e4}
+  .install{background:#0e1117;border-radius:14px;max-width:640px;margin-top:4px}
+  pre{margin:0;padding:18px 22px;overflow:auto;font-family:var(--mono);font-size:.9rem;color:#cdd3e4;line-height:1.7}
   pre .c{color:#7782a0}
   pre .g{color:#7fd6c4}
-  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:22px}
-  .steps div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:.92rem;color:var(--muted)}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:22px}
+  .steps div{font-size:.93rem;color:var(--muted)}
   .steps b{color:var(--txt)}
-  .n{display:inline-flex;width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;margin-right:8px}
-  /* privacy strip */
-  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;text-align:center}
-  .strip div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;box-shadow:var(--shadow)}
-  .strip .ico{font-size:1.7rem}
-  .strip b{display:block;margin:.4em 0 .15em}
-  .strip p{margin:0;color:var(--muted);font-size:.9rem}
-  footer{border-top:1px solid var(--line);padding:34px 0 60px;text-align:center;color:var(--muted);font-size:.9rem;background:var(--bg2)}
-  .macnote{max-width:680px;margin:24px auto 0;background:#fffaf0;border:1px solid #fde9bf;border-radius:12px;padding:12px 18px;color:#8a6418;font-size:.9rem;text-align:center}
-  @media (max-width:640px){ .cta{flex-direction:column;align-items:stretch} .btn{width:100%} }
-  @media (prefers-reduced-motion: reduce){ svg *{animation:none!important;transition:none!important} }
+  .n{display:inline-flex;width:22px;height:22px;border-radius:7px;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;margin-right:7px}
+  /* faq */
+  .faq{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 34px}
+  .faq b{display:block;margin-bottom:.15em}
+  .faq p{margin:0;color:var(--muted);font-size:.95rem}
+  .macnote{margin-top:24px;color:var(--muted);font-size:.9rem}
+  footer{border-top:1px solid var(--line);padding:30px 0 56px;color:var(--muted);font-size:.9rem}
+  @media (max-width:760px){
+    .hero{grid-template-columns:1fr;gap:30px;padding:40px 0}
+    .hero p.sub{max-width:none}
+    .feat,.faq{grid-template-columns:1fr}
+    .cta .btn{flex:1 1 auto;text-align:center}
+    .shotwrap{order:-1}
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap">
-    <span class="pill">🍎 macOS 14+ · 🆓 Free &amp; open source (MIT) · 🔒 No telemetry</span>
-    <span class="brand">📋 Klip</span>
-    <h1>The clipboard manager for vibe coders</h1>
-    <p class="tag">Stop losing what you copy while building with AI.</p>
-    <p class="sub">Everything you copy while building with AI — code, errors, screenshots, prompts and API keys — one shortcut away. Lives in the menu bar: light, fast and private.</p>
-    <div class="cta">
-      <a class="btn primary" href="#install">⚡ Install free</a>
-      <a class="btn ghost" href="https://github.com/tamibot/klip">★ View on GitHub</a>
+<header class="wrap">
+  <div class="hero">
+    <div>
+      <span class="pill">macOS 14+ · Free &amp; open source · No telemetry</span>
+      <div class="brand">📋 Klip</div>
+      <h1>The copy manager for vibe coders</h1>
+      <p class="sub">Your clipboard history, screen captures, OCR and voice notes — one keystroke away while you build with AI.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">⬇ Download for macOS</a>
+        <a class="btn ghost" href="https://github.com/tamibot/klip">View on GitHub</a>
+      </div>
+      <p class="meta">Native Swift · runs offline · your clips stay on your Mac</p>
     </div>
-    <div style="margin-top:16px"><a href="https://github.com/tamibot/klip"><img src="https://img.shields.io/github/stars/tamibot/klip?style=for-the-badge&amp;logo=github&amp;label=Star&amp;color=5b6bf0" alt="Star Klip on GitHub" height="26"></a></div>
-    <div class="badges">Swift · no Electron · runs offline · your data stays on your Mac</div>
-    <div class="hero-anim"><svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hero-title hero-desc">
-  <title id="hero-title">Klip — your clipboard, one shortcut away</title>
-  <desc id="hero-desc">A code snippet is copied from your editor and flies into the Klip menu-bar panel, where it lands at the top of a searchable clipboard history. The newest clip pulses, then the loop repeats.</desc>
-
-  <defs>
-    <linearGradient id="hero-clip-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <linearGradient id="hero-fly-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#eef1ff"/>
-      <stop offset="1" stop-color="#ffffff"/>
-    </linearGradient>
-    <clipPath id="hero-list-clip">
-      <rect x="356" y="120" width="236" height="192" rx="12"/>
-    </clipPath>
-  </defs>
-
-  <!-- ===== LEFT: source code window being copied ===== -->
-  <g>
-    <rect x="40" y="74" width="226" height="212" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <!-- title bar + macOS dots -->
-    <rect x="40" y="74" width="226" height="30" rx="14" fill="#f5f7fb"/>
-    <rect x="40" y="90" width="226" height="14" fill="#f5f7fb"/>
-    <circle cx="58" cy="89" r="4" fill="#ef4444"/>
-    <circle cx="74" cy="89" r="4" fill="#f59e0b"/>
-    <circle cx="90" cy="89" r="4" fill="#25d366"/>
-    <text x="153" y="93" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="10" fill="#5a6270">main.swift</text>
-    <line x1="40" y1="104" x2="266" y2="104" stroke="#e6e9f0" stroke-width="1"/>
-
-    <!-- code lines -->
-    <text x="58" y="130" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#9aa3b2">1</text>
-    <text x="76" y="130" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#1a1d26">func paste() {</text>
-    <text x="58" y="150" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#9aa3b2">2</text>
-
-    <!-- selected line (highlight) -->
-    <rect x="68" y="138" width="186" height="18" rx="4" fill="#eef1ff"/>
-    <text x="90" y="151" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#4453d6">return clip.last</text>
-
-    <text x="58" y="170" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#9aa3b2">3</text>
-    <text x="76" y="170" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#1a1d26">}</text>
-
-    <!-- copy shortcut chip -->
-    <g transform="translate(58,196)">
-      <rect x="0" y="0" width="130" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="9" y="6" width="22" height="16" rx="4" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1"/>
-      <text x="20" y="18" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="10" fill="#3a4252">⌘</text>
-      <rect x="35" y="6" width="20" height="16" rx="4" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1"/>
-      <text x="45" y="18" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="10" fill="#3a4252">C</text>
-      <text x="66" y="18" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#5a6270">Copy</text>
-    </g>
-    <text x="58" y="248" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" fill="#9aa3b2">Your editor</text>
-  </g>
-
-  <!-- ===== FLYING CLIP (copy travels to Klip) ===== -->
-  <g>
-    <g transform="translate(196,138)">
-      <!-- appear near the selected line, fly to the panel slot, then reset to start (seamless) -->
-      <animateTransform attributeName="transform" type="translate"
-        values="196 138; 196 138; 372 150; 372 150; 196 138; 196 138"
-        keyTimes="0;0.10;0.40;0.58;0.62;1"
-        calcMode="spline" keySplines="0 0 1 1; 0.45 0 0.2 1; 0 0 1 1; 0 0 1 1; 0 0 1 1"
-        dur="4s" repeatCount="indefinite"/>
-      <g opacity="0">
-        <animate attributeName="opacity"
-          values="0;0;1;1;0;0;0" keyTimes="0;0.10;0.16;0.45;0.56;0.62;1"
-          dur="4s" repeatCount="indefinite"/>
-        <rect x="0" y="0" width="150" height="24" rx="7" fill="url(#hero-fly-grad)" stroke="#5b6bf0" stroke-width="1.5"/>
-        <rect x="8" y="6" width="12" height="12" rx="3" fill="url(#hero-clip-grad)"/>
-        <text x="28" y="16" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="10" fill="#4453d6">return clip.last</text>
-      </g>
-    </g>
-  </g>
-
-  <!-- ===== RIGHT: Klip menu-bar panel ===== -->
-  <g>
-    <!-- menu-bar clip mark -->
-    <g transform="translate(356,82)">
-      <rect x="0" y="0" width="22" height="22" rx="6" fill="url(#hero-clip-grad)"/>
-      <path d="M14.5 7 v7 a3.5 3.5 0 0 1 -7 0 V6.5 a2 2 0 0 1 4 0 V14" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-    </g>
-    <text x="386" y="98" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="700" fill="#1a1d26">Klip</text>
-
-    <!-- panel -->
-    <rect x="356" y="108" width="236" height="204" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <!-- search bar -->
-    <rect x="368" y="118" width="212" height="22" rx="11" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1"/>
-    <circle cx="382" cy="129" r="4.5" fill="none" stroke="#9aa3b2" stroke-width="1.4"/>
-    <line x1="385" y1="132" x2="388" y2="135" stroke="#9aa3b2" stroke-width="1.4" stroke-linecap="round"/>
-    <text x="396" y="133" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#9aa3b2">Search clips</text>
-
-    <!-- rows: settled list; the top row re-arrives each loop (no net motion = seamless) -->
-    <g clip-path="url(#hero-list-clip)">
-      <g>
-        <!-- NEW clip row (top) — present at t=0; re-lands each loop and returns to the same state -->
-        <g>
-          <!-- settle slide that starts and ends at base 0: 0 -> dip to -10 -> back to 0 -->
-          <animateTransform attributeName="transform" type="translate"
-            values="0 0; 0 0; 0 -10; 0 0; 0 0; 0 0"
-            keyTimes="0;0.06;0.40;0.56;0.86;1"
-            calcMode="spline" keySplines="0 0 1 1; 0.45 0 0.2 1; 0.45 0 0.2 1; 0 0 1 1; 0 0 1 1"
-            dur="4s" repeatCount="indefinite"/>
-          <g transform="translate(0,150)" opacity="1">
-            <animate attributeName="opacity"
-              values="1;1;0;0;1;1;1" keyTimes="0;0.06;0.40;0.50;0.56;0.86;1"
-              dur="4s" repeatCount="indefinite"/>
-            <rect x="366" y="0" width="216" height="32" rx="9" fill="#ffffff" stroke="#5b6bf0" stroke-width="1.5"/>
-            <rect x="375" y="9" width="14" height="14" rx="4" fill="url(#hero-clip-grad)"/>
-            <text x="398" y="15" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="9.5" fill="#1a1d26">return clip.last</text>
-            <text x="398" y="27" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" fill="#9aa3b2">just now · code</text>
-            <circle cx="570" cy="16" r="3.5" fill="#5b6bf0">
-              <animate attributeName="r" values="3.5;3.5;6.5;3.5;3.5;3.5;3.5"
-                keyTimes="0;0.54;0.62;0.70;0.86;0.92;1" dur="4s" repeatCount="indefinite"/>
-              <animate attributeName="fill-opacity" values="1;1;0.35;1;1;1;1"
-                keyTimes="0;0.54;0.62;0.70;0.86;0.92;1" dur="4s" repeatCount="indefinite"/>
-            </circle>
-          </g>
-        </g>
-
-        <!-- existing rows -->
-        <g transform="translate(0,188)">
-          <rect x="366" y="0" width="216" height="32" rx="9" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-          <rect x="375" y="9" width="14" height="14" rx="4" fill="#14b8a6"/>
-          <text x="398" y="15" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" fill="#1a1d26">TypeError: undefined…</text>
-          <text x="398" y="27" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" fill="#9aa3b2">2 min ago · error</text>
-          <circle cx="570" cy="16" r="3.5" fill="#f59e0b"/>
-        </g>
-        <g transform="translate(0,226)">
-          <rect x="366" y="0" width="216" height="32" rx="9" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-          <rect x="375" y="9" width="14" height="14" rx="4" fill="#f59e0b"/>
-          <text x="398" y="15" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" fill="#1a1d26">Fix the regex so it…</text>
-          <text x="398" y="27" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" fill="#9aa3b2">5 min ago · prompt</text>
-          <circle cx="570" cy="16" r="3.5" fill="#25d366"/>
-        </g>
-        <g transform="translate(0,264)">
-          <rect x="366" y="0" width="216" height="32" rx="9" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-          <rect x="375" y="9" width="14" height="14" rx="4" fill="#5b6bf0"/>
-          <text x="398" y="15" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" fill="#1a1d26">sk-•••• API key</text>
-          <text x="398" y="27" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" fill="#9aa3b2">today · credential</text>
-          <circle cx="570" cy="16" r="3.5" fill="#ef4444"/>
-        </g>
-      </g>
-    </g>
-    <!-- fade strip softening the bottom edge of the list -->
-    <rect x="357" y="298" width="234" height="13" fill="#ffffff" opacity="0.7"/>
-  </g>
-
-  <!-- caption -->
-  <text x="320" y="340" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="600" fill="#1a1d26">Everything you copy, one shortcut away</text>
-</svg></div>
-    <p class="note">Copy a snippet → it lands in Klip → paste it clean into your AI. One shortcut away.</p>
-    <div class="macnote">🖥️ Currently macOS only (14 Sonoma+, Intel or Apple Silicon). A Windows version is coming soon.</div>
+    <div class="shotwrap">
+      <img class="shot" src="shot-history.png" width="480" height="640" alt="The Klip window: a search box, type filters (All, Text, Links, Images, Voice, Credentials), and a list of copied clips — code, a SQL query, a git command, a URL, an error message.">
+    </div>
   </div>
 </header>
 
-<section id="how">
+<section>
   <div class="wrap">
-    <h2>How it works</h2>
-    <p class="lead">Copy, find, paste — the whole loop in three shortcuts.</p>
-    <div class="grid">
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="stepcopy-title stepcopy-desc">
-  <title id="stepcopy-title">Step copy</title>
-  <desc id="stepcopy-desc">Step one of using Klip: a line of code is selected in an editor window, the Command-C key is pressed, and the copied snippet flies into the Klip clipboard history list on the right where it lands as the newest item, looping seamlessly.</desc>
-  <defs>
-    <linearGradient id="stepcopy-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-  </defs>
-
-  <!-- ===== source editor window ===== -->
-  <rect x="16" y="26" width="150" height="128" rx="12" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-  <rect x="16" y="26" width="150" height="22" rx="12" fill="#f5f7fb"/>
-  <rect x="16" y="37" width="150" height="11" fill="#f5f7fb"/>
-  <line x1="16" y1="48" x2="166" y2="48" stroke="#e6e9f0" stroke-width="1"/>
-  <circle cx="30" cy="37" r="2.6" fill="#ef4444"/>
-  <circle cx="39" cy="37" r="2.6" fill="#f59e0b"/>
-  <circle cx="48" cy="37" r="2.6" fill="#25d366"/>
-  <text x="156" y="40" text-anchor="end" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="7.5" fill="#5a6270">editor</text>
-
-  <!-- code rows (real-looking) -->
-  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="8">
-    <text x="30" y="66" fill="#9aa3b2">README.md</text>
-    <!-- selected row: highlight under real text -->
-    <rect x="26" y="73" width="130" height="14" rx="4" fill="#eef1ff" stroke="#5b6bf0" stroke-width="1.2"/>
-    <text x="30" y="83" fill="#1a1d26">git checkout main</text>
-    <text x="30" y="103" fill="#9aa3b2">npm install</text>
-    <text x="30" y="121" fill="#9aa3b2">npm run build</text>
-  </g>
-
-  <!-- Command-C key, flashes on press -->
-  <g>
-    <rect x="60" y="131" width="62" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5">
-      <animate attributeName="fill" values="#ffffff;#ffffff;#eef1ff;#ffffff;#ffffff" keyTimes="0;0.30;0.36;0.46;1" dur="5s" repeatCount="indefinite"/>
-      <animate attributeName="stroke" values="#e6e9f0;#e6e9f0;#5b6bf0;#e6e9f0;#e6e9f0" keyTimes="0;0.30;0.36;0.46;1" dur="5s" repeatCount="indefinite"/>
-    </rect>
-    <text x="91" y="145" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="10" font-weight="600" fill="#5a6270">&#8984; C</text>
-  </g>
-
-  <!-- ===== arrow ===== -->
-  <g>
-    <path d="M170 78 H188" stroke="#9aa3b2" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-    <path d="M184 74 L189 78 L184 82" stroke="#9aa3b2" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="179" y="70" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="7" font-weight="600" fill="#5a6270">copy</text>
-  </g>
-
-  <!-- ===== flying snippet (real text) ===== -->
-  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="8">
-    <rect x="0" y="0" width="92" height="16" rx="5" fill="#ffffff" stroke="#5b6bf0" stroke-width="1.5">
-      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.36;0.40;0.66;0.72;1" dur="5s" repeatCount="indefinite"/>
-    </rect>
-    <text x="8" y="11" fill="#4453d6">
-      git checkout main
-      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.36;0.40;0.66;0.72;1" dur="5s" repeatCount="indefinite"/>
-    </text>
-    <animateTransform attributeName="transform" type="translate"
-      values="26,73; 26,73; 26,73; 206,62; 206,62; 26,73"
-      keyTimes="0;0.36;0.40;0.66;0.72;1" dur="5s" repeatCount="indefinite" calcMode="spline"
-      keySplines="0 0 1 1;0 0 1 1;.4 0 .2 1;0 0 1 1;0 0 1 1"/>
-  </g>
-
-  <!-- ===== Klip clipboard list ===== -->
-  <rect x="200" y="26" width="104" height="128" rx="12" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-  <rect x="200" y="26" width="104" height="24" rx="12" fill="#f5f7fb"/>
-  <rect x="200" y="38" width="104" height="12" fill="#f5f7fb"/>
-  <!-- indigo clip mark -->
-  <path d="M214 35 a4.5 4.5 0 0 1 9 0 v7 a2.6 2.6 0 0 1 -5.2 0 v-5.5" fill="none" stroke="url(#stepcopy-grad)" stroke-width="2" stroke-linecap="round"/>
-  <text x="229" y="41" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="10" font-weight="700" fill="#1a1d26">Klip</text>
-
-  <!-- new item slot (snippet lands here) -->
-  <rect x="208" y="60" width="88" height="22" rx="6" fill="#ffffff" stroke="#eef1ff" stroke-width="1">
-    <animate attributeName="stroke" values="#eef1ff;#eef1ff;#eef1ff;#5b6bf0;#e6e9f0;#eef1ff" keyTimes="0;0.40;0.62;0.66;0.8;1" dur="5s" repeatCount="indefinite"/>
-    <animate attributeName="fill" values="#ffffff;#ffffff;#ffffff;#eef1ff;#ffffff;#ffffff" keyTimes="0;0.40;0.62;0.66;0.8;1" dur="5s" repeatCount="indefinite"/>
-  </rect>
-  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="7.5">
-    <text x="216" y="74" fill="#1a1d26">git checkout main
-      <animate attributeName="opacity" values="0;0;0;0;1;1" keyTimes="0;0.40;0.62;0.66;0.72;1" dur="5s" repeatCount="indefinite"/>
-    </text>
-  </g>
-
-  <!-- existing history items -->
-  <rect x="208" y="90" width="88" height="22" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-  <rect x="216" y="98" width="62" height="6" rx="3" fill="#9aa3b2"/>
-  <rect x="208" y="120" width="88" height="22" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-  <rect x="216" y="128" width="46" height="6" rx="3" fill="#9aa3b2"/>
-
-  <!-- caption -->
-  <text x="160" y="172" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="9" font-weight="600" fill="#5a6270">Copy anything &#8211; it lands in Klip history</text>
-</svg></div><h3><span class="n">1</span>Copy anything</h3><p>Code, an error, a screenshot, a prompt — it lands in Klip automatically. Or snip it, or dictate it.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="stepfind-title stepfind-desc">
-  <title id="stepfind-title">Instant search</title>
-  <desc id="stepfind-desc">A Klip clipboard window with a search field; typing the query "invoice" filters the clip list down to the two matching rows with the matched text highlighted, looping seamlessly.</desc>
-  <defs>
-    <linearGradient id="stepfind-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="stepfind-listclip">
-      <rect x="40" y="78" width="240" height="82" rx="10"/>
-    </clipPath>
-  </defs>
-
-  <!-- window panel -->
-  <rect x="40" y="20" width="240" height="142" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-
-  <!-- title bar with macOS dots + indigo clip mark -->
-  <rect x="40" y="20" width="240" height="26" rx="14" fill="#f5f7fb"/>
-  <rect x="40" y="34" width="240" height="12" fill="#f5f7fb"/>
-  <circle cx="54" cy="33" r="3" fill="#ef4444"/>
-  <circle cx="64" cy="33" r="3" fill="#f59e0b"/>
-  <circle cx="74" cy="33" r="3" fill="#25d366"/>
-  <path d="M250 27 a5 5 0 0 1 5 5 v6 a3 3 0 0 1 -6 0 v-5" fill="none" stroke="#5b6bf0" stroke-width="2" stroke-linecap="round"/>
-  <text x="266" y="36" font-family="-apple-system, Helvetica, sans-serif" font-size="9" font-weight="700" fill="#5a6270">Klip</text>
-
-  <!-- search field -->
-  <rect x="52" y="54" width="216" height="18" rx="9" fill="#ffffff" stroke="#5b6bf0" stroke-width="1.5"/>
-  <circle cx="64" cy="63" r="4" fill="none" stroke="#5a6270" stroke-width="1.5"/>
-  <line x1="67" y1="66" x2="70" y2="69" stroke="#5a6270" stroke-width="1.5" stroke-linecap="round"/>
-  <!-- query text, typed then held -->
-  <text id="stepfind-query" x="76" y="66" font-family="-apple-system, Helvetica, sans-serif" font-size="10" font-weight="600" fill="#1a1d26">
-    <tspan>invoice</tspan>
-    <animate attributeName="opacity" values="0;0;1;1;1;1;0" keyTimes="0;0.06;0.30;0.85;0.92;0.97;1" dur="4s" repeatCount="indefinite"/>
-  </text>
-  <!-- blinking caret while typing -->
-  <rect x="76" y="58" width="1.5" height="10" fill="#5b6bf0">
-    <animate attributeName="x" values="76;112;112;112;76" keyTimes="0;0.30;0.85;0.92;1" dur="4s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.30;0.85;0.92;1" dur="4s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- results list -->
-  <g clip-path="url(#stepfind-listclip)">
-    <!-- ALL rows (visible before query) -->
-    <g>
-      <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.22;0.34;0.92;1" dur="4s" repeatCount="indefinite"/>
-      <!-- row 1 -->
-      <rect x="48" y="82" width="224" height="22" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="56" y="88" width="10" height="10" rx="3" fill="url(#stepfind-grad)"/>
-      <text x="72" y="97" font-family="-apple-system, Helvetica, sans-serif" font-size="9" fill="#1a1d26">Invoice #1042 — Acme Co.</text>
-      <!-- row 2 -->
-      <rect x="48" y="108" width="224" height="22" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="56" y="114" width="10" height="10" rx="3" fill="#14b8a6"/>
-      <text x="72" y="123" font-family="-apple-system, Helvetica, sans-serif" font-size="9" fill="#1a1d26">Meeting notes — Friday</text>
-      <!-- row 3 -->
-      <rect x="48" y="134" width="224" height="22" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="56" y="140" width="10" height="10" rx="3" fill="#f59e0b"/>
-      <text x="72" y="149" font-family="-apple-system, Helvetica, sans-serif" font-size="9" fill="#1a1d26">Invoice template draft</text>
-    </g>
-
-    <!-- FILTERED rows (visible after query) with highlighted match -->
-    <g>
-      <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.34;0.46;0.92;1" dur="4s" repeatCount="indefinite"/>
-      <!-- match row 1 -->
-      <rect x="48" y="82" width="224" height="22" rx="7" fill="#eef1ff" stroke="#5b6bf0" stroke-width="1.5"/>
-      <rect x="56" y="88" width="10" height="10" rx="3" fill="url(#stepfind-grad)"/>
-      <rect x="70" y="89" width="36" height="11" rx="2.5" fill="#f5b50a" opacity="0.35"/>
-      <text x="72" y="97" font-family="-apple-system, Helvetica, sans-serif" font-size="9" fill="#1a1d26"><tspan font-weight="700" fill="#4453d6">Invoice</tspan> #1042 — Acme Co.</text>
-      <!-- match row 2 -->
-      <rect x="48" y="108" width="224" height="22" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="56" y="114" width="10" height="10" rx="3" fill="#f59e0b"/>
-      <rect x="70" y="115" width="36" height="11" rx="2.5" fill="#f5b50a" opacity="0.35"/>
-      <text x="72" y="123" font-family="-apple-system, Helvetica, sans-serif" font-size="9" fill="#1a1d26"><tspan font-weight="700" fill="#4453d6">Invoice</tspan> template draft</text>
-      <!-- count chip -->
-      <text x="160" y="149" text-anchor="middle" font-family="-apple-system, Helvetica, sans-serif" font-size="8.5" font-weight="600" fill="#5a6270">2 matches</text>
-    </g>
-  </g>
-</svg></div><h3><span class="n">2</span>Find it instantly</h3><p><kbd>⌥⇧E</kbd> opens the panel. Search with highlighting, filter by type, navigate by keyboard.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" role="img" aria-labelledby="steppaste-title steppaste-desc" font-family="-apple-system,system-ui,sans-serif" xmlns="http://www.w3.org/2000/svg">
-  <title id="steppaste-title">Step 3 of 3: Paste clean</title>
-  <desc id="steppaste-desc">A Klip clip holding a code snippet is pasted into a code editor, where it lands as a clean, correctly formatted code block.</desc>
-  <defs>
-    <clipPath id="steppaste-editor-clip"><rect x="182" y="40" width="120" height="96" rx="9"/></clipPath>
-    <linearGradient id="steppaste-clipgrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/><stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-  </defs>
-  <text x="160" y="20" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d26">Paste clean, anywhere</text>
-  <text x="160" y="170" text-anchor="middle" font-size="8.5" fill="#9aa3b2">Step 3 of 3 · format preserved</text>
-  <g>
-    <rect x="18" y="62" width="92" height="56" rx="10" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <g transform="translate(28,72)">
-      <rect x="0" y="0" width="10" height="14" rx="5" fill="none" stroke="url(#steppaste-clipgrad)" stroke-width="2"/>
-      <line x1="5" y1="3.5" x2="5" y2="10.5" stroke="#5b6bf0" stroke-width="2" stroke-linecap="round"/>
-    </g>
-    <text x="44" y="83" font-size="9" font-weight="600" fill="#1a1d26">Klip clip</text>
-    <text x="28" y="100" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="#5a6270">git checkout</text>
-    <text x="28" y="111" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="#14b8a6"> <tspan font-weight="700" fill="#4453d6">main</tspan></text>
-  </g>
-  <g>
-    <line x1="114" y1="90" x2="174" y2="90" stroke="#5b6bf0" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4">
-      <animate attributeName="stroke-dashoffset" values="16;0" dur="1.2s" repeatCount="indefinite"/>
-    </line>
-    <path d="M170 85 L178 90 L170 95 Z" fill="#5b6bf0"/>
-  </g>
-  <g>
-    <animateTransform attributeName="transform" attributeType="XML" type="translate"
-      values="0 0; 0 0; 92 0; 92 0; 92 0"
-      keyTimes="0;0.22;0.52;0.9;1" dur="3.4s" repeatCount="indefinite"
-      calcMode="spline" keySplines="0 0 1 1;.4 0 .2 1;0 0 1 1;0 0 1 1"/>
-    <g>
-      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2;0.3;0.78;0.9;1" dur="3.4s" repeatCount="indefinite"/>
-      <rect x="122" y="80" width="44" height="20" rx="5" fill="#eef1ff" stroke="#5b6bf0" stroke-width="1.5"/>
-      <rect x="127" y="85" width="34" height="3" rx="1.5" fill="#ef4444">
-        <animate attributeName="fill" values="#ef4444;#ef4444;#14b8a6" keyTimes="0;0.5;1" dur="3.4s" repeatCount="indefinite"/>
-      </rect>
-      <rect x="127" y="91" width="22" height="3" rx="1.5" fill="#9aa3b2"/>
-    </g>
-  </g>
-  <g>
-    <rect x="182" y="40" width="120" height="96" rx="9" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <path d="M182 49 a9 9 0 0 1 9 -9 h102 a9 9 0 0 1 9 9 v6 h-120 z" fill="#f5f7fb"/>
-    <circle cx="192" cy="47.5" r="2.4" fill="#ef4444"/>
-    <circle cx="200" cy="47.5" r="2.4" fill="#f59e0b"/>
-    <circle cx="208" cy="47.5" r="2.4" fill="#14b8a6"/>
-    <text x="296" y="50.5" text-anchor="end" font-size="7" fill="#9aa3b2">editor</text>
-    <g clip-path="url(#steppaste-editor-clip)">
-      <text x="192" y="70" font-family="ui-monospace,Menlo,monospace" font-size="7.5" fill="#9aa3b2"># run</text>
-      <g>
-        <animate attributeName="opacity" values="0;0;0;1;1;1" keyTimes="0;0.2;0.78;0.86;0.97;1" dur="3.4s" repeatCount="indefinite"/>
-        <rect x="190" y="78" width="104" height="44" rx="6" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1"/>
-        <text x="196" y="90" font-family="ui-monospace,Menlo,monospace" font-size="7.5" fill="#5a6270">```bash</text>
-        <text x="196" y="102" font-family="ui-monospace,Menlo,monospace" font-size="7.5" fill="#4453d6">git checkout <tspan font-weight="700">main</tspan></text>
-        <text x="196" y="114" font-family="ui-monospace,Menlo,monospace" font-size="7.5" fill="#5a6270">```</text>
-      </g>
-      <rect x="192" y="83" width="1.5" height="9" fill="#5b6bf0">
-        <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.05;0.74;0.8;1" dur="3.4s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="1;1;0;1;1" keyTimes="0;0.35;0.4;0.45;1" dur="0.9s" repeatCount="indefinite"/>
-      </rect>
-    </g>
-    <g>
-      <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.8;0.86;0.95;1" dur="3.4s" repeatCount="indefinite"/>
-      <rect x="246" y="60" width="50" height="14" rx="7" fill="#14b8a6"/>
-      <text x="271" y="70" text-anchor="middle" font-size="8" font-weight="700" fill="#ffffff">Clean ✓</text>
-    </g>
-  </g>
-</svg>
-</div><h3><span class="n">3</span>Paste clean</h3><p>Drop it where you need it — clean text, a code block, or reformatted for WhatsApp / email.</p></div>
-    </div>
-    <img class="shot" src="klip-preview.gif" width="720" height="420" loading="lazy" decoding="async" alt="Klip running for real: a snipped region lands in the history, its text is pulled with OCR, and a voice note transcribes itself." style="margin-top:30px">
-    <p class="note">Klip running for real — snip → OCR → paste, and a voice note transcribing itself.</p>
-  </div>
-</section>
-
-<section id="why">
-  <div class="wrap">
-    <h2>Why Klip if you code with AI?</h2>
-    <p class="lead">“Vibe coding” is a constant back-and-forth of copy-paste between your editor and Claude, ChatGPT or Cursor. Klip is built for exactly that flow.</p>
-    <div class="why">
-      <div><b>Never lose a snippet</b><p>Everything you copy lands in a searchable history — code, errors, terminal output, prompts.</p></div>
-      <div><b>Snip &amp; annotate an error</b><p>Grab a region of the screen, mark it up with arrows/text, and it's in Klip ready to paste into the AI.</p></div>
-      <div><b>Pull text out of a screenshot</b><p>Fast OCR turns a region into copyable text — paste a log that was stuck in an image.</p></div>
-      <div><b>Dictate your prompts</b><p>Record a voice note; it transcribes on-device (no key, no upload) and lands as text.</p></div>
-      <div><b>Paste clean, anywhere</b><p>Copy as a code block for the AI, or reformat for WhatsApp / email in one click.</p></div>
-      <div><b>Keep your keys safe</b><p>API keys are detected, encrypted at rest, masked, and never auto-pasted.</p></div>
+    <h2>What it does</h2>
+    <p class="lead">Everything you copy while coding with AI, in one menu-bar window.</p>
+    <div class="feat">
+      <div class="it"><span class="ic">🔎</span><div><b>Searchable history</b><p>Every copy — text &amp; images — with instant search, type filters and keyboard navigation.</p></div></div>
+      <div class="it"><span class="ic">⭐️</span><div><b>Favorite &amp; rename</b><p>Star the clips you reuse and give them names like “Deploy script” — find them by what they do.</p></div></div>
+      <div class="it"><span class="ic">✂️</span><div><b>Capture + annotate</b><p>Snip a screen region, mark it up with arrows/text, and it lands in your history.</p></div></div>
+      <div class="it"><span class="ic">🔤</span><div><b>Fast OCR</b><p>Snip an area and its text goes straight to the clipboard — pull a log out of a screenshot.</p></div></div>
+      <div class="it"><span class="ic">🎙️</span><div><b>Voice → text</b><p>Dictate a prompt; it transcribes on-device (no key, nothing uploaded) and lands as text.</p></div></div>
+      <div class="it"><span class="ic">🧹</span><div><b>Paste clean / for chat</b><p>Paste as a clean code block, or reformat for WhatsApp / email — bold &amp; italic kept.</p></div></div>
+      <div class="it"><span class="ic">🔐</span><div><b>Encrypted credentials</b><p>API keys are auto-detected, masked, and encrypted at rest (AES-256-GCM, key in the Keychain).</p></div></div>
+      <div class="it"><span class="ic">🌐</span><div><b>8 languages</b><p>Interface in English, Spanish, French, German, Italian, Portuguese, Chinese &amp; Japanese.</p></div></div>
     </div>
   </div>
 </section>
 
-<section id="features" style="background:var(--bg2)">
+<section>
   <div class="wrap">
-    <h2>Everything in one menu-bar app</h2>
-    <p class="lead">No accounts, no cloud lock-in, no Electron. Just Swift.</p>
-    <div class="grid">
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hist-title hist-desc">
-  <title id="hist-title">Clipboard history</title>
-  <desc id="hist-desc">A macOS clipboard history panel with a search field over stacked clip rows — code, a link, an error and a password — scrolling upward in a seamless loop.</desc>
-  <defs>
-    <linearGradient id="hist-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="hist-clip">
-      <rect x="34" y="62" width="252" height="92" rx="10"/>
-    </clipPath>
-  </defs>
-  <rect x="30" y="16" width="260" height="150" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-  <path d="M30 30 a14 14 0 0 1 14 -14 h232 a14 14 0 0 1 14 14 v6 h-260 z" fill="#f5f7fb"/>
-  <line x1="30" y1="36" x2="290" y2="36" stroke="#e6e9f0" stroke-width="1"/>
-  <circle cx="44" cy="26" r="3" fill="#ef4444"/>
-  <circle cx="54" cy="26" r="3" fill="#f59e0b"/>
-  <circle cx="64" cy="26" r="3" fill="#25d366"/>
-  <rect x="119" y="22" width="13" height="8" rx="2" fill="#eef1ff"/>
-  <rect x="122" y="24.5" width="7" height="3" rx="1.5" fill="#5b6bf0"/>
-  <text x="138" y="29" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="7.5" font-weight="600" fill="#1a1d26">Clipboard history</text>
-  <rect x="38" y="44" width="244" height="14" rx="7" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1"/>
-  <circle cx="48" cy="51" r="3" fill="none" stroke="#9aa3b2" stroke-width="1.4"/>
-  <line x1="50.2" y1="53.2" x2="52.5" y2="55.5" stroke="#9aa3b2" stroke-width="1.4" stroke-linecap="round"/>
-  <text x="57" y="54" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="7.5" fill="#5a6270">Search clips</text>
-  <g clip-path="url(#hist-clip)">
-    <g>
-      <animateTransform attributeName="transform" type="translate" values="0 0; 0 0; 0 -96; 0 -96" keyTimes="0; 0.30; 0.85; 1" calcMode="spline" keySplines="0 0 1 1; 0.45 0 0.2 1; 0 0 1 1" dur="6s" repeatCount="indefinite"/>
-      <g transform="translate(0,66)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="url(#hist-grad)"/>
-        <text x="50" y="13.5" font-family="-apple-system,sans-serif" font-size="6.5" font-weight="700" fill="#ffffff" text-anchor="middle">&lt;/&gt;</text>
-        <text x="62" y="13.2" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="7" fill="#1a1d26">npm run build --prod</text>
-        <circle cx="274" cy="10" r="3" fill="#f5b50a"/>
-      </g>
-      <g transform="translate(0,90)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#14b8a6"/>
-        <text x="62" y="13.2" font-family="-apple-system,sans-serif" font-size="7" fill="#1a1d26">github.com/<tspan fill="#4453d6" font-weight="700">klip</tspan>/app</text>
-        <circle cx="274" cy="10" r="3" fill="#25d366"/>
-      </g>
-      <g transform="translate(0,114)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#ef4444"/>
-        <text x="50" y="13.5" font-family="-apple-system,sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">!</text>
-        <text x="62" y="13.2" font-family="ui-monospace,Menlo,monospace" font-size="7" fill="#1a1d26">TypeError: undefined</text>
-        <circle cx="274" cy="10" r="3" fill="#ef4444"/>
-      </g>
-      <g transform="translate(0,138)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#f59e0b"/>
-        <path d="M47 11 v-1.5 a3 3 0 0 1 6 0 v1.5 M45.5 11 h9 v3.5 h-9 z" stroke="#ffffff" stroke-width="0.9" fill="none" stroke-linejoin="round"/>
-        <text x="62" y="13.2" font-family="ui-monospace,Menlo,monospace" font-size="7" fill="#5a6270">sk-live-&#8226;&#8226;&#8226;&#8226;3a9f</text>
-        <circle cx="274" cy="10" r="3" fill="#5b6bf0"/>
-      </g>
-      <g transform="translate(0,162)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="url(#hist-grad)"/>
-        <text x="50" y="13.5" font-family="-apple-system,sans-serif" font-size="6.5" font-weight="700" fill="#ffffff" text-anchor="middle">&lt;/&gt;</text>
-        <text x="62" y="13.2" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="7" fill="#1a1d26">npm run build --prod</text>
-        <circle cx="274" cy="10" r="3" fill="#f5b50a"/>
-      </g>
-      <g transform="translate(0,186)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#14b8a6"/>
-        <text x="62" y="13.2" font-family="-apple-system,sans-serif" font-size="7" fill="#1a1d26">github.com/<tspan fill="#4453d6" font-weight="700">klip</tspan>/app</text>
-        <circle cx="274" cy="10" r="3" fill="#25d366"/>
-      </g>
-      <g transform="translate(0,210)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#ef4444"/>
-        <text x="50" y="13.5" font-family="-apple-system,sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">!</text>
-        <text x="62" y="13.2" font-family="ui-monospace,Menlo,monospace" font-size="7" fill="#1a1d26">TypeError: undefined</text>
-        <circle cx="274" cy="10" r="3" fill="#ef4444"/>
-      </g>
-      <g transform="translate(0,234)">
-        <rect x="38" y="0" width="244" height="20" rx="6" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="44" y="4" width="12" height="12" rx="3" fill="#f59e0b"/>
-        <path d="M47 11 v-1.5 a3 3 0 0 1 6 0 v1.5 M45.5 11 h9 v3.5 h-9 z" stroke="#ffffff" stroke-width="0.9" fill="none" stroke-linejoin="round"/>
-        <text x="62" y="13.2" font-family="ui-monospace,Menlo,monospace" font-size="7" fill="#5a6270">sk-live-&#8226;&#8226;&#8226;&#8226;3a9f</text>
-        <circle cx="274" cy="10" r="3" fill="#5b6bf0"/>
-      </g>
-    </g>
-  </g>
-  <text x="160" y="176" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="9" font-weight="600" fill="#5a6270" text-anchor="middle">Everything you copy, searchable</text>
-</svg></div><h3>Clipboard history <kbd>⌥⇧E</kbd></h3><p>Text &amp; images, instant search with highlighting, keyboard navigation, and type filters (text · links · images · voice · credentials · favorites).</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fav-title fav-desc">
-  <title id="fav-title">Favorites</title>
-  <desc id="fav-desc">A clipboard panel where a star is tapped to favorite a clip, then the list filters down to show only the starred favorites, looping.</desc>
-  <defs>
-    <linearGradient id="fav-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="fav-clip">
-      <rect x="40" y="44" width="240" height="116" rx="12"/>
-    </clipPath>
-  </defs>
-
-  <!-- panel -->
-  <rect x="40" y="20" width="240" height="142" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-
-  <!-- header with macOS dots, indigo clip mark and a Favorites filter pill -->
-  <rect x="40" y="20" width="240" height="26" rx="14" fill="#f5f7fb"/>
-  <rect x="40" y="34" width="240" height="12" fill="#f5f7fb"/>
-  <circle cx="54" cy="33" r="3" fill="#ef4444"/>
-  <circle cx="64" cy="33" r="3" fill="#f59e0b"/>
-  <circle cx="74" cy="33" r="3" fill="#25d366"/>
-  <rect x="92" y="13" width="14" height="14" rx="4" fill="url(#fav-grad)" transform="translate(0,16)"/>
-  <text x="114" y="37" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="9" font-weight="600" fill="#1a1d26">Favorites</text>
-  <!-- filter pill -->
-  <rect x="226" y="28" width="46" height="12" rx="6" fill="#eef1ff"/>
-  <path d="M236 34 l2 2 3.5 -4" fill="none" stroke="#5b6bf0" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="244" y="32" width="22" height="4" rx="2" fill="#5b6bf0"/>
-
-  <g clip-path="url(#fav-clip)">
-
-    <!-- ROW that gets starred (stays, slides to top) -->
-    <g>
-      <animateTransform attributeName="transform" type="translate"
-        values="0 0; 0 0; 0 0; 0 -36; 0 -36; 0 0"
-        keyTimes="0; 0.30; 0.42; 0.55; 0.92; 1"
-        calcMode="spline"
-        keySplines="0 0 1 1; 0 0 1 1; 0.45 0 0.2 1; 0 0 1 1; 0 0 1 1"
-        dur="5s" repeatCount="indefinite"/>
-      <g transform="translate(0,88)">
-        <rect x="50" y="0" width="220" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-        <rect x="58" y="7" width="14" height="14" rx="4" fill="#14b8a6"/>
-        <rect x="82" y="8" width="110" height="5" rx="2.5" fill="#1a1d26"/>
-        <rect x="82" y="17" width="64" height="4" rx="2" fill="#5a6270"/>
-        <!-- star: outline then fills gold -->
-        <path d="M256 6 l2.1 4.3 4.7 0.6 -3.4 3.3 0.8 4.7 -4.2 -2.2 -4.2 2.2 0.8 -4.7 -3.4 -3.3 4.7 -0.6 z"
-              fill="#ffffff" stroke="#9aa3b2" stroke-width="1" stroke-linejoin="round">
-          <animate attributeName="fill"
-            values="#ffffff; #ffffff; #f5b50a; #f5b50a; #f5b50a; #ffffff"
-            keyTimes="0; 0.28; 0.34; 0.42; 0.92; 1"
-            dur="5s" repeatCount="indefinite"/>
-          <animate attributeName="stroke"
-            values="#9aa3b2; #9aa3b2; #f5b50a; #f5b50a; #f5b50a; #9aa3b2"
-            keyTimes="0; 0.28; 0.34; 0.42; 0.92; 1"
-            dur="5s" repeatCount="indefinite"/>
-        </path>
-        <!-- tap pulse on the star -->
-        <circle cx="259" cy="11" r="3" fill="none" stroke="#f5b50a" stroke-width="1.5" opacity="0">
-          <animate attributeName="r" values="3;3;11;3;3" keyTimes="0;0.3;0.4;0.4;1" dur="5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.9;0;0;0" keyTimes="0;0.3;0.4;0.4;1" dur="5s" repeatCount="indefinite"/>
-        </circle>
-      </g>
-    </g>
-
-    <!-- ROW above that fades/filters out -->
-    <g transform="translate(0,52)">
-      <rect x="50" y="0" width="220" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="58" y="7" width="14" height="14" rx="4" fill="#5b6bf0"/>
-      <rect x="82" y="8" width="120" height="5" rx="2.5" fill="#1a1d26"/>
-      <rect x="82" y="17" width="80" height="4" rx="2" fill="#5a6270"/>
-      <path d="M256 6 l2.1 4.3 4.7 0.6 -3.4 3.3 0.8 4.7 -4.2 -2.2 -4.2 2.2 0.8 -4.7 -3.4 -3.3 4.7 -0.6 z"
-            fill="#ffffff" stroke="#9aa3b2" stroke-width="1" stroke-linejoin="round"/>
-      <animate attributeName="opacity"
-        values="1; 1; 1; 0; 0; 1"
-        keyTimes="0; 0.42; 0.5; 0.6; 0.92; 1" dur="5s" repeatCount="indefinite"/>
-    </g>
-
-    <!-- ROW below that fades/filters out -->
-    <g transform="translate(0,124)">
-      <rect x="50" y="0" width="220" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1"/>
-      <rect x="58" y="7" width="14" height="14" rx="4" fill="#f59e0b"/>
-      <rect x="82" y="8" width="100" height="5" rx="2.5" fill="#1a1d26"/>
-      <rect x="82" y="17" width="70" height="4" rx="2" fill="#5a6270"/>
-      <path d="M256 6 l2.1 4.3 4.7 0.6 -3.4 3.3 0.8 4.7 -4.2 -2.2 -4.2 2.2 0.8 -4.7 -3.4 -3.3 4.7 -0.6 z"
-            fill="#ffffff" stroke="#9aa3b2" stroke-width="1" stroke-linejoin="round"/>
-      <animate attributeName="opacity"
-        values="1; 1; 1; 0; 0; 1"
-        keyTimes="0; 0.42; 0.5; 0.6; 0.92; 1" dur="5s" repeatCount="indefinite"/>
-    </g>
-
-  </g>
-
-  <!-- caption -->
-  <text x="160" y="176" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="10" font-weight="500" fill="#5a6270">Star a clip to keep it in Favorites</text>
-</svg></div><h3>Favorite a clip ★</h3><p>Star the clips you reach for most and filter to just your favorites — the snippets you reuse stay one search away.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rename-title rename-desc">
-  <title id="rename-title">Rename a clip</title>
-  <desc id="rename-desc">A clipboard history row labeled "Untitled clip" is renamed: the old label clears and a custom name "API key — prod" is typed in with a blinking text cursor, then a checkmark confirms the saved name. The sequence loops seamlessly.</desc>
-  <defs>
-    <linearGradient id="rename-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="rename-clip">
-      <rect x="38" y="64" width="244" height="30" rx="8"/>
-    </clipPath>
-  </defs>
-
-  <!-- panel -->
-  <rect x="30" y="18" width="260" height="120" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-
-  <!-- header with macOS dots + indigo clip mark -->
-  <rect x="30" y="18" width="260" height="26" rx="14" fill="#f5f7fb"/>
-  <rect x="30" y="32" width="260" height="12" fill="#f5f7fb"/>
-  <line x1="30" y1="44" x2="290" y2="44" stroke="#e6e9f0" stroke-width="1"/>
-  <circle cx="46" cy="31" r="3" fill="#ef4444"/>
-  <circle cx="58" cy="31" r="3" fill="#f59e0b"/>
-  <circle cx="70" cy="31" r="3" fill="#25d366"/>
-  <circle cx="148" cy="31" r="3.5" fill="#5b6bf0"/>
-  <rect x="158" y="28" width="58" height="6" rx="3" fill="#1a1d26"/>
-
-  <!-- clip row being renamed -->
-  <rect x="38" y="56" width="244" height="46" rx="10" fill="#ffffff" stroke="#5b6bf0" stroke-width="1.5"/>
-  <!-- clip type mark (indigo) -->
-  <rect x="48" y="66" width="22" height="22" rx="6" fill="url(#rename-grad)"/>
-  <rect x="54" y="72" width="10" height="3" rx="1.5" fill="#ffffff"/>
-  <rect x="54" y="78" width="7" height="3" rx="1.5" fill="#ffffff"/>
-
-  <!-- name field: old label clears, new name types in, then locks -->
-  <g clip-path="url(#rename-clip)">
-    <!-- OLD label: real "Untitled clip" text visible at start, clears before typing -->
-    <g>
-      <animate attributeName="opacity" values="1;1;0;0;0;0;1" keyTimes="0;0.14;0.2;0.85;0.97;0.99;1" dur="5s" repeatCount="indefinite"/>
-      <text x="80" y="76" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#9aa3b2">Untitled clip</text>
-    </g>
-    <!-- NEW typed name "API key — prod" revealed left-to-right by a sliding mask edge -->
-    <g>
-      <clipPath id="rename-type">
-        <rect x="78" y="60" width="0" height="34">
-          <animate attributeName="width" values="0;0;0;142;142;0;0"
-                   keyTimes="0;0.18;0.22;0.6;0.93;0.95;1"
-                   calcMode="spline"
-                   keySplines="0 0 1 1; 0 0 1 1; 0.4 0 0.2 1; 0 0 1 1; 0 0 1 1; 0 0 1 1"
-                   dur="5s" repeatCount="indefinite"/>
-        </rect>
-      </clipPath>
-      <text x="80" y="76" clip-path="url(#rename-type)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#1a1d26">API key — prod</text>
-    </g>
-  </g>
-  <!-- blinking text caret that advances with typing, hidden once saved -->
-  <rect y="64" width="1.6" height="20" rx="0.8" fill="#5b6bf0">
-    <animate attributeName="x" values="80;80;80;222;222;80;80"
-             keyTimes="0;0.18;0.22;0.6;0.85;0.86;1"
-             calcMode="spline"
-             keySplines="0 0 1 1; 0 0 1 1; 0.4 0 0.2 1; 0 0 1 1; 0 0 1 1; 0 0 1 1"
-             dur="5s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="1;1;0;1;0;1;0;1;1;0;0;1"
-             keyTimes="0;0.18;0.22;0.3;0.38;0.46;0.54;0.6;0.84;0.86;0.99;1"
-             dur="5s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- saved checkmark appears after typing finishes -->
-  <g opacity="0">
-    <animate attributeName="opacity" values="0;0;0;0;1;1;0;0" keyTimes="0;0.6;0.62;0.63;0.66;0.85;0.9;1" dur="5s" repeatCount="indefinite"/>
-    <circle cx="266" cy="79" r="9" fill="#14b8a6"/>
-    <path d="M261 79 l3.5 3.5 l6 -7" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
-
-  <!-- caption -->
-  <text x="160" y="124" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#5a6270">Rename any clip to find it fast</text>
-</svg></div><h3>Rename a clip</h3><p>Give any clip a memorable name (“Deploy script”, “Prod DB URL”) so you find it by what it does — not by its first line.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="snap-title snap-desc">
-  <title id="snap-title">Capture and annotate</title>
-  <desc id="snap-desc">A region of a screenshot is selected with a dashed marquee, a yellow highlighter sweeps across a line of text, and an amber arrow is drawn pointing at it. A caption reads Capture and annotate. The annotations clear and redraw in a seamless loop.</desc>
-  <defs>
-    <linearGradient id="snap-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="snap-clip">
-      <rect x="40" y="22" width="240" height="108" rx="12"/>
-    </clipPath>
-    <clipPath id="snap-hiclip">
-      <rect y="78" x="60" height="12" rx="2" width="120">
-        <animate attributeName="width" values="120;120;0;0;120;120;120"
-                 keyTimes="0;0.10;0.18;0.40;0.56;0.92;1" dur="5s" repeatCount="indefinite"/>
-      </rect>
-    </clipPath>
-  </defs>
-
-  <!-- screenshot window -->
-  <g clip-path="url(#snap-clip)">
-    <rect x="40" y="22" width="240" height="108" rx="12" fill="#ffffff"/>
-    <rect x="40" y="22" width="240" height="20" fill="#f5f7fb"/>
-    <circle cx="54" cy="32" r="3" fill="#ef4444"/>
-    <circle cx="66" cy="32" r="3" fill="#f59e0b"/>
-    <circle cx="78" cy="32" r="3" fill="#25d366"/>
-    <!-- indigo clip mark (Klip brand) -->
-    <path d="M261 28 a5 5 0 0 1 5 5 v5 a3 3 0 0 1 -6 0 v-4" fill="none" stroke="#5b6bf0" stroke-width="2" stroke-linecap="round"/>
-    <!-- real-looking captured text -->
-    <text x="60" y="62" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="9" font-weight="600" fill="#1a1d26">Release notes — v2.4</text>
-    <text x="60" y="88" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="8" fill="#5a6270">Adds OCR, collections, and a faster paste.</text>
-    <text x="60" y="104" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="8" fill="#5a6270">Snip any region, then mark it up.</text>
-    <text x="60" y="120" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="8" fill="#9aa3b2">Available now for macOS 13+.</text>
-  </g>
-
-  <!-- highlighter sweep over line 2 (revealed left-to-right via clip) -->
-  <g clip-path="url(#snap-hiclip)">
-    <rect x="60" y="78" width="120" height="12" rx="2" fill="#f5b50a" fill-opacity="0.34"/>
-  </g>
-
-  <rect x="40" y="22" width="240" height="108" rx="12" fill="none" stroke="#e6e9f0" stroke-width="1.5"/>
-
-  <!-- selection marquee (dashed) -->
-  <rect x="54" y="74" width="134" height="20" rx="4" fill="#5b6bf0" fill-opacity="0.05"
-        stroke="url(#snap-grad)" stroke-width="2" stroke-dasharray="6 5">
-    <animate attributeName="stroke-dashoffset" values="0;0;44;0;0;0;0"
-             keyTimes="0;0.04;0.16;0.22;0.92;0.97;1" dur="5s" repeatCount="indefinite"/>
-  </rect>
-
-  <!-- annotation arrow pointing at the highlighted line -->
-  <g stroke="#f59e0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M236 120 L196 92" stroke-dasharray="49" stroke-dashoffset="0">
-      <animate attributeName="stroke-dashoffset" values="0;0;49;49;0;0;0"
-               keyTimes="0;0.04;0.30;0.56;0.72;0.97;1" dur="5s" repeatCount="indefinite"/>
-    </path>
-    <path d="M196 92 L206 95 M196 92 L200 102" stroke-dasharray="22" stroke-dashoffset="0">
-      <animate attributeName="stroke-dashoffset" values="0;0;22;22;22;0;0;0"
-               keyTimes="0;0.04;0.30;0.56;0.72;0.80;0.97;1" dur="5s" repeatCount="indefinite"/>
-    </path>
-  </g>
-
-  <!-- pen tip following the arrow -->
-  <circle r="4.5" fill="url(#snap-grad)">
-    <animate attributeName="cx" values="196;196;236;236;196;196;196"
-             keyTimes="0;0.04;0.30;0.56;0.72;0.97;1" dur="5s" repeatCount="indefinite"/>
-    <animate attributeName="cy" values="92;92;120;120;92;92;92"
-             keyTimes="0;0.04;0.30;0.56;0.72;0.97;1" dur="5s" repeatCount="indefinite"/>
-  </circle>
-
-  <!-- caption -->
-  <text x="160" y="167" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif"
-        font-size="12" font-weight="600" fill="#4453d6">Capture + annotate</text>
-</svg></div><h3>Capture + annotate <kbd>⌥⇧D</kbd></h3><p>Snip a region (ScreenCaptureKit), then arrows, text, highlighter, shapes &amp; undo. Lands in history, ready for OCR.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ocr-title ocr-desc">
-  <title id="ocr-title">Fast OCR capture</title>
-  <desc id="ocr-desc">A teal scan line sweeps down a captured screenshot of an invoice; the recognized text appears on a clipboard card to the right. Caption reads screenshot to text. Loops.</desc>
-  <defs>
-    <linearGradient id="ocr-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <linearGradient id="ocr-scan" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#14b8a6" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#14b8a6" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#14b8a6" stop-opacity="0"/>
-    </linearGradient>
-    <clipPath id="ocr-clip">
-      <rect x="20" y="26" width="150" height="118" rx="12"/>
-    </clipPath>
-    <clipPath id="ocr-cardclip">
-      <rect x="232" y="52" width="70" height="62"/>
-    </clipPath>
-  </defs>
-  <g clip-path="url(#ocr-clip)">
-    <rect x="20" y="26" width="150" height="118" fill="#ffffff"/>
-    <rect x="20" y="26" width="150" height="20" fill="#f5f7fb"/>
-    <circle cx="32" cy="36" r="3" fill="#ef4444"/>
-    <circle cx="42" cy="36" r="3" fill="#f59e0b"/>
-    <circle cx="52" cy="36" r="3" fill="#25d366"/>
-    <text x="34" y="68" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#1a1d26">Invoice #2048</text>
-    <text x="34" y="88" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="9.5" fill="#5a6270">Date: 2026-06-28</text>
-    <text x="34" y="104" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="9.5" fill="#5a6270">Acme Studio LLC</text>
-    <text x="34" y="128" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#4453d6">Total: $1,240.00</text>
-    <rect x="20" y="46" width="150" height="22" fill="url(#ocr-scan)">
-      <animate attributeName="y" values="46;46;118;118;46" keyTimes="0;0.08;0.62;0.9;1" dur="5s" repeatCount="indefinite"/>
-    </rect>
-    <rect x="20" y="68" width="150" height="2" fill="#14b8a6">
-      <animate attributeName="y" values="68;68;140;140;68" keyTimes="0;0.08;0.62;0.9;1" dur="5s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.08;0.62;0.7;1" dur="5s" repeatCount="indefinite"/>
-    </rect>
-  </g>
-  <rect x="20" y="26" width="150" height="118" rx="12" fill="none" stroke="url(#ocr-grad)" stroke-width="2"/>
-  <g stroke="#5b6bf0" stroke-width="2.5" stroke-linecap="round" fill="none">
-    <path d="M30 34 L30 40 M30 34 L36 34"/>
-    <path d="M160 34 L160 40 M160 34 L154 34"/>
-    <path d="M30 136 L30 130 M30 136 L36 136"/>
-    <path d="M160 136 L160 130 M160 136 L154 136"/>
-  </g>
-  <g stroke-linecap="round" fill="none">
-    <path d="M172 92 C204 92 208 70 232 70" stroke="#14b8a6" stroke-width="2" stroke-dasharray="5 6" opacity="0.85">
-      <animate attributeName="stroke-dashoffset" values="0;-44" dur="1.4s" repeatCount="indefinite"/>
-    </path>
-  </g>
-  <g transform="translate(228 36)">
-    <rect x="0" y="6" width="78" height="76" rx="9" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <rect x="27" y="0" width="24" height="13" rx="4" fill="#5b6bf0"/>
-  </g>
-  <g clip-path="url(#ocr-cardclip)">
-    <text x="238" y="66" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="8.5" font-weight="700" fill="#1a1d26">Invoice #2048<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.22;0.30;0.92;1" dur="5s" repeatCount="indefinite"/></text>
-    <text x="238" y="80" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="8" fill="#5a6270">Date: 2026-06-28<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.36;0.44;0.92;1" dur="5s" repeatCount="indefinite"/></text>
-    <text x="238" y="93" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="8" fill="#5a6270">Acme Studio LLC<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.48;0.56;0.92;1" dur="5s" repeatCount="indefinite"/></text>
-    <text x="238" y="108" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="8.5" font-weight="700" fill="#4453d6">$1,240.00<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.60;0.68;0.92;1" dur="5s" repeatCount="indefinite"/></text>
-  </g>
-  <text x="160" y="166" text-anchor="middle" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#5a6270">Screenshot &#8594; text on clipboard</text>
-</svg></div><h3>Fast OCR capture <kbd>⌥⇧F</kbd></h3><p>Snip a region and its text goes straight to the clipboard — skip the editor when you just need the text.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="voice-title voice-desc">
-  <title id="voice-title">Voice to text</title>
-  <desc id="voice-desc">A microphone with pulsing sound rings while a spoken sentence is transcribed and types itself into a Klip card.</desc>
-
-  <defs>
-    <clipPath id="voice-typeclip">
-      <rect x="150" y="96" width="132" height="22">
-        <animate attributeName="width"
-          values="132;132;0;0;132;132"
-          keyTimes="0;0.45;0.55;0.62;0.92;1" dur="4.5s" repeatCount="indefinite"/>
-      </rect>
-    </clipPath>
-  </defs>
-
-  <!-- Mic group, centered around (62,72) -->
-  <g transform="translate(62 72)">
-    <!-- pulsing sound rings -->
-    <circle cx="0" cy="0" r="22" fill="none" stroke="#5b6bf0" stroke-width="2" opacity="0">
-      <animate attributeName="r" values="20;40;40" keyTimes="0;0.66;1" dur="4.5s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.5;0;0" keyTimes="0;0.66;1" dur="4.5s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="0" cy="0" r="22" fill="none" stroke="#14b8a6" stroke-width="2" opacity="0">
-      <animate attributeName="r" values="20;40;40" keyTimes="0;0.5;1" dur="4.5s" repeatCount="indefinite" begin="0.7s"/>
-      <animate attributeName="opacity" values="0.45;0;0" keyTimes="0;0.5;1" dur="4.5s" repeatCount="indefinite" begin="0.7s"/>
-    </circle>
-
-    <!-- mic body -->
-    <rect x="-11" y="-32" width="22" height="42" rx="11" fill="#5b6bf0">
-      <animate attributeName="fill" values="#5b6bf0;#4453d6;#5b6bf0"
-        keyTimes="0;0.5;1" dur="4.5s" repeatCount="indefinite"/>
-    </rect>
-    <!-- mic stand cradle -->
-    <path d="M -19 1 A 19 19 0 0 0 19 1" fill="none" stroke="#4453d6" stroke-width="3" stroke-linecap="round"/>
-    <line x1="0" y1="20" x2="0" y2="31" stroke="#4453d6" stroke-width="3" stroke-linecap="round"/>
-    <line x1="-11" y1="31" x2="11" y2="31" stroke="#4453d6" stroke-width="3" stroke-linecap="round"/>
-  </g>
-
-  <!-- Live waveform between mic and card -->
-  <g transform="translate(106 72)" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round">
-    <line x1="0" y1="-6" x2="0" y2="6">
-      <animate attributeName="y1" values="-6;-13;-4;-6" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-      <animate attributeName="y2" values="6;13;4;6" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-    </line>
-    <line x1="8" y1="-11" x2="8" y2="11">
-      <animate attributeName="y1" values="-11;-4;-15;-11" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-      <animate attributeName="y2" values="11;4;15;11" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-    </line>
-    <line x1="16" y1="-16" x2="16" y2="16">
-      <animate attributeName="y1" values="-16;-7;-18;-16" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-      <animate attributeName="y2" values="16;7;18;16" keyTimes="0;0.33;0.66;1" dur="1.1s" repeatCount="indefinite"/>
-    </line>
-  </g>
-
-  <!-- Transcript card (macOS window) -->
-  <g>
-    <rect x="142" y="40" width="162" height="92" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <!-- title bar hairline + macOS dots -->
-    <line x1="142" y1="60" x2="304" y2="60" stroke="#e6e9f0" stroke-width="1"/>
-    <circle cx="154" cy="50" r="2.6" fill="#ef4444"/>
-    <circle cx="163" cy="50" r="2.6" fill="#f59e0b"/>
-    <circle cx="172" cy="50" r="2.6" fill="#25d366"/>
-    <text x="296" y="53.5" text-anchor="end" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="7" fill="#9aa3b2">Transcript</text>
-
-    <!-- transcribed sentence, revealed by typing clip -->
-    <g clip-path="url(#voice-typeclip)">
-      <text x="150" y="112" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#1a1d26">Refactor the auth flow</text>
-    </g>
-
-    <!-- caret -->
-    <rect x="282" y="100" width="2.2" height="16" rx="1" fill="#5b6bf0">
-      <animate attributeName="x"
-        values="282;282;150;150;282;282"
-        keyTimes="0;0.45;0.55;0.62;0.92;1" dur="4.5s" repeatCount="indefinite"/>
-      <animate attributeName="opacity"
-        values="1;0;1;1;1;1"
-        keyTimes="0;0.15;0.3;0.45;0.92;1" dur="4.5s" repeatCount="indefinite"/>
-    </rect>
-  </g>
-
-  <!-- caption -->
-  <text x="160" y="170" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#5a6270">Speak it &#8594; it types itself</text>
-</svg></div><h3>Voice → text <kbd>⌥⇧R</kbd></h3><p><b>On-device by default</b> (WhisperKit — no key, nothing leaves your Mac), or OpenAI / Gemini. Upload audio files too <kbd>⌥⇧O</kbd>, with a per-file language.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fmt-title fmt-desc">
-  <title id="fmt-title">Copy formatted for code, WhatsApp, or email</title>
-  <desc id="fmt-desc">One snippet on the left is sent along a connector and reformatted in turn for a code block, a WhatsApp message, and an email body. The active target highlights as each format is produced, then the cycle repeats.</desc>
-  <defs>
-    <clipPath id="fmt-card-clip"><rect x="18" y="40" width="98" height="96" rx="10"/></clipPath>
-    <linearGradient id="fmt-dot-grad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#14b8a6"/>
-    </linearGradient>
-  </defs>
-
-  <!-- source snippet window -->
-  <rect x="18" y="40" width="98" height="96" rx="10" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-  <g clip-path="url(#fmt-card-clip)">
-    <rect x="18" y="40" width="98" height="18" fill="#f5f7fb"/>
-    <line x1="18" y1="58" x2="116" y2="58" stroke="#e6e9f0" stroke-width="1"/>
-    <circle cx="30" cy="49" r="2.6" fill="#ef4444"/>
-    <circle cx="39" cy="49" r="2.6" fill="#f5b50a"/>
-    <circle cx="48" cy="49" r="2.6" fill="#25d366"/>
-    <text x="100" y="52.5" text-anchor="end" font-family="ui-monospace, Menlo, monospace" font-size="7" fill="#9aa3b2">.swift</text>
-    <text x="27" y="76" font-family="ui-monospace, Menlo, monospace" font-size="8.5" fill="#5b6bf0">func<tspan fill="#1a1d26"> greet() {</tspan></text>
-    <text x="35" y="90" font-family="ui-monospace, Menlo, monospace" font-size="8.5" fill="#14b8a6">print<tspan fill="#5a6270">(</tspan><tspan fill="#f59e0b">"hi"</tspan><tspan fill="#5a6270">)</tspan></text>
-    <text x="27" y="104" font-family="ui-monospace, Menlo, monospace" font-size="8.5" fill="#1a1d26">}</text>
-    <text x="27" y="122" font-family="ui-monospace, Menlo, monospace" font-size="8.5" fill="#5a6270">// ready to paste</text>
-  </g>
-  <text x="67" y="34" text-anchor="middle" font-family="-apple-system, Helvetica, sans-serif" font-size="10" font-weight="600" fill="#5a6270">snippet</text>
-
-  <!-- connectors from card to the three targets -->
-  <g fill="none" stroke="#e6e9f0" stroke-width="2" stroke-linecap="round">
-    <path d="M116 60 C 156 60, 168 48, 204 48"/>
-    <path d="M116 88 C 160 88, 168 88, 204 88"/>
-    <path d="M116 116 C 156 116, 168 128, 204 128"/>
-  </g>
-
-  <!-- travelling dots, restart each cycle for a seamless loop -->
-  <circle r="4" fill="url(#fmt-dot-grad)">
-    <animateMotion dur="6s" repeatCount="indefinite" keyTimes="0;0.06;0.33;0.39;0.66;0.72;1" keyPoints="0;1;1;1;1;1;0" calcMode="linear"
-      path="M116 60 C 156 60, 168 48, 204 48"/>
-    <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-      keyTimes="0;0.005;0.06;0.07;1" values="0;1;1;0;0"/>
-  </circle>
-  <circle r="4" fill="url(#fmt-dot-grad)">
-    <animateMotion dur="6s" repeatCount="indefinite" keyTimes="0;0.33;0.39;0.66;1" keyPoints="0;0;1;1;0" calcMode="linear"
-      path="M116 88 C 160 88, 168 88, 204 88"/>
-    <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-      keyTimes="0;0.33;0.335;0.39;0.40;1" values="0;0;1;1;0;0"/>
-  </circle>
-  <circle r="4" fill="url(#fmt-dot-grad)">
-    <animateMotion dur="6s" repeatCount="indefinite" keyTimes="0;0.66;0.72;1" keyPoints="0;0;1;0" calcMode="linear"
-      path="M116 116 C 156 116, 168 128, 204 128"/>
-    <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-      keyTimes="0;0.66;0.665;0.72;0.73;1" values="0;0;1;1;0;0"/>
-  </circle>
-
-  <!-- target chips -->
-  <!-- code (active at t=0 for a strong static frame) -->
-  <g>
-    <rect x="204" y="34" width="98" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <rect x="204" y="34" width="98" height="28" rx="8" fill="#5b6bf0" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.06;0.30;0.33;0.995;1" values="0.12;0.12;0.12;0;0;0.12"/>
-    </rect>
-    <rect x="204" y="34" width="98" height="28" rx="8" fill="none" stroke="#5b6bf0" stroke-width="1.5" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.06;0.30;0.33;0.995;1" values="1;1;1;0;0;1"/>
-    </rect>
-    <text x="218" y="52" font-family="ui-monospace, Menlo, monospace" font-size="12" font-weight="700" fill="#5b6bf0">&lt;/&gt;</text>
-    <text x="240" y="52" font-family="-apple-system, Helvetica, sans-serif" font-size="11" font-weight="600" fill="#1a1d26">code block</text>
-  </g>
-  <!-- whatsapp -->
-  <g>
-    <rect x="204" y="74" width="98" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <rect x="204" y="74" width="98" height="28" rx="8" fill="#25d366" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.39;0.63;0.66;1" values="0;0.14;0.14;0;0"/>
-    </rect>
-    <rect x="204" y="74" width="98" height="28" rx="8" fill="none" stroke="#25d366" stroke-width="1.5" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.39;0.63;0.66;1" values="0;1;1;0;0"/>
-    </rect>
-    <circle cx="221" cy="88" r="8" fill="#25d366"/>
-    <path d="M217 88 a4 4 0 1 1 1.6 3.2 L216 92.4 l0.9 -2 A4 4 0 0 1 217 88 Z" fill="#ffffff"/>
-    <text x="236" y="92" font-family="-apple-system, Helvetica, sans-serif" font-size="11" font-weight="600" fill="#1a1d26">WhatsApp</text>
-  </g>
-  <!-- email -->
-  <g>
-    <rect x="204" y="114" width="98" height="28" rx="8" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <rect x="204" y="114" width="98" height="28" rx="8" fill="#14b8a6" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.72;0.96;0.99;1" values="0;0.14;0.14;0;0"/>
-    </rect>
-    <rect x="204" y="114" width="98" height="28" rx="8" fill="none" stroke="#14b8a6" stroke-width="1.5" opacity="0">
-      <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
-        keyTimes="0;0.72;0.96;0.99;1" values="0;1;1;0;0"/>
-    </rect>
-    <rect x="214" y="122" width="15" height="11" rx="2" fill="none" stroke="#14b8a6" stroke-width="1.6"/>
-    <path d="M214.6 123 l6.9 5 l6.9 -5" fill="none" stroke="#14b8a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="236" y="132" font-family="-apple-system, Helvetica, sans-serif" font-size="11" font-weight="600" fill="#1a1d26">email</text>
-  </g>
-
-  <!-- caption -->
-  <text x="160" y="166" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#5a6270">One copy, formatted for where it lands</text>
-</svg></div><h3>Built for pasting into AI</h3><p>Copy as a code block <kbd>⌘↩</kbd> with a detected language, or <b>copy for WhatsApp / for email</b> (clean formatting, kept bold/italic &amp; spacing).</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="clean-title clean-desc">
-  <title id="clean-title">Always paste clean</title>
-  <desc id="clean-desc">A messy styled copy from a dark AI chat window transforms into clean light text, keeping one bold word while dropping the colours and background.</desc>
-
-  <defs>
-    <clipPath id="clean-clip-card">
-      <rect x="14" y="34" width="126" height="98" rx="10"/>
-    </clipPath>
-  </defs>
-
-  <!-- ===== caption ===== -->
-  <text x="160" y="22" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="11" font-weight="600" fill="#1a1d26">styled copy
-    <tspan dx="2" dy="0" fill="#9aa3b2">→</tspan>
-    <tspan dx="2" fill="#5b6bf0">clean paste</tspan>
-  </text>
-
-  <!-- Klip clip mark -->
-  <g transform="translate(150,158)" stroke="#5b6bf0" stroke-width="2" fill="none" stroke-linecap="round">
-    <path d="M3 5 v6 a5 5 0 0 0 10 0 v-8 a3 3 0 0 0 -6 0 v7"/>
-  </g>
-  <text x="166" y="166" font-family="-apple-system,system-ui,sans-serif" font-size="9" font-weight="600" fill="#5a6270">Klip</text>
-
-  <!-- ===== LEFT: messy dark AI window ===== -->
-  <g>
-    <rect x="14" y="34" width="126" height="98" rx="10" fill="#1a1d26" stroke="#232733" stroke-width="1.5"/>
-    <!-- titlebar -->
-    <rect x="14" y="34" width="126" height="20" rx="10" fill="#232733"/>
-    <rect x="14" y="44" width="126" height="10" fill="#232733"/>
-    <circle cx="25" cy="44" r="2.5" fill="#ef4444"/>
-    <circle cx="34" cy="44" r="2.5" fill="#f59e0b"/>
-    <circle cx="43" cy="44" r="2.5" fill="#14b8a6"/>
-    <text x="77" y="47.5" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="8" fill="#9aa3b2">AI reply</text>
-
-    <!-- messy multicolour content -->
-    <g clip-path="url(#clean-clip-card)" font-family="-apple-system,system-ui,sans-serif" font-size="8.5">
-      <text x="24" y="69" fill="#14b8a6">Here's the <tspan fill="#f59e0b" font-weight="700">fix</tspan> 👇</text>
-      <text x="24" y="83" fill="#5b6bf0">Lorem <tspan fill="#ef4444">ipsum</tspan> dolor</text>
-      <text x="24" y="97" fill="#f59e0b">sit amet, <tspan fill="#14b8a6">consectetur</tspan></text>
-      <text x="24" y="111" fill="#ef4444">adipiscing <tspan fill="#5b6bf0">elit sed</tspan></text>
-      <text x="24" y="125" fill="#14b8a6">do eiusmod tempor</text>
-    </g>
-
-    <!-- whole messy card fades out, then back in to loop -->
-    <animate attributeName="opacity" values="1;1;0.15;0.15;1"
-             keyTimes="0;0.34;0.5;0.92;1" dur="6s"
-             calcMode="spline" keySplines="0 0 1 1;.4 0 .2 1;0 0 1 1;.4 0 .2 1"
-             repeatCount="indefinite"/>
-  </g>
-
-  <!-- ===== arrow ===== -->
-  <g stroke="#9aa3b2" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="146" y1="83" x2="174" y2="83"/>
-    <polyline points="168,78 174,83 168,88"/>
-    <animateTransform attributeName="transform" type="translate"
-                      values="-3 0;3 0;-3 0" keyTimes="0;0.5;1" dur="2s"
-                      calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1"
-                      repeatCount="indefinite"/>
-  </g>
-
-  <!-- ===== RIGHT: clean light paste ===== -->
-  <g>
-    <rect x="180" y="34" width="126" height="98" rx="10" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-    <rect x="180" y="34" width="126" height="20" rx="10" fill="#f5f7fb"/>
-    <rect x="180" y="44" width="126" height="10" fill="#f5f7fb"/>
-    <line x1="180" y1="54" x2="306" y2="54" stroke="#e6e9f0" stroke-width="1"/>
-    <circle cx="191" cy="44" r="2.5" fill="#e6e9f0"/>
-    <circle cx="200" cy="44" r="2.5" fill="#e6e9f0"/>
-    <circle cx="209" cy="44" r="2.5" fill="#e6e9f0"/>
-    <text x="243" y="47.5" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="8" fill="#9aa3b2">editor</text>
-
-    <!-- clean content, all ink, one bold + one italic preserved -->
-    <g font-family="-apple-system,system-ui,sans-serif" font-size="8.5" fill="#1a1d26">
-      <text x="190" y="69">Here's the <tspan font-weight="700">fix</tspan></text>
-      <text x="190" y="83">Lorem ipsum <tspan font-style="italic">dolor</tspan></text>
-      <text x="190" y="97">sit amet, consectetur</text>
-      <text x="190" y="111">adipiscing elit sed</text>
-      <text x="190" y="125">do eiusmod tempor</text>
-    </g>
-
-    <!-- clean text settles in as the messy card fades -->
-    <animate attributeName="opacity" values="0.15;0.15;1;1;0.15"
-             keyTimes="0;0.34;0.5;0.92;1" dur="6s"
-             calcMode="spline" keySplines="0 0 1 1;.4 0 .2 1;0 0 1 1;.4 0 .2 1"
-             repeatCount="indefinite"/>
-  </g>
-</svg>
-</div><h3>Always paste clean</h3><p>A copy from a dark-themed AI chat is stored as clean text that keeps <b>bold/italic + emojis</b> but drops the background, colours and fonts.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cred-title cred-desc">
-  <title id="cred-title">Encrypted credentials</title>
-  <desc id="cred-desc">A stored API key in a Klip window is swept by an encryption pass that masks it into dots, then a lock and check confirm it is encrypted at rest with AES-256-GCM.</desc>
-  <defs>
-    <linearGradient id="cred-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <linearGradient id="cred-sweep" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#14b8a6" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#14b8a6" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#14b8a6" stop-opacity="0"/>
-    </linearGradient>
-    <clipPath id="cred-clip">
-      <rect x="44" y="40" width="232" height="100" rx="14"/>
-    </clipPath>
-    <clipPath id="cred-rowclip">
-      <rect x="60" y="86" width="200" height="22" rx="6"/>
-    </clipPath>
-  </defs>
-
-  <!-- Klip window panel -->
-  <rect x="44" y="40" width="232" height="100" rx="14" fill="#ffffff" stroke="#e6e9f0" stroke-width="2"/>
-  <!-- title bar -->
-  <rect x="44" y="40" width="232" height="26" rx="14" fill="#f5f7fb"/>
-  <rect x="44" y="54" width="232" height="12" fill="#f5f7fb"/>
-  <line x1="44" y1="66" x2="276" y2="66" stroke="#e6e9f0" stroke-width="2"/>
-  <!-- macOS dots -->
-  <circle cx="58" cy="53" r="3.5" fill="#ef4444"/>
-  <circle cx="70" cy="53" r="3.5" fill="#f59e0b"/>
-  <circle cx="82" cy="53" r="3.5" fill="#25d366"/>
-  <!-- indigo clip mark -->
-  <path d="M246 47 a6 6 0 0 1 12 0 v9 a3.5 3.5 0 0 1 -7 0 v-7"
-        fill="none" stroke="#5b6bf0" stroke-width="2.5" stroke-linecap="round"/>
-  <text x="160" y="57" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif"
-        font-size="9" font-weight="600" fill="#5a6270">Credentials</text>
-
-  <!-- credential label -->
-  <text x="60" y="80" font-family="ui-monospace,Menlo,Consolas,monospace"
-        font-size="9" font-weight="700" fill="#1a1d26" letter-spacing="0.3">OPENAI_API_KEY</text>
-
-  <!-- value row -->
-  <rect x="60" y="86" width="200" height="22" rx="6" fill="#eef1ff" stroke="#e6e9f0" stroke-width="1"/>
-  <g clip-path="url(#cred-rowclip)">
-    <!-- plaintext key (shown at start, hidden after the sweep) -->
-    <text x="70" y="101" font-family="ui-monospace,Menlo,Consolas,monospace"
-          font-size="10" font-weight="600" fill="#5a6270">sk-7Qf2aB9xKp4Lm0Zr8Wd</text>
-    <rect x="60" y="86" width="200" height="22" fill="#eef1ff">
-      <animate attributeName="opacity" values="0;0;1;1;1;1" keyTimes="0;0.30;0.42;0.9;0.95;1" dur="4s" repeatCount="indefinite"/>
-    </rect>
-    <!-- masked dots (revealed after the sweep) -->
-    <g fill="#4453d6">
-      <animate attributeName="opacity" values="0;0;1;1;1;1" keyTimes="0;0.30;0.42;0.9;0.95;1" dur="4s" repeatCount="indefinite"/>
-      <circle cx="72" cy="97" r="3"/><circle cx="84" cy="97" r="3"/><circle cx="96" cy="97" r="3"/>
-      <circle cx="108" cy="97" r="3"/><circle cx="120" cy="97" r="3"/><circle cx="132" cy="97" r="3"/>
-      <circle cx="144" cy="97" r="3"/><circle cx="156" cy="97" r="3"/><circle cx="168" cy="97" r="3"/>
-      <circle cx="180" cy="97" r="3"/><circle cx="192" cy="97" r="3"/><circle cx="204" cy="97" r="3"/>
-      <circle cx="216" cy="97" r="3"/><circle cx="228" cy="97" r="3"/>
-    </g>
-  </g>
-
-  <!-- second hint row -->
-  <rect x="60" y="116" width="120" height="6" rx="3" fill="#e6e9f0"/>
-
-  <!-- encryption sweep across the panel -->
-  <g clip-path="url(#cred-clip)">
-    <rect x="0" y="40" width="56" height="100" fill="url(#cred-sweep)">
-      <animate attributeName="x" values="-56;-56;276;276;276" keyTimes="0;0.18;0.42;0.95;1" dur="4s" repeatCount="indefinite"/>
-    </rect>
-  </g>
-
-  <!-- lock badge -->
-  <g transform="translate(232 112)">
-    <rect x="0" y="0" width="30" height="22" rx="6" fill="url(#cred-grad)"/>
-    <path d="M5 0 V-5 a10 10 0 0 1 20 0 V0" fill="none" stroke="#4453d6" stroke-width="4" stroke-linecap="round">
-      <animateTransform attributeName="transform" type="translate"
-                        values="0 -5;0 -5;0 0;0 0;0 -5" keyTimes="0;0.18;0.42;0.9;1" dur="4s" repeatCount="indefinite"/>
-    </path>
-    <circle cx="15" cy="10" r="3.5" fill="#ffffff"/>
-    <rect x="13.5" y="12" width="3" height="6" rx="1.5" fill="#ffffff"/>
-  </g>
-
-  <!-- caption -->
-  <g transform="translate(160 162)">
-    <circle cx="-66" cy="-1" r="8" fill="#14b8a6">
-      <animate attributeName="opacity" values="0.25;0.25;1;1;1" keyTimes="0;0.30;0.42;0.95;1" dur="4s" repeatCount="indefinite"/>
-    </circle>
-    <path d="M-70 -1 L-67 2 L-62 -4" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <animate attributeName="stroke-opacity" values="0;0;1;1;1" keyTimes="0;0.36;0.44;0.95;1" dur="4s" repeatCount="indefinite"/>
-    </path>
-    <text x="-50" y="3" font-family="-apple-system,Segoe UI,Roboto,sans-serif"
-          font-size="11" font-weight="600" fill="#1a1d26">Encrypted at rest · AES-256-GCM</text>
-  </g>
-</svg></div><h3>Encrypted credentials</h3><p>Tokens &amp; API keys are auto-detected and <b>encrypted at rest (AES-256-GCM</b>, key in the Keychain) — never in <code>items.json</code> or backups in the clear.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pdf-title pdf-desc">
-  <title id="pdf-title">Bundle to PDF or ZIP</title>
-  <desc id="pdf-desc">Three clipped snippets fly into one file that bundles them as a PDF and ZIP, with an item counter ticking up to three; loops seamlessly.</desc>
-  <defs>
-    <linearGradient id="pdf-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <clipPath id="pdf-clip">
-      <rect x="0" y="0" width="320" height="180" rx="14"/>
-    </clipPath>
-  </defs>
-
-  <g clip-path="url(#pdf-clip)">
-    <!-- caption: states the feature plainly -->
-    <text id="pdf-cap" x="160" y="25" font-family="-apple-system, system-ui, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#1a1d26">3 clips <tspan fill="#5b6bf0">&#8594;</tspan> one file</text>
-
-    <!-- target file / bundle stack -->
-    <g transform="translate(96 62)">
-      <rect x="4" y="6" width="64" height="80" rx="10" fill="#f5f7fb" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="2" y="3" width="64" height="80" rx="10" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="0" y="0" width="64" height="80" rx="10" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <path d="M50 0 L64 14 L50 14 Z" fill="#eef1ff" stroke="#e6e9f0" stroke-width="1.5" stroke-linejoin="round"/>
-
-      <!-- PDF tag -->
-      <rect x="9" y="20" width="36" height="18" rx="5" fill="url(#pdf-grad)"/>
-      <text x="27" y="33" font-family="-apple-system, system-ui, sans-serif" font-size="10" font-weight="700" text-anchor="middle" fill="#ffffff">PDF</text>
-      <!-- ZIP tag -->
-      <rect x="9" y="44" width="36" height="18" rx="5" fill="#14b8a6"/>
-      <text x="27" y="57" font-family="-apple-system, system-ui, sans-serif" font-size="10" font-weight="700" text-anchor="middle" fill="#ffffff">ZIP</text>
-
-      <!-- count badge: holds 3 at t=0, empties off-cycle, refills 1-2-3, ends on 3 -->
-      <circle cx="50" cy="66" r="10" fill="#f59e0b"/>
-      <g font-family="-apple-system, system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#ffffff">
-        <text x="50" y="70" opacity="0">1<animate attributeName="opacity" values="0;0;1;1;0;0;0" keyTimes="0;0.2;0.26;0.44;0.5;0.95;1" dur="4s" repeatCount="indefinite"/></text>
-        <text x="50" y="70" opacity="0">2<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.44;0.5;0.66;0.72;1" dur="4s" repeatCount="indefinite"/></text>
-        <text x="50" y="70" opacity="1">3<animate attributeName="opacity" values="1;1;0;0;1;1" keyTimes="0;0.14;0.2;0.7;0.72;1" dur="4s" repeatCount="indefinite"/></text>
-      </g>
-
-      <!-- gentle pulse each time a clip lands -->
-      <animateTransform attributeName="transform" additive="sum" type="scale"
-        values="1;1;1.05;1;1.05;1;1.05;1" keyTimes="0;0.18;0.24;0.32;0.5;0.58;0.72;1" dur="4s" repeatCount="indefinite"/>
-    </g>
-
-    <!-- incoming clip 1 (lands first) -->
-    <g opacity="0">
-      <rect x="250" y="44" width="50" height="36" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="257" y="53" width="30" height="3" rx="1.5" fill="#9aa3b2"/>
-      <rect x="257" y="60" width="36" height="3" rx="1.5" fill="#e6e9f0"/>
-      <rect x="257" y="67" width="22" height="3" rx="1.5" fill="#e6e9f0"/>
-      <animateTransform attributeName="transform" type="translate"
-        values="0 0; -126 18; -126 18; -126 18" keyTimes="0;0.22;0.6;1" dur="4s" repeatCount="indefinite"/>
-      <animate attributeName="opacity"
-        values="0; 1; 1; 0; 0" keyTimes="0;0.06;0.18;0.24;1" dur="4s" repeatCount="indefinite"/>
-    </g>
-
-    <!-- incoming clip 2 -->
-    <g opacity="0">
-      <rect x="262" y="98" width="50" height="36" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="269" y="107" width="34" height="3" rx="1.5" fill="#9aa3b2"/>
-      <rect x="269" y="114" width="26" height="3" rx="1.5" fill="#e6e9f0"/>
-      <rect x="269" y="121" width="38" height="3" rx="1.5" fill="#e6e9f0"/>
-      <animateTransform attributeName="transform" type="translate"
-        values="0 0; 0 0; -154 -30; -154 -30; -154 -30" keyTimes="0;0.2;0.46;0.6;1" dur="4s" repeatCount="indefinite"/>
-      <animate attributeName="opacity"
-        values="0; 0; 1; 1; 0; 0" keyTimes="0;0.2;0.3;0.42;0.48;1" dur="4s" repeatCount="indefinite"/>
-    </g>
-
-    <!-- incoming clip 3 (lands last) -->
-    <g opacity="0">
-      <rect x="246" y="122" width="50" height="36" rx="7" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-      <rect x="253" y="131" width="32" height="3" rx="1.5" fill="#9aa3b2"/>
-      <rect x="253" y="138" width="24" height="3" rx="1.5" fill="#e6e9f0"/>
-      <rect x="253" y="145" width="34" height="3" rx="1.5" fill="#e6e9f0"/>
-      <animateTransform attributeName="transform" type="translate"
-        values="0 0; 0 0; -136 -52; -136 -52; -136 -52" keyTimes="0;0.44;0.7;0.84;1" dur="4s" repeatCount="indefinite"/>
-      <animate attributeName="opacity"
-        values="0; 0; 1; 1; 0; 0" keyTimes="0;0.44;0.54;0.66;0.72;1" dur="4s" repeatCount="indefinite"/>
-    </g>
-  </g>
-</svg></div><h3>Bundle context</h3><p>Multi-select clips and combine them into a <b>PDF or ZIP</b> to upload a whole context to the AI in one shot. Group into collections.</p></div>
-      <div class="card"><div class="media"><svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lang-title lang-desc">
-  <title id="lang-title">Interface in 8 languages</title>
-  <desc id="lang-desc">A Klip app window whose menu language label cycles through English, Spanish, Japanese and more, next to a globe badge marked with the number eight, showing the interface available in eight languages.</desc>
-  <defs>
-    <linearGradient id="lang-clip-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5b6bf0"/>
-      <stop offset="1" stop-color="#4453d6"/>
-    </linearGradient>
-    <radialGradient id="lang-globe-grad" cx="0.36" cy="0.32" r="0.8">
-      <stop offset="0" stop-color="#eef1ff"/>
-      <stop offset="1" stop-color="#5b6bf0"/>
-    </radialGradient>
-    <clipPath id="lang-globe-clip"><circle cx="246" cy="64" r="22"/></clipPath>
-    <clipPath id="lang-panel-clip"><rect x="26" y="40" width="172" height="104" rx="12"/></clipPath>
-  </defs>
-
-  <!-- Klip window panel -->
-  <rect x="26" y="40" width="172" height="104" rx="12" fill="#ffffff" stroke="#e6e9f0" stroke-width="1.5"/>
-  <!-- title bar + macOS dots -->
-  <path d="M26 52 a12 12 0 0 1 12 -12 h148 a12 12 0 0 1 12 12 v8 H26 Z" fill="#f5f7fb"/>
-  <circle cx="40" cy="50" r="3" fill="#ef4444"/>
-  <circle cx="51" cy="50" r="3" fill="#f5b50a"/>
-  <circle cx="62" cy="50" r="3" fill="#25d366"/>
-  <!-- indigo clip mark -->
-  <path d="M171 45 v8 a5 5 0 0 1 -10 0 v-7 a3 3 0 0 1 6 0 v6" fill="none" stroke="#5b6bf0" stroke-width="2" stroke-linecap="round"/>
-
-  <!-- settings row: "Language" label + value pill that cycles -->
-  <text x="40" y="82" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#5a6270">Language</text>
-
-  <g clip-path="url(#lang-panel-clip)">
-    <rect x="112" y="71" width="74" height="18" rx="9" fill="#eef1ff" stroke="#e6e9f0" stroke-width="1"/>
-    <g font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#4453d6" text-anchor="middle">
-      <!-- one text node per language, faded in/out in a held sequence; seamless 8s loop -->
-      <text x="149" y="84" opacity="0">English
-        <animate attributeName="opacity" values="1;1;0;0;0;0;0;0;0;1" keyTimes="0;0.1;0.14;0.26;0.4;0.54;0.68;0.82;0.96;1" dur="8s" repeatCount="indefinite"/>
-      </text>
-      <text x="149" y="84" opacity="0">Español
-        <animate attributeName="opacity" values="0;0;1;1;0;0;0;0;0;0" keyTimes="0;0.1;0.14;0.26;0.3;0.4;0.54;0.68;0.82;1" dur="8s" repeatCount="indefinite"/>
-      </text>
-      <text x="149" y="84" opacity="0">日本語
-        <animate attributeName="opacity" values="0;0;0;1;1;0;0;0;0;0" keyTimes="0;0.26;0.3;0.4;0.54;0.58;0.68;0.82;0.96;1" dur="8s" repeatCount="indefinite"/>
-      </text>
-      <text x="149" y="84" opacity="0">中文
-        <animate attributeName="opacity" values="0;0;0;0;1;1;0;0;0;0" keyTimes="0;0.4;0.54;0.58;0.68;0.72;0.82;0.96;0.98;1" dur="8s" repeatCount="indefinite"/>
-      </text>
-      <text x="149" y="84" opacity="0">Deutsch
-        <animate attributeName="opacity" values="0;0;0;0;0;1;1;0;0;0" keyTimes="0;0.54;0.68;0.72;0.82;0.86;0.96;0.98;0.99;1" dur="8s" repeatCount="indefinite"/>
-      </text>
-    </g>
-  </g>
-
-  <!-- caption -->
-  <text x="40" y="116" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#1a1d26">8 languages</text>
-  <text x="40" y="132" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="9.5" fill="#9aa3b2">switch the whole interface</text>
-
-  <!-- globe badge with "8" -->
-  <circle cx="246" cy="64" r="22" fill="url(#lang-globe-grad)" stroke="#4453d6" stroke-width="1.5"/>
-  <g clip-path="url(#lang-globe-clip)" stroke="#ffffff" stroke-width="1" fill="none" opacity="0.7" stroke-linecap="round">
-    <ellipse cx="246" cy="64" rx="9" ry="22"/>
-    <line x1="224" y1="64" x2="268" y2="64"/>
-    <path d="M228 52 H264"/>
-    <path d="M228 76 H264"/>
-  </g>
-  <circle cx="246" cy="64" r="9" fill="#ffffff"/>
-  <text x="246" y="68" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="800" fill="#4453d6" text-anchor="middle">8</text>
-
-  <!-- orbiting dot to signal "global / changing", seamless -->
-  <g>
-    <animateTransform attributeName="transform" type="rotate" from="0 246 64" to="360 246 64" dur="8s" repeatCount="indefinite"/>
-    <circle cx="246" cy="36" r="3" fill="url(#lang-clip-grad)"/>
-  </g>
-</svg></div><h3>8 languages</h3><p>Interface in English, Spanish, French, German, Italian, Portuguese, Chinese &amp; Japanese.</p></div>
-    </div>
-    <div style="text-align:center;margin-top:28px"><a class="btn primary" href="#install">⚡ Install Klip free</a></div>
-  </div>
-</section>
-
-<section id="shortcuts">
-  <div class="wrap">
-    <h2>One comfortable shortcut family</h2>
-    <p class="lead"><kbd>⌥⇧</kbd> + a letter, grouped by function on the left of the keyboard — and fully configurable.</p>
+    <h2>Shortcuts</h2>
+    <p class="lead"><kbd>⌥⇧</kbd> + a letter, grouped by function — fully configurable.</p>
     <div class="keys">
-      <div class="row"><span><kbd>⌥⇧E</kbd></span><span>Open the history panel</span></div>
+      <div class="row"><span><kbd>⌥⇧E</kbd></span><span>Open the clipboard history</span></div>
       <div class="row"><span><kbd>⌥⇧R</kbd></span><span>Record / stop a voice note</span></div>
-      <div class="row"><span><kbd>⌥⇧D</kbd></span><span>Capture a region &amp; annotate (draw)</span></div>
+      <div class="row"><span><kbd>⌥⇧D</kbd></span><span>Capture a region &amp; annotate</span></div>
       <div class="row"><span><kbd>⌥⇧F</kbd></span><span>Fast text capture → OCR to clipboard</span></div>
-      <div class="row"><span><kbd>⌥⇧O</kbd></span><span>Open the “upload audio” window</span></div>
-      <div class="row"><span><kbd>⌘↩</kbd></span><span>Copy the selected item as a code block</span></div>
-    </div>
-  </div>
-</section>
-
-<section id="privacy" style="background:var(--bg2)">
-  <div class="wrap">
-    <h2>Private by design</h2>
-    <p class="lead">Your history never leaves your Mac unless you choose a cloud transcriber.</p>
-    <div class="strip">
-      <div><div class="ico">💻</div><b>Local-first</b><p>History, images &amp; audio stay on your Mac with <code>0600</code> permissions.</p></div>
-      <div><div class="ico">🔐</div><b>Encrypted keys</b><p>Credentials AES-256-GCM encrypted at rest; the key lives in the Keychain.</p></div>
-      <div><div class="ico">📡</div><b>Offline transcription</b><p>On-device Whisper by default — no API key, no upload.</p></div>
-      <div><div class="ico">🚫</div><b>No telemetry</b><p>Nothing is tracked. Ignores password-manager content; exclude any app.</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="faq">
-  <div class="wrap">
-    <h2>Is it safe to run?</h2>
-    <p class="lead">Klip is open source — you can read every line before you run it.</p>
-    <div class="why">
-      <div><b>Does it phone home?</b><p>No telemetry, no analytics. Nothing leaves your Mac except the audio you explicitly send to OpenAI/Gemini — and transcription is <b>on-device by default</b>, so even that is opt-in.</p></div>
-      <div><b>Is the source auditable?</b><p>100% MIT-licensed on <a href="https://github.com/tamibot/klip">GitHub</a>. It builds with the Xcode Command Line Tools — no opaque binaries, no hidden build step.</p></div>
-      <div><b>What permissions does it ask for?</b><p>Accessibility (auto-paste) and Screen Recording (capture) — requested once, only when you first use those features. Nothing else.</p></div>
-      <div><b>Is the build signed?</b><p><code>install.sh</code> creates a local signing certificate so macOS remembers permissions across updates. Notarized distribution is on the roadmap.</p></div>
-      <div><b>Where does my data live?</b><p>Only on your Mac, in <code>~/Library/Application Support/Klip</code> (<code>0600</code>). Credentials are AES-256-GCM encrypted at rest, key in the Keychain.</p></div>
-      <div><b>Is it really free?</b><p>Yes — free and open source under MIT. Use it, fork it, ship it.</p></div>
-      <div><b>Do I need an M1 / Apple Silicon Mac?</b><p>No. Klip runs on <b>Intel and Apple Silicon</b> Macs — the only requirement is macOS 14 (Sonoma)+. On-device transcription is faster on Apple Silicon's Neural Engine, but works on Intel too.</p></div>
-      <div><b>Does it work on Windows?</b><p>Not yet — Klip is macOS only for now. A <b>Windows version is coming soon</b>.</p></div>
-      <div><b>Can I contribute?</b><p>Please do. We're <b>open to issues, pull requests and ideas</b> on <a href="https://github.com/tamibot/klip">GitHub</a> — feature requests and improvements welcome.</p></div>
+      <div class="row"><span><kbd>⌥⇧O</kbd></span><span>Upload an audio file to transcribe</span></div>
+      <div class="row"><span><kbd>⌘↩</kbd></span><span>Copy the selected clip as a code block</span></div>
     </div>
   </div>
 </section>
 
 <section id="install">
   <div class="wrap">
-    <h2>⚡ Get Klip</h2>
-    <p class="lead">Grab the app, or build from source with just the Xcode Command Line Tools — no full Xcode.</p>
-    <div style="text-align:center;margin-bottom:22px">
-      <a class="btn primary" href="https://github.com/tamibot/klip/releases/latest">⬇ Download Klip.app</a>
-      <p class="note" style="margin-top:8px">One-click app · or build from source below</p>
-    </div>
+    <h2>Install</h2>
+    <p class="lead">Build from source with just the Xcode Command Line Tools — no full Xcode.</p>
     <div class="install">
-<pre><span class="c"># 1. Command Line Tools (if you don't have them)</span>
+<pre><span class="c"># Command Line Tools (if you don't have them)</span>
 xcode-select --install
 
-<span class="c"># 2. Clone &amp; install</span>
+<span class="c"># Clone &amp; install</span>
 <span class="g">git</span> clone https://github.com/tamibot/klip.git klip
 <span class="g">cd</span> klip
 <span class="g">./install.sh</span></pre>
     </div>
     <div class="steps">
-      <div><span class="n">1</span><b>It builds &amp; signs</b> Klip, copies it to <code>/Applications</code> and launches it.</div>
-      <div><span class="n">2</span>The <b>📋 icon</b> appears in the menu bar. Press <kbd>⌥⇧E</kbd> to open the history.</div>
-      <div><span class="n">3</span>Grant <b>Accessibility</b> for auto-paste and <b>Screen Recording</b> on first capture — asked once.</div>
-      <div><span class="n">4</span><b>Optional:</b> add an OpenAI/Gemini key for cloud transcription (stored in a local <code>0600</code> file).</div>
+      <div><span class="n">1</span><b>It builds &amp; installs</b> Klip to <code>/Applications</code> and launches it.</div>
+      <div><span class="n">2</span>The <b>📋 icon</b> appears in the menu bar — press <kbd>⌥⇧E</kbd> to open it.</div>
+      <div><span class="n">3</span>Grant <b>Accessibility</b> (auto-paste) and <b>Screen Recording</b> (capture) when asked — once.</div>
     </div>
-    <p class="lead" style="margin-top:26px">Want to look first? <a href="https://github.com/tamibot/klip"><code>build.sh</code> makes a <code>Klip.app</code></a> without installing.</p>
+    <p class="macnote">🖥️ Currently macOS only (14 Sonoma+, Intel or Apple Silicon). A Windows version is coming soon. A prebuilt download will land on the <a href="https://github.com/tamibot/klip/releases/latest">GitHub releases</a> page.</p>
   </div>
 </section>
 
-<footer>
+<section>
   <div class="wrap">
-    <p>📋 <b>Klip</b> — made for people who build with AI.<br>
-    Free &amp; open source under <a href="https://github.com/tamibot/klip/blob/main/LICENSE">MIT</a> · by <a href="https://github.com/tamibot">@tamibot</a> · <a href="https://github.com/tamibot/klip">github.com/tamibot/klip</a></p>
+    <h2>FAQ</h2>
+    <p class="lead">Open source — read every line before you run it.</p>
+    <div class="faq">
+      <div><b>Do I need an M1 / Apple Silicon Mac?</b><p>No. Klip runs on <b>Intel and Apple Silicon</b> — the only requirement is macOS 14 (Sonoma)+. On-device transcription is faster on Apple Silicon, but works on Intel.</p></div>
+      <div><b>Does it work on Windows?</b><p>Not yet — macOS only for now. A <b>Windows version is coming soon</b>.</p></div>
+      <div><b>Is it private?</b><p>No telemetry, nothing tracked. Clips stay on your Mac; transcription is on-device by default. Cloud transcription (OpenAI/Gemini) is opt-in.</p></div>
+      <div><b>Is it safe to run?</b><p>100% MIT open source — auditable on <a href="https://github.com/tamibot/klip">GitHub</a>. It only asks for Accessibility and Screen Recording, and only when you use those features.</p></div>
+      <div><b>Is it free?</b><p>Yes — free and open source under MIT.</p></div>
+      <div><b>Can I contribute?</b><p>Please do — we're <b>open to issues, pull requests and ideas</b> on <a href="https://github.com/tamibot/klip">GitHub</a>.</p></div>
+    </div>
   </div>
-</footer>
+</section>
 
-<script>
-  // Respect reduced-motion for the SMIL animations (CSS can't pause SMIL).
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.querySelectorAll('svg').forEach(s => { if (s.pauseAnimations) { s.pauseAnimations(); s.setCurrentTime(0); } });
-  }
-</script>
+<footer class="wrap">
+  📋 <b>Klip</b> — the copy manager for vibe coders · Free &amp; open source under
+  <a href="https://github.com/tamibot/klip/blob/main/LICENSE">MIT</a> ·
+  <a href="https://github.com/tamibot/klip">github.com/tamibot/klip</a>
+</footer>
 
 </body>
 </html>
