@@ -8,10 +8,16 @@
 <meta property="og:title" content="Klip — the clipboard manager for vibe coders">
 <meta property="og:description" content="Everything you copy while building with AI — code, errors, screenshots, prompts and keys — one shortcut away. Native, private, free.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://tamibot.github.io/klip/">
+<meta property="og:image" content="https://tamibot.github.io/klip/klip-preview.gif">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Klip — the clipboard manager for vibe coders">
+<meta name="twitter:description" content="Everything you copy while building with AI — one shortcut away. Native, private, free.">
+<meta name="twitter:image" content="https://tamibot.github.io/klip/klip-preview.gif">
 <style>
   :root{
     --bg:#ffffff; --bg2:#f5f7fb; --card:#ffffff; --line:#e6e9f0;
-    --txt:#1a1d26; --muted:#6b7280; --accent:#5b6bf0; --accent-deep:#4453d6; --accent2:#14b8a6; --amber:#f59e0b;
+    --txt:#1a1d26; --muted:#5a6270; --accent:#5b6bf0; --accent-deep:#4453d6; --accent2:#14b8a6; --amber:#f59e0b;
     --radius:16px; --maxw:1060px;
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -26,7 +32,8 @@
   .pill{display:inline-block;font-size:.8rem;color:var(--accent-deep);border:1px solid var(--line);background:var(--bg2);padding:5px 12px;border-radius:999px;margin-bottom:18px;font-weight:500}
   /* hero */
   header{text-align:center;padding:64px 0 30px;background:radial-gradient(900px 440px at 50% -8%, #eef1ff 0%, rgba(238,241,255,0) 70%)}
-  h1{font-size:clamp(2.4rem,6vw,4rem);margin:.1em 0 .15em;letter-spacing:-.02em}
+  .brand{display:flex;justify-content:center;align-items:center;gap:6px;font-size:1.05rem;font-weight:700;color:var(--txt);margin:18px 0 2px;letter-spacing:-.01em}
+  h1{font-size:clamp(2rem,5vw,3.3rem);margin:.1em auto .2em;letter-spacing:-.02em;max-width:18ch}
   .tag{font-size:clamp(1.05rem,2.4vw,1.4rem);color:var(--txt);font-weight:600;margin:0 auto;max-width:720px}
   .sub{color:var(--muted);max-width:640px;margin:14px auto 0}
   .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:28px 0 8px}
@@ -53,6 +60,7 @@
   .card h3{margin:.2em 0 .25em;font-size:1.12rem;padding:0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .card p{margin:0 0 6px;color:var(--muted);font-size:.95rem;padding:0 6px}
   kbd{font-family:var(--mono);font-size:.8em;background:#f0f2f8;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;color:#3a4252;white-space:nowrap;font-weight:500}
+  code{font-family:var(--mono);font-size:.88em;background:var(--bg2);padding:1px 5px;border-radius:5px;color:var(--accent-deep);overflow-wrap:anywhere}
   /* shortcuts */
   .keys{max-width:560px;margin:0 auto;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff;box-shadow:var(--shadow)}
   .keys .row{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;border-top:1px solid var(--line)}
@@ -75,6 +83,7 @@
   .strip p{margin:0;color:var(--muted);font-size:.9rem}
   footer{border-top:1px solid var(--line);padding:34px 0 60px;text-align:center;color:var(--muted);font-size:.9rem;background:var(--bg2)}
   .macnote{max-width:680px;margin:24px auto 0;background:#fffaf0;border:1px solid #fde9bf;border-radius:12px;padding:12px 18px;color:#8a6418;font-size:.9rem;text-align:center}
+  @media (max-width:640px){ .cta{flex-direction:column;align-items:stretch} .btn{width:100%} }
   @media (prefers-reduced-motion: reduce){ svg *{animation:none!important;transition:none!important} }
 </style>
 </head>
@@ -82,16 +91,18 @@
 
 <header>
   <div class="wrap">
-    <span class="pill">🍎 Native macOS · 🆓 Free &amp; open source (MIT) · 🔒 No telemetry</span>
-    <h1>📋 Klip</h1>
+    <span class="pill">🍎 Native macOS 14+ · 🆓 Free &amp; open source (MIT) · 🔒 No telemetry</span>
+    <span class="brand">📋 Klip</span>
+    <h1>Stop losing what you copy while coding with AI</h1>
     <p class="tag">The clipboard manager for vibe coders — native to Mac.</p>
     <p class="sub">Everything you copy while building with AI — code, errors, screenshots, prompts and API keys — one shortcut away. Lives in the menu bar: light, fast and private.</p>
     <div class="cta">
-      <a class="btn primary" href="#install">⚡ Install</a>
+      <a class="btn primary" href="#install">⚡ Install free</a>
       <a class="btn ghost" href="https://github.com/tamibot/klip">★ View on GitHub</a>
     </div>
+    <div style="margin-top:16px"><a href="https://github.com/tamibot/klip"><img src="https://img.shields.io/github/stars/tamibot/klip?style=for-the-badge&amp;logo=github&amp;label=Star&amp;color=5b6bf0" alt="Star Klip on GitHub" height="26"></a></div>
     <div class="badges">Swift · no Electron · runs offline · your data stays on your Mac</div>
-    <img class="shot" src="klip-preview.gif" alt="Klip in action: snip a screen region, it lands in Klip, pull its text with OCR, and record a voice note that transcribes itself.">
+    <img class="shot" src="klip-preview.gif" width="720" height="420" decoding="async" alt="Klip in action: snip a screen region, it lands in Klip, pull its text with OCR, and record a voice note that transcribes itself.">
     <p class="note">Snip an area → it lands in Klip → pull the text (OCR) · and record a voice note that transcribes itself.</p>
     <div class="macnote">🖥️ Mac only for now — requires <b>macOS 14 (Sonoma)+</b> (Apple Silicon or Intel). A Windows version is planned.</div>
   </div>
@@ -810,10 +821,29 @@
   </div>
 </section>
 
+<section id="faq">
+  <div class="wrap">
+    <h2>Is it safe to run?</h2>
+    <p class="lead">Klip is open source — you can read every line before you run it.</p>
+    <div class="why">
+      <div><b>Does it phone home?</b><p>No telemetry, no analytics. Nothing leaves your Mac except the audio you explicitly send to OpenAI/Gemini — and transcription is <b>on-device by default</b>, so even that is opt-in.</p></div>
+      <div><b>Is the source auditable?</b><p>100% MIT-licensed on <a href="https://github.com/tamibot/klip">GitHub</a>. It builds with the Xcode Command Line Tools — no opaque binaries, no hidden build step.</p></div>
+      <div><b>What permissions does it ask for?</b><p>Accessibility (auto-paste) and Screen Recording (capture) — requested once, only when you first use those features. Nothing else.</p></div>
+      <div><b>Is the build signed?</b><p><code>install.sh</code> creates a local signing certificate so macOS remembers permissions across updates. Notarized distribution is on the roadmap.</p></div>
+      <div><b>Where does my data live?</b><p>Only on your Mac, in <code>~/Library/Application Support/Klip</code> (<code>0600</code>). Credentials are AES-256-GCM encrypted at rest, key in the Keychain.</p></div>
+      <div><b>Is it really free?</b><p>Yes — free and open source under MIT. Use it, fork it, ship it.</p></div>
+    </div>
+  </div>
+</section>
+
 <section id="install">
   <div class="wrap">
-    <h2>⚡ Install in 30 seconds</h2>
-    <p class="lead">Builds with just the Xcode Command Line Tools — no full Xcode, no Homebrew.</p>
+    <h2>⚡ Get Klip</h2>
+    <p class="lead">Grab the app, or build from source with just the Xcode Command Line Tools — no full Xcode.</p>
+    <div style="text-align:center;margin-bottom:22px">
+      <a class="btn primary" href="https://github.com/tamibot/klip/releases/latest">⬇ Download Klip.app</a>
+      <p class="note" style="margin-top:8px">One-click app · or build from source below</p>
+    </div>
     <div class="install">
 <pre><span class="c"># 1. Command Line Tools (if you don't have them)</span>
 xcode-select --install
