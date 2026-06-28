@@ -243,12 +243,13 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         panel.setAction(#selector(customColorChanged(_:)))
         panel.color = canvas.effectiveColor
         panel.isContinuous = true
+        canvas.armColorCoalescing()   // the continuous drag that follows is ONE undo step, not dozens
         panel.makeKeyAndOrderFront(nil)
     }
 
     @objc private func customColorChanged(_ sender: NSColorPanel) {
         colorIndex = -1                                        // custom color: no preset marked
-        canvas.setColor(sender.color)
+        canvas.setColorCoalesced(sender.color)
         refreshColorSwatches()
     }
 

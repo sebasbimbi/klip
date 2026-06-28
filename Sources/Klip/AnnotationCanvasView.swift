@@ -248,6 +248,25 @@ final class AnnotationCanvasView: NSView {
         needsDisplay = true
     }
 
+    /// Color-panel drags fire continuously (isContinuous), so a plain setColor per tick would flood the
+    /// 50-entry undo stack and wipe real history. armColorCoalescing() re-arms before a drag; the FIRST
+    /// coalesced change snapshots once, the rest recolor in place.
+    private var colorCoalescingArmed = false
+    func armColorCoalescing() { colorCoalescingArmed = true }
+
+    func setColorCoalesced(_ color: NSColor) {
+        if colorCoalescingArmed {
+            colorCoalescingArmed = false
+            if selectedTextID != nil { pushUndo() }   // one snapshot for the whole drag
+        }
+        currentColor = color
+        if let field = activeTextField { field.textColor = color; editColor = color }
+        if let id = selectedTextID, let idx = annotations.firstIndex(where: { $0.id == id }) {
+            annotations[idx].color = color   // no pushUndo: already snapshotted at drag start
+        }
+        needsDisplay = true
+    }
+
     /// Sets the default color for FUTURE strokes only — never recolors a committed selected annotation.
     /// Used on tool switches so changing tools doesn't silently rewrite an existing text's color.
     func setDefaultColor(_ color: NSColor) {

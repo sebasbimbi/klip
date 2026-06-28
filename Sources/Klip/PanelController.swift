@@ -58,6 +58,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private func buildPanel() {
         recorder.onVoiceNoteStarted = { [weak self] fn, dur in self?.manager.beginVoiceNote(audioFileName: fn, duration: dur) }
         recorder.onVoiceNoteTranscribed = { [weak self] id, text in self?.manager.finishVoiceNote(id: id, text: text) }
+        recorder.onVoiceNoteDuration = { [weak self] id, dur in self?.manager.setVoiceNoteDuration(id: id, duration: dur) }
         recorder.onVoiceNoteFailed = { [weak self] id in self?.manager.failVoiceNote(id: id) }
         recorder.onVoiceNoteRetrying = { [weak self] id in self?.manager.markVoiceNoteTranscribing(id: id) }
         recorder.onVoiceNoteDownloadingModel = { [weak self] id in self?.manager.markVoiceNoteDownloadingModel(id: id) }
@@ -325,10 +326,12 @@ final class PanelController: NSObject, NSWindowDelegate {
         guard !items.isEmpty, !exportInFlight else { return }   // don't overlap exports
         exportInFlight = true
         modalCount += 1   // protects the panel through the whole generation + save (closes the race window)
+        manager.pauseMonitoring()   // stop the poll's trim from deleting selected media mid-generation
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Storage.shared.combinedPDF(from: items)
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.manager.resumeMonitoring()   // media reads are done
                 guard let result else {   // nothing exportable: warn instead of "the button does nothing"
                     self.modalCount -= 1; self.exportInFlight = false
                     self.showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info"))
@@ -368,9 +371,11 @@ final class PanelController: NSObject, NSWindowDelegate {
             guard let self else { return }
             self.modalCount -= 1
             guard resp == .OK, let url = sp.url else { self.exportInFlight = false; return }
+            self.manager.pauseMonitoring()   // stop the poll's trim from deleting selected media mid-copy
             DispatchQueue.global(qos: .userInitiated).async {
                 let err: Error? = { do { try Storage.shared.exportItemsZip(items, to: url); return nil } catch { return error } }()
                 DispatchQueue.main.async {
+                    self.manager.resumeMonitoring()
                     self.exportInFlight = false
                     if let err { self.showAlert(L10n.t("export.empty.title"), err.localizedDescription) }   // don't fail silently
                 }

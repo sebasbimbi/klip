@@ -118,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.t("menu.quit"), action: #selector(quit), keyEquivalent: "q")
         menu.items.forEach { if $0.target == nil { $0.target = self } }
+        menu.delegate = self   // menuNeedsUpdate refreshes the launch-at-login checkmark from current SMAppService state
         statusItem.menu = menu
     }
 
@@ -147,6 +148,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private func registerHotKey(_ kind: ShortcutKind, _ c: KeyCombo) {
+        switch kind {
+        case .panel: makePanelHotKey(c)
+        case .voice: makeVoiceHotKey(c)
+        case .capture: makeCaptureHotKey(c)
+        case .upload: makeUploadHotKey(c)
+        case .textCapture: makeTextCaptureHotKey(c)
+        }
+    }
+    private func hotKeyLive(_ kind: ShortcutKind) -> Bool {
+        switch kind {
+        case .panel: return hotKey != nil
+        case .voice: return voiceHotKey != nil
+        case .capture: return captureHotKey != nil
+        case .upload: return uploadHotKey != nil
+        case .textCapture: return textCaptureHotKey != nil
+        }
+    }
+    /// After moving a LIVE shortcut, make sure it actually registered; if the OS rejected the combo (another
+    /// app owns it) fall through to the first registerable suggestion, so dedup never persists a dead combo.
+    private func ensureLiveRegistered(_ kind: ShortcutKind, avoiding taken: [KeyCombo], commit: (KeyCombo) -> Void) {
+        guard !hotKeyLive(kind) else { return }
+        for cand in KeyCombo.suggestions where !taken.contains(cand) {
+            registerHotKey(kind, cand)
+            if hotKeyLive(kind) { commit(cand); return }
+        }
+    }
+
     /// A migration (or a manual edit) can leave two of the three shortcuts on the SAME combo. Carbon registers
     /// each under a distinct id, so BOTH succeed and one keypress fires two actions. Break duplicates before
     /// registering: keep the panel combo, move voice/capture off any clash to a free suggestion (or default).
@@ -160,20 +189,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // call the make*HotKey calls right after handle registration.
         if s.voiceCombo == s.combo {
             let fixed = free([s.combo], .defaultVoiceCombo); s.voiceCombo = fixed; lastGoodVoiceCombo = fixed
-            if voiceHotKey != nil { makeVoiceHotKey(fixed) }
+            if voiceHotKey != nil {
+                makeVoiceHotKey(fixed)
+                ensureLiveRegistered(.voice, avoiding: [s.combo]) { s.voiceCombo = $0; lastGoodVoiceCombo = $0 }
+            }
         }
         if s.captureCombo == s.combo || s.captureCombo == s.voiceCombo {
             let fixed = free([s.combo, s.voiceCombo], .defaultCaptureCombo); s.captureCombo = fixed; lastGoodCaptureCombo = fixed
-            if captureHotKey != nil { makeCaptureHotKey(fixed) }
+            if captureHotKey != nil {
+                makeCaptureHotKey(fixed)
+                ensureLiveRegistered(.capture, avoiding: [s.combo, s.voiceCombo]) { s.captureCombo = $0; lastGoodCaptureCombo = $0 }
+            }
         }
         if s.uploadCombo == s.combo || s.uploadCombo == s.voiceCombo || s.uploadCombo == s.captureCombo {
             let fixed = free([s.combo, s.voiceCombo, s.captureCombo], .defaultUploadCombo); s.uploadCombo = fixed; lastGoodUploadCombo = fixed
-            if uploadHotKey != nil { makeUploadHotKey(fixed) }
+            if uploadHotKey != nil {
+                makeUploadHotKey(fixed)
+                ensureLiveRegistered(.upload, avoiding: [s.combo, s.voiceCombo, s.captureCombo]) { s.uploadCombo = $0; lastGoodUploadCombo = $0 }
+            }
         }
         let used = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo]
         if used.contains(s.textCaptureCombo) {
             let fixed = free(used, .defaultTextCaptureCombo); s.textCaptureCombo = fixed; lastGoodTextCaptureCombo = fixed
-            if textCaptureHotKey != nil { makeTextCaptureHotKey(fixed) }
+            if textCaptureHotKey != nil {
+                makeTextCaptureHotKey(fixed)
+                ensureLiveRegistered(.textCapture, avoiding: used) { s.textCaptureCombo = $0; lastGoodTextCaptureCombo = $0 }
+            }
         }
     }
 
@@ -340,6 +381,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // "Recents" submenu: rebuilt every time it's opened.
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === statusItem.menu {   // approval can happen in System Settings while we run → reflect it on open
+            launchItem?.state = LoginItem.shared.isEnabledOrPending ? .on : .off
+            return
+        }
         guard menu === recentsMenu else { return }
         menu.removeAllItems()
         let items = manager.items.sorted { $0.createdAt > $1.createdAt }.prefix(10)
@@ -445,10 +490,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sp.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
         sp.begin { [weak self] resp in
-            guard resp == .OK, let url = sp.url else { return }
+            guard resp == .OK, let url = sp.url, let self else { return }
+            self.manager.pauseMonitoring()   // keep the poll from adding/trimming media mid-copy (it would corrupt the zip)
             DispatchQueue.global(qos: .userInitiated).async {   // ditto + heavy copy: off the main thread
-                do { try Storage.shared.exportBackup(to: url) }
-                catch { DispatchQueue.main.async { self?.showAlert(L10n.t("export.fail"), error.localizedDescription) } }
+                do {
+                    try Storage.shared.exportBackup(to: url)
+                    DispatchQueue.main.async { self.manager.resumeMonitoring() }
+                } catch {
+                    DispatchQueue.main.async { self.showAlert(L10n.t("export.fail"), error.localizedDescription); self.manager.resumeMonitoring() }
+                }
             }
         }
     }

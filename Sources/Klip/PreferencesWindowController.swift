@@ -37,6 +37,10 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)   // back to a menu-bar app (no Dock)
+        // Back to a menu-bar app (no Dock) — but only if we weren't launched as a regular app
+        // (KLIP_REGULAR), otherwise closing Preferences would wrongly strip the Dock icon.
+        if ProcessInfo.processInfo.environment["KLIP_REGULAR"] == nil {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 }

@@ -18,6 +18,8 @@ enum CredentialDetector {
         "-----BEGIN [A-Z ]*PRIVATE KEY-----",                  // PEM private key
         "hf_[A-Za-z0-9]{20,}",                                 // Hugging Face
         "(?i)bearer\\s+[A-Za-z0-9._-]{20,}",                   // Bearer token
+        "(?i)[a-z][a-z0-9+.-]*://[^\\s:/@]+:[^\\s:/@]{6,}@",    // credentials embedded in a URL: scheme://user:pass@host (postgres/mongodb/redis/https…)
+        "(?i)AccountKey=[A-Za-z0-9+/]{40,}={0,2}",             // Azure storage connection string
         "(?i)(api[_-]?key|secret|access[_-]?token|password|token)\\s*[:=]\\s*\"?[A-Za-z0-9._\\-+/]{12,}"
     ]
 

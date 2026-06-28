@@ -15,7 +15,7 @@ final class CaptureOverlayController {
     private let shot: DisplayShot
     private let onComplete: (NSImage?) -> Void
     private var resolved = false               // avoids double-dismiss / firing onComplete twice
-    private var escMonitor: Any?               // safety net: Esc even if the window never becomes key
+    private var escMonitor: Any?               // Esc backup while Klip is active (see present() for the limit)
 
     init(shot: DisplayShot, onComplete: @escaping (NSImage?) -> Void) {
         self.shot = shot
@@ -44,8 +44,9 @@ final class CaptureOverlayController {
         win.makeFirstResponder(view)
         self.window = win
 
-        // Safety net: even if for any reason the window never becomes key, Esc (keyCode 53) always
-        // cancels. Without this, a focus failure would leave the user with no keyboard way out.
+        // Esc backup (keyCode 53) for when the contentView isn't first responder but Klip is still active.
+        // It's a LOCAL monitor, so it can't fire if the overlay never became active at all — in that case a
+        // single click (mouseUp with no drag → onCancel) is the way out, not Esc.
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { self?.dismiss(nil); return nil }
             return event

@@ -276,6 +276,13 @@ final class ClipboardManager: ObservableObject {
         return item.id
     }
 
+    /// Fills in a voice note's audio duration once it's been read off-thread. In-memory only — the
+    /// imminent transcription result (finishVoiceNote/failVoiceNote) persists it, so no extra save here.
+    func setVoiceNoteDuration(id: UUID, duration: Double) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].audioDuration = duration
+    }
+
     /// Marks an item as "Transcribiendo…" again (retry of a failed note).
     func markVoiceNoteTranscribing(id: UUID) {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
@@ -307,12 +314,17 @@ final class ClipboardManager: ObservableObject {
             // pasteboard with the transcription of a note they intentionally removed.
             return
         }
+        // A dictated/transcribed secret must go through the same masking + seal-on-save path as a copied
+        // one — otherwise it would persist in cleartext (text + preview) and auto-paste.
+        let isCred = !clean.isEmpty && CredentialDetector.looksLikeCredential(clean)
         items[idx].text = clean.isEmpty ? nil : clean
-        items[idx].preview = clean.isEmpty ? Self.voiceFailed : Self.voicePreview(clean)
+        items[idx].isCredential = isCred ? true : nil
+        items[idx].preview = clean.isEmpty ? Self.voiceFailed
+                           : isCred ? CredentialDetector.maskedPlaceholder : Self.voicePreview(clean)
         items[idx].transcribing = false
         let item = items[idx]
         trimAndSave()
-        if !clean.isEmpty, canPaste {
+        if !clean.isEmpty, !isCred, canPaste {   // never auto-paste a detected secret
             copyToPasteboard(item)     // only if nothing changed the pasteboard
             rebaselineVoiceGuards()    // OUR own paste isn't a user clobber: keep sibling notes auto-pasteable
         }

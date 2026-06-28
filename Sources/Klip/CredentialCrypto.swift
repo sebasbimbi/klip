@@ -70,7 +70,9 @@ enum CredentialCrypto {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: keyAccount,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,   // available to the background poll
+            // ThisDeviceOnly: available to the background poll, but NOT copied into device/iCloud backups —
+            // so the key can't travel to another Mac and decrypt an exported items.json there.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
         let status = SecItemAdd(add as CFDictionary, nil)
         if status == errSecSuccess { return key }

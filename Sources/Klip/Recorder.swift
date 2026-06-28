@@ -44,6 +44,8 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     var onVoiceNoteStarted: ((String?, Double?) -> UUID?)?
     /// Fills in the transcription on the already-created item.
     var onVoiceNoteTranscribed: ((UUID, String) -> Void)?
+    /// Fills in the audio duration once it's been read off the main thread (avoids a UI hang on bulk uploads).
+    var onVoiceNoteDuration: ((UUID, Double) -> Void)?
     /// The transcription failed or there was no speech: the item keeps the audio to play back/recover.
     var onVoiceNoteFailed: ((UUID) -> Void)?
     /// Retry: marks an existing item as "Transcribiendo…" again.
@@ -106,6 +108,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 rec.delegate = self
                 rec.isMeteringEnabled = true
                 guard rec.prepareToRecord(), rec.record() else {
+                    storage.deleteAudio(fileName: name)   // prepareToRecord() created the file; record() failed → don't orphan it
                     state = .error(L10n.t("rec.err.start")); startRequested = false; return
                 }
                 recorder = rec
@@ -232,7 +235,12 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @MainActor
     func transcribeFiles(_ urls: [URL], language: String? = nil) {
         guard !urls.isEmpty else { return }
-        guard AIProvider.hasKey else { state = .missingAPIKey; return }
+        guard AIProvider.hasKey else {
+            // `state` is shared with a live recording (RecordingView/UploadView both observe it). Only
+            // surface "missing key" through it when idle, so an upload-without-key can't kill an in-progress note.
+            if state != .recording && !finishing { state = .missingAPIKey }
+            return
+        }
         for url in urls {
             let stored = storage.importAudio(from: url)                       // copies to audio/ (nil if it fails)
             let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
@@ -264,8 +272,16 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     /// Doesn't touch `state` (only the counter), so it won't interfere with a new recording in progress.
     @MainActor
     private func enqueueTranscription(audioFileName: String?, transcribeURL: URL, uploadName: String? = nil, language: String? = nil) {
-        let duration = AudioPlayer.duration(of: transcribeURL)
-        let id = onVoiceNoteStarted?(audioFileName, duration)
+        let id = onVoiceNoteStarted?(audioFileName, nil)
+        // Reading the duration constructs an AVAudioPlayer (parses the file) — do it off the main actor so a
+        // bulk upload doesn't freeze the UI, then fill it in. Persisted by the imminent transcription save.
+        if let id {
+            Task { @MainActor in
+                if let dur = await Task.detached(priority: .utility, operation: { AudioPlayer.duration(of: transcribeURL) }).value {
+                    onVoiceNoteDuration?(id, dur)
+                }
+            }
+        }
         if let uploadName, let id {   // show this file's progress + result in the Upload window
             uploadResults.insert(UploadTranscription(id: id, name: uploadName), at: 0)
             // Cap the list: prefer evicting a COMPLETED/failed entry (never an in-flight one — that would
