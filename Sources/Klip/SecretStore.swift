@@ -1,13 +1,13 @@
 import Foundation
 
-/// Local store for the API key, in a file inside the app's support directory.
+/// Almacén local para la API key, en un archivo dentro del directorio de soporte de la app.
 ///
-/// A file (perms 0600) is used instead of the Keychain because, with **ad-hoc** signing,
-/// macOS re-prompts for Keychain permission on every rebuild (the identity changes),
-/// which broke transcription. The file is plain text on your Mac (same level as the
-/// history). For real encryption, sign with a Developer ID and switch back to the Keychain.
+/// Se usa un archivo (permisos 0600) en lugar del Llavero porque, con firma **ad-hoc**,
+/// macOS vuelve a pedir permiso del Llavero en cada rebuild (la identidad cambia),
+/// lo que rompía la transcripción. El archivo es texto plano en tu Mac (mismo nivel que el
+/// historial). Para cifrado real, firma con un Developer ID y vuelve al Llavero.
 enum SecretStore {
-    /// Each provider stores its key in a separate file (0600) in the app's directory.
+    /// Cada proveedor guarda su clave en un archivo separado (0600) en el directorio de la app.
     enum Key: String { case openai = "openai.key", gemini = "gemini.key" }
 
     private static func fileURL(_ k: Key) -> URL {
@@ -20,20 +20,20 @@ enum SecretStore {
         return t.isEmpty ? nil : t
     }
 
-    /// Saves the key and CONFIRMS it by reading it back. Returns `true` only if the file
-    /// was written with exactly the expected value. Propagates the real error if the write fails
-    /// (e.g. directory permissions), instead of swallowing it with `try?`.
+    /// Guarda la clave y la CONFIRMA releyéndola. Devuelve `true` solo si el archivo
+    /// se escribió con exactamente el valor esperado. Propaga el error real si la escritura falla
+    /// (p. ej. permisos del directorio), en lugar de tragárselo con `try?`.
     @discardableResult
     static func set(_ value: String, _ k: Key = .openai) throws -> Bool {
         let t = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return false }
         let url = fileURL(k)
-        // Ensure the base directory exists (Storage creates it, but it doesn't hurt to be safe).
+        // Asegurar que el directorio base exista (Storage lo crea, pero no está de más ir a lo seguro).
         try? FileManager.default.createDirectory(at: Storage.shared.baseURL,
                                                  withIntermediateDirectories: true)
-        try t.write(to: url, atomically: true, encoding: .utf8)   // no try?: let the error propagate
+        try t.write(to: url, atomically: true, encoding: .utf8)   // sin try?: dejar que el error se propague
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-        // Confirmation: reread from disk and compare (detects silently failed writes).
+        // Confirmación: releer del disco y comparar (detecta escrituras fallidas en silencio).
         return get(k) == t
     }
 

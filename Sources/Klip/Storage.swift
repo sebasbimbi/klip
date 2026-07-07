@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import PDFKit
 
-/// On-disk persistence: history metadata (JSON), images (PNG), and temporary audio (m4a).
+/// Persistencia en disco: metadatos del historial (JSON), imágenes (PNG) y audio temporal (m4a).
 final class Storage {
     static let shared = Storage()
 
@@ -19,7 +19,7 @@ final class Storage {
         let newBase = appSupport.appendingPathComponent("Klip", isDirectory: true)
         let oldBase = appSupport.appendingPathComponent("PastaClip", isDirectory: true)
 
-        // Migration: if the old folder exists and the new one does not yet, move it whole (atomic rename).
+        // Migración: si la carpeta antigua existe y la nueva aún no, moverla completa (rename atómico).
         if fm.fileExists(atPath: oldBase.path), !fm.fileExists(atPath: newBase.path) {
             do { try fm.moveItem(at: oldBase, to: newBase) }
             catch { try? fm.copyItem(at: oldBase, to: newBase) }
@@ -31,74 +31,74 @@ final class Storage {
         itemsURL = baseURL.appendingPathComponent("items.json")
         try? fm.createDirectory(at: imagesURL, withIntermediateDirectories: true)
         try? fm.createDirectory(at: audioBaseURL, withIntermediateDirectories: true)
-        // Same as items.json (0600): the store contains personal data (text, voice, images).
+        // Igual que items.json (0600): el almacén contiene datos personales (texto, voz, imágenes).
         Self.restrict(baseURL.path, 0o700)
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
     }
 
-    /// Restricts a file/folder to the owner (privacy consistent with items.json).
+    /// Restringe un archivo/carpeta al propietario (privacidad consistente con items.json).
     static func restrict(_ path: String, _ perms: Int) {
         try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
     }
 
-    // MARK: - History (metadata)
+    // MARK: - Historial (metadatos)
 
-    /// Credential secrets are stored encrypted on disk (see CredentialCrypto). Decrypt them back to
-    /// plaintext for in-memory use; non-credential text and never-encrypted (legacy) text pass through.
+    /// Los secretos de credenciales se guardan cifrados en disco (ver CredentialCrypto). Se descifran de vuelta
+    /// a texto plano para su uso en memoria; el texto no-credencial y el nunca cifrado (legacy) pasan tal cual.
     func decryptCredentials(_ items: [ClipboardItem]) -> [ClipboardItem] {
         items.map { item in
             if item.isCredential == true, let t = item.text, CredentialCrypto.isSealed(t) {
-                // CRITICAL: if open() fails (key from another Mac / Keychain reset), KEEP the sealed token.
-                // Nil'ing it would let the next saveItems write null over the only copy of the secret —
-                // permanent data loss. With the token preserved, saveItems' isSealed guard round-trips it.
+                // CRÍTICO: si open() falla (clave de otro Mac / Llavero reseteado), CONSERVAR el token sellado.
+                // Ponerlo a nil dejaría que el próximo saveItems escriba null sobre la única copia del secreto —
+                // pérdida permanente de datos. Con el token preservado, el guard isSealed de saveItems lo devuelve intacto.
                 guard let plain = CredentialCrypto.open(t) else { return item }
                 var copy = item
                 copy.text = plain
                 return copy
             }
-            // Promote legacy/never-flagged plaintext secrets (captured before this feature, or imported from
-            // an old backup) so the next save seals them — otherwise they'd sit in items.json in the clear.
-            // Uses the HIGH-CONFIDENCE detector: a silent at-rest encrypt+hide must not fire on a kebab/CSS
-            // identifier or a prose "key: value" line.
+            // Promover secretos legacy en texto plano nunca marcados (capturados antes de esta función, o importados
+            // de un respaldo antiguo) para que el próximo guardado los selle — si no, quedarían en claro en items.json.
+            // Usa el detector de ALTA CONFIANZA: un cifrado+ocultado silencioso en reposo no debe dispararse con un
+            // identificador kebab/CSS ni una línea de prosa "clave: valor".
             if item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
                let t = item.text, !CredentialCrypto.isSealed(t), CredentialDetector.looksLikeHighConfidenceCredential(t) {
                 var copy = item
                 copy.isCredential = true
-                copy.preview = CredentialDetector.maskedPlaceholder   // constant: never persist secret-derived chars
+                copy.preview = CredentialDetector.maskedPlaceholder   // constante: nunca persistir caracteres derivados del secreto
                 return copy
             }
             return item
         }
     }
 
-    /// Decodes items WITHOUT touching the Keychain (no credential decryption). Safe on the launch / main
-    /// thread: a Keychain read here can raise a blocking "app wants to use your keychain" trust prompt that
-    /// wedges the whole app before it ever runs. Decrypt separately, off the main thread (decryptCredentials).
+    /// Decodifica los ítems SIN tocar el Llavero (sin descifrar credenciales). Seguro en el hilo de arranque /
+    /// principal: una lectura del Llavero aquí puede levantar un prompt bloqueante de confianza "la app quiere usar
+    /// tu llavero" que cuelga toda la app antes de arrancar. Descifrar aparte, fuera del hilo principal (decryptCredentials).
     func loadItemsRaw() -> [ClipboardItem] {
         guard let data = try? Data(contentsOf: itemsURL) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         if let items = try? decoder.decode([ClipboardItem].self, from: data) { return items }
-        // Decoding failed but the file exists → back it up before anything overwrites it.
+        // La decodificación falló pero el archivo existe → respaldarlo antes de que algo lo sobrescriba.
         if !data.isEmpty {
             try? data.write(to: baseURL.appendingPathComponent("items.corrupt.json"), options: .atomic)
         }
         return []
     }
 
-    /// Convenience: raw load + decrypt. Only call OFF the main thread (it touches the Keychain).
+    /// Conveniencia: carga cruda + descifrado. Llamar solo FUERA del hilo principal (toca el Llavero).
     func loadItems() -> [ClipboardItem] { decryptCredentials(loadItemsRaw()) }
 
     func saveItems(_ items: [ClipboardItem]) {
-        // Encrypt credential secrets before they hit disk (and the backup zip). In-memory items are
-        // untouched; if encryption is unavailable we keep the plaintext rather than lose the value.
+        // Cifrar los secretos de credenciales antes de que lleguen al disco (y al zip de respaldo). Los ítems en
+        // memoria no se tocan; si el cifrado no está disponible conservamos el texto plano antes que perder el valor.
         let toStore = items.map { item -> ClipboardItem in
             guard item.isCredential == true, let t = item.text, !t.isEmpty, !CredentialCrypto.isSealed(t) else { return item }
             guard let sealed = CredentialCrypto.seal(t) else {
-                // Keychain key unreadable (e.g. the app was re-signed with a different identity and the user
-                // denied the access prompt). We keep the value rather than lose it, but it would land in
-                // cleartext — make that NON-SILENT so it can be diagnosed instead of degrading privacy quietly.
+                // Clave del Llavero ilegible (p. ej. la app se re-firmó con otra identidad y el usuario
+                // negó el prompt de acceso). Conservamos el valor antes que perderlo, pero quedaría en
+                // texto claro — hacerlo NO-SILENCIOSO para poder diagnosticarlo en vez de degradar la privacidad en silencio.
                 NSLog("KLIP: could not encrypt a credential (Keychain key inaccessible); value kept unsealed")
                 return item
             }
@@ -111,11 +111,11 @@ final class Storage {
         encoder.outputFormatting = [.prettyPrinted]
         guard let data = try? encoder.encode(toStore) else { return }
         try? data.write(to: itemsURL, options: .atomic)
-        // Defense in depth on top of the encryption: restrict the file to the user only.
+        // Defensa en profundidad sobre el cifrado: restringir el archivo solo al usuario.
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: itemsURL.path)
     }
 
-    // MARK: - Images
+    // MARK: - Imágenes
 
     @discardableResult
     func saveImage(_ image: NSImage, fileName: String) -> URL? {
@@ -139,7 +139,7 @@ final class Storage {
         let c = NSCache<NSString, NSImage>(); c.countLimit = 60; return c
     }()
 
-    /// In-memory cached image: avoids re-reading/decoding from disk on every list render.
+    /// Imagen cacheada en memoria: evita releer/decodificar desde disco en cada render de la lista.
     func cachedImage(fileName: String) -> NSImage? {
         if let c = imageCache.object(forKey: fileName as NSString) { return c }
         guard let img = loadImage(fileName: fileName) else { return nil }
@@ -148,8 +148,8 @@ final class Storage {
     }
 
     func pngData(from image: NSImage) -> Data? {
-        // If the image already has a bitmap, encode PNG directly from the highest-resolution rep
-        // (avoids the round-trip through TIFF, which doubles memory for large captures).
+        // Si la imagen ya tiene un bitmap, codificar el PNG directamente desde la rep de mayor resolución
+        // (evita el round-trip por TIFF, que duplica la memoria en capturas grandes).
         if let rep = image.representations.compactMap({ $0 as? NSBitmapImageRep })
             .max(by: { $0.pixelsWide < $1.pixelsWide }),
            let png = rep.representation(using: .png, properties: [:]) {
@@ -160,17 +160,17 @@ final class Storage {
         return rep.representation(using: .png, properties: [:])
     }
 
-    // MARK: - Audio (voice notes: the original is kept alongside the transcription)
+    // MARK: - Audio (notas de voz: el original se conserva junto a la transcripción)
 
     func audioURL(for fileName: String) -> URL { audioBaseURL.appendingPathComponent(fileName) }
     func deleteAudio(fileName: String) { try? FileManager.default.removeItem(at: audioURL(for: fileName)) }
     func audioExists(fileName: String) -> Bool { FileManager.default.fileExists(atPath: audioURL(for: fileName).path) }
 
-    /// Restricts a voice note audio file to 0600 (AVAudioRecorder creates it with the default umask).
+    /// Restringe el archivo de audio de una nota de voz a 0600 (AVAudioRecorder lo crea con el umask por defecto).
     func protectAudio(fileName: String) { Self.restrict(audioURL(for: fileName).path, 0o600) }
 
-    /// Copies an external audio file (uploaded by the user) into our store and returns the new name,
-    /// so it can be played and kept even if the original file is moved or deleted.
+    /// Copia un archivo de audio externo (subido por el usuario) a nuestro almacén y devuelve el nuevo nombre,
+    /// para poder reproducirlo y conservarlo aunque el archivo original se mueva o se borre.
     func importAudio(from url: URL) -> String? {
         let ext = url.pathExtension.isEmpty ? "m4a" : url.pathExtension
         let name = "\(UUID().uuidString).\(ext)"
@@ -182,7 +182,7 @@ final class Storage {
         } catch { return nil }
     }
 
-    /// Deletes audio/image files no longer referenced by any item (orphaned by a crash, etc.).
+    /// Borra archivos de audio/imagen que ya no referencia ningún ítem (huérfanos por un crash, etc.).
     func pruneOrphans(referencedAudio: Set<String>, referencedImages: Set<String>) {
         prune(dir: audioBaseURL, keep: referencedAudio)
         prune(dir: imagesURL, keep: referencedImages)
@@ -196,9 +196,9 @@ final class Storage {
         }
     }
 
-    // MARK: - Backup (export / import)
+    // MARK: - Respaldo (exportar / importar)
 
-    /// Exports the history (items.json + images + audio) to a .zip. Does NOT include the API keys.
+    /// Exporta el historial (items.json + imágenes + audio) a un .zip. NO incluye las API keys.
     func exportBackup(to dest: URL) throws {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("KlipExport-\(UUID().uuidString)", isDirectory: true)
@@ -218,10 +218,10 @@ final class Storage {
         try Self.runDitto(["-c", "-k", "--keepParent", stage.path, dest.path])
     }
 
-    /// Imports a .zip backup and REPLACES the current history, **transactionally**:
-    /// validates the backup, moves the current data to `.importbak`, copies the new data and, on ANY failure,
-    /// restores from the backup → the existing history is never lost. Returns the items.
-    /// (Heavy: run it off the main thread.)
+    /// Importa un respaldo .zip y REEMPLAZA el historial actual, **transaccionalmente**:
+    /// valida el respaldo, mueve los datos actuales a `.importbak`, copia los datos nuevos y, ante CUALQUIER fallo,
+    /// restaura desde el respaldo → el historial existente nunca se pierde. Devuelve los ítems.
+    /// (Pesado: ejecutarlo fuera del hilo principal.)
     func importBackup(from src: URL) throws -> [ClipboardItem] {
         let fm = FileManager.default
         let tmp = fm.temporaryDirectory.appendingPathComponent("KlipImport-\(UUID().uuidString)", isDirectory: true)
@@ -232,7 +232,7 @@ final class Storage {
         guard let root = Self.findBackupRoot(in: tmp) else {
             throw Self.err(L10n.t("backup.err.notBackup"))
         }
-        // Validate that the backup's items.json decodes BEFORE touching anything (don't import garbage).
+        // Validar que el items.json del respaldo decodifica ANTES de tocar nada (no importar basura).
         let newItemsFile = root.appendingPathComponent("items.json")
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         guard let data = try? Data(contentsOf: newItemsFile),
@@ -242,54 +242,54 @@ final class Storage {
 
         let newImages = root.appendingPathComponent("images")
         let newAudio = root.appendingPathComponent("audio")
-        // Backups with a unique name per attempt → leftovers from an aborted import never collide
-        // with the moveItem below (avoids restoring a stale .bak over the intact original).
+        // Respaldos con nombre único por intento → los restos de un import abortado nunca chocan
+        // con el moveItem de abajo (evita restaurar un .bak viejo sobre el original intacto).
         let token = UUID().uuidString
         let bakItems = baseURL.appendingPathComponent("items.json.\(token).importbak")
         let bakImages = baseURL.appendingPathComponent("images.\(token).importbak")
         let bakAudio = baseURL.appendingPathComponent("audio.\(token).importbak")
-        // Clean up leftovers from earlier aborted imports — but NEVER this attempt's own backups (skip our
-        // token), so an overlapping import can't delete the backup we're about to rely on for rollback.
+        // Limpiar restos de imports abortados anteriores — pero NUNCA los respaldos de este intento (saltar nuestro
+        // token), para que un import solapado no pueda borrar el respaldo del que dependeremos para el rollback.
         if let leftovers = try? fm.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) {
             for f in leftovers where f.lastPathComponent.hasSuffix(".importbak") && !f.lastPathComponent.contains(token) {
                 try? fm.removeItem(at: f)
             }
         }
 
-        // Restores a destination from its backup (only if the backup exists → original is safe).
+        // Restaura un destino desde su respaldo (solo si el respaldo existe → el original está a salvo).
         func restore(_ live: URL, _ bak: URL) {
-            guard fm.fileExists(atPath: bak.path) else { return }   // no bak: the live copy is the intact original
+            guard fm.fileExists(atPath: bak.path) else { return }   // sin bak: la copia viva es el original intacto
             try? fm.removeItem(at: live)
             try? fm.moveItem(at: bak, to: live)
         }
 
         do {
-            // Move the current data to .bak (atomic renames within the same volume).
+            // Mover los datos actuales a .bak (renames atómicos dentro del mismo volumen).
             if fm.fileExists(atPath: itemsURL.path)     { try fm.moveItem(at: itemsURL, to: bakItems) }
             if fm.fileExists(atPath: imagesURL.path)    { try fm.moveItem(at: imagesURL, to: bakImages) }
             if fm.fileExists(atPath: audioBaseURL.path) { try fm.moveItem(at: audioBaseURL, to: bakAudio) }
-            // Put the new data in place.
+            // Colocar los datos nuevos en su sitio.
             try fm.copyItem(at: newItemsFile, to: itemsURL)
             if fm.fileExists(atPath: newImages.path) { try fm.copyItem(at: newImages, to: imagesURL) }
             else { try fm.createDirectory(at: imagesURL, withIntermediateDirectories: true) }
             if fm.fileExists(atPath: newAudio.path) { try fm.copyItem(at: newAudio, to: audioBaseURL) }
             else { try fm.createDirectory(at: audioBaseURL, withIntermediateDirectories: true) }
         } catch {
-            restore(itemsURL, bakItems)        // rollback: leaves the history as it was
+            restore(itemsURL, bakItems)        // rollback: deja el historial como estaba
             restore(imagesURL, bakImages)
             restore(audioBaseURL, bakAudio)
             throw error
         }
 
-        [bakItems, bakImages, bakAudio].forEach { try? fm.removeItem(at: $0) }   // success: clean up backups
+        [bakItems, bakImages, bakAudio].forEach { try? fm.removeItem(at: $0) }   // éxito: limpiar los respaldos
         Self.restrict(itemsURL.path, 0o600)
         Self.restrict(imagesURL.path, 0o700)
         Self.restrict(audioBaseURL.path, 0o700)
         imageCache.removeAllObjects()
-        let result = decryptCredentials(decoded)   // creds in the imported items.json are encrypted on disk
-        // importBackup runs OFF the main thread. If any imported credential will need sealing on the next
-        // save (a legacy plaintext secret just promoted), pre-create the Keychain key HERE so the on-main
-        // reload→saveItems only READS it — never a Keychain WRITE on the main thread (avoids the hang class).
+        let result = decryptCredentials(decoded)   // las credenciales del items.json importado están cifradas en disco
+        // importBackup corre FUERA del hilo principal. Si alguna credencial importada necesitará sellarse en el
+        // próximo guardado (un secreto legacy en texto plano recién promovido), pre-crear la clave del Llavero AQUÍ
+        // para que el reload→saveItems en main solo la LEA — nunca ESCRIBIR al Llavero en el hilo principal (evita esa clase de cuelgues).
         if result.contains(where: { $0.isCredential == true && ($0.text.map { !CredentialCrypto.isSealed($0) } ?? false) }) {
             CredentialCrypto.warmKey()
         }
@@ -300,7 +300,7 @@ final class Storage {
         NSError(domain: "Klip", code: 1, userInfo: [NSLocalizedDescriptionKey: msg])
     }
 
-    /// Locates the backup folder that contains items.json (keepParent → .../Klip/items.json).
+    /// Localiza la carpeta del respaldo que contiene items.json (keepParent → .../Klip/items.json).
     private static func findBackupRoot(in dir: URL) -> URL? {
         let fm = FileManager.default
         if fm.fileExists(atPath: dir.appendingPathComponent("items.json").path) { return dir }
@@ -323,18 +323,18 @@ final class Storage {
         }
     }
 
-    // MARK: - Combine / export selection (vibe coders)
+    // MARK: - Combinar / exportar selección (vibe coders)
 
-    /// Combines several items into a PDF (one page per item): images as an image page,
-    /// text as a text page. For uploading several captures/notes to an AI all at once.
-    /// Returns the data and how many pages were generated (may be fewer than items.count if some
-    /// item had no exportable content). nil if no page could be generated.
-    /// Text safe to write to an exported file/PDF: credentials are masked, never written in the clear
-    /// (mirrors MarkdownExporter). Returns nil if there's no text to export.
+    /// Combina varios ítems en un PDF (una página por ítem): las imágenes como página de imagen,
+    /// el texto como página de texto. Para subir varias capturas/notas a una IA de una sola vez.
+    /// Devuelve los datos y cuántas páginas se generaron (pueden ser menos que items.count si algún
+    /// ítem no tenía contenido exportable). nil si no se pudo generar ninguna página.
+    /// Texto seguro para escribir a un archivo/PDF exportado: las credenciales van enmascaradas, nunca en claro
+    /// (refleja MarkdownExporter). Devuelve nil si no hay texto que exportar.
     static func exportableText(_ item: ClipboardItem) -> String? {
         guard let t = item.text, !t.isEmpty else { return nil }
-        // Use the chars-free placeholder (not masked(), which would leak the secret's real last 4 into a
-        // shared PDF/ZIP/Markdown export).
+        // Usar el placeholder sin caracteres reales (no masked(), que filtraría los últimos 4 reales del secreto
+        // a un export PDF/ZIP/Markdown compartido).
         return item.isCredential == true ? CredentialDetector.maskedPlaceholder : t
     }
 
@@ -351,11 +351,11 @@ final class Storage {
         return (data, idx)
     }
 
-    /// Renders text into a "page" (letter-size image) with margins, to embed in the PDF.
-    /// Uses a drawingHandler (thread-safe off the main thread) instead of lockFocus, since combinedPDF
-    /// runs on a background queue.
+    /// Renderiza texto en una "página" (imagen tamaño carta) con márgenes, para incrustarla en el PDF.
+    /// Usa un drawingHandler (thread-safe fuera del hilo principal) en vez de lockFocus, ya que combinedPDF
+    /// corre en una cola en segundo plano.
     private static func pageImage(forText text: String) -> NSImage {
-        let pageW: CGFloat = 612, margin: CGFloat = 40   // US Letter at 72 dpi
+        let pageW: CGFloat = 612, margin: CGFloat = 40   // Carta US a 72 dpi
         let style = NSMutableParagraphStyle(); style.lineSpacing = 3
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
@@ -374,7 +374,7 @@ final class Storage {
         }
     }
 
-    /// How many of the items have content to export to ZIP (image on disk, audio, or text).
+    /// Cuántos de los ítems tienen contenido que exportar a ZIP (imagen en disco, audio o texto).
     func zipExportableCount(_ items: [ClipboardItem]) -> Int {
         let fm = FileManager.default
         return items.reduce(0) { acc, it in
@@ -385,7 +385,7 @@ final class Storage {
         }
     }
 
-    /// Exports the selected items to a .zip (PNG images, .txt text, audio). For uploading the batch together.
+    /// Exporta los ítems seleccionados a un .zip (imágenes PNG, texto .txt, audio). Para subir el lote junto.
     func exportItemsZip(_ items: [ClipboardItem], to dest: URL) throws {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("KlipSel-\(UUID().uuidString)", isDirectory: true)
@@ -410,8 +410,8 @@ final class Storage {
 }
 
 extension NSImage {
-    /// REAL dimensions in pixels (not points): takes the highest-resolution rep. On retina
-    /// displays, `size` comes in points (half), so this is what the user expects to see.
+    /// Dimensiones REALES en píxeles (no puntos): toma la rep de mayor resolución. En pantallas
+    /// retina, `size` viene en puntos (la mitad), así que esto es lo que el usuario espera ver.
     var pixelDimensions: NSSize {
         var w = 0, h = 0
         for r in representations { w = max(w, r.pixelsWide); h = max(h, r.pixelsHigh) }

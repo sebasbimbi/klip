@@ -1,24 +1,24 @@
 import Foundation
 import WhisperKit
 
-/// On-device transcription with WhisperKit (Whisper on Core ML). No audio leaves the Mac and no API key
-/// is needed. The Core ML model is downloaded once on first use and cached; the pipeline is kept in memory
-/// and reused while the chosen model doesn't change.
+/// Transcripción en el dispositivo con WhisperKit (Whisper sobre Core ML). Ningún audio sale del Mac y no
+/// se necesita API key. El modelo Core ML se descarga una vez en el primer uso y se cachea; el pipeline se
+/// mantiene en memoria y se reutiliza mientras el modelo elegido no cambie.
 actor LocalTranscriber {
     static let shared = LocalTranscriber()
 
     private var pipe: WhisperKit?
     private var loadedModel: String?
-    /// Flips to true once a pipeline has finished loading this session. The first on-device load pays a
-    /// one-time Core ML / Neural-Engine specialization (~20 s, cached on disk afterwards); the UI reads this
-    /// (best-effort, hence nonisolated) to show "Preparing model…" instead of a bare spinner until ready.
+    /// Pasa a true cuando un pipeline termina de cargar en esta sesión. La primera carga en el dispositivo paga
+    /// una especialización única de Core ML / Neural Engine (~20 s, después cacheada en disco); la UI lo lee
+    /// (best-effort, de ahí nonisolated) para mostrar "Preparando modelo…" en vez de un spinner pelado hasta estar listo.
     nonisolated(unsafe) static private(set) var pipelineReady = false
-    /// Serializes on-device decodes: the shared WhisperKit instance has mutable state (progress, timings,
-    /// Core ML decoder) that is NOT safe to run concurrently. Dropping several audio files at once would
-    /// otherwise race. Each call chains after the previous one's decode.
+    /// Serializa las decodificaciones en el dispositivo: la instancia compartida de WhisperKit tiene estado
+    /// mutable (progreso, tiempos, decoder de Core ML) que NO es seguro ejecutar en concurrencia. Soltar varios
+    /// archivos de audio a la vez provocaría carreras. Cada llamada se encadena tras la decodificación anterior.
     private var serialTail: Task<Void, Never> = Task {}
 
-    /// Friendly model name → WhisperKit model identifier (WhisperKit resolves these against its HF repo).
+    /// Nombre amigable del modelo → identificador de modelo de WhisperKit (WhisperKit los resuelve contra su repo de HF).
     static let models: [(id: String, label: String, note: String)] = [
         ("tiny",        "Tiny",        "~75 MB · fastest · lowest accuracy"),
         ("base",        "Base",        "~145 MB · faster · decent accuracy"),
@@ -27,18 +27,18 @@ actor LocalTranscriber {
     ]
     static let defaultModel = "base"
 
-    /// Loads an ALREADY-DOWNLOADED model into memory so the first voice note is instant. Best-effort, on
-    /// launch. It deliberately does NOT trigger a first-use download here — pulling a multi-hundred-MB model
-    /// silently at app launch would surprise users on metered/slow links; that download happens lazily on the
-    /// first voice note (with the "Downloading model…" status).
+    /// Carga en memoria un modelo YA DESCARGADO para que la primera nota de voz sea instantánea. Best-effort,
+    /// al arrancar. Deliberadamente NO dispara aquí una descarga de primer uso — bajar en silencio un modelo de
+    /// cientos de MB al arrancar la app sorprendería a usuarios con conexiones lentas/medidas; esa descarga ocurre
+    /// de forma perezosa en la primera nota de voz (con el estado "Descargando modelo…").
     func prewarm(model: String) async {
         let id = model.isEmpty ? Self.defaultModel : model
         guard Self.isModelReady(id) else { return }
         _ = try? await pipeline(for: id)
     }
 
-    /// Whether the model's CoreML weights are actually on disk (not just a folder created mid-download).
-    /// Used to (a) skip the launch prewarm for un-downloaded models and (b) show "Downloading model…".
+    /// Indica si los pesos CoreML del modelo están realmente en disco (no solo una carpeta creada a media descarga).
+    /// Se usa para (a) saltar el prewarm de arranque en modelos no descargados y (b) mostrar "Descargando modelo…".
     nonisolated static func isModelReady(_ model: String) -> Bool {
         let id = model.isEmpty ? defaultModel : model
         guard let base = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask,
@@ -46,23 +46,23 @@ actor LocalTranscriber {
         let dir = base.appendingPathComponent("huggingface/models/argmaxinc/whisperkit-coreml")
         guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir.path),
               let folder = entries.first(where: { $0.hasPrefix("openai_whisper-\(id)") }) else { return false }
-        // Require the actual weights: an interrupted download leaves only metadata (generation_config.json).
+        // Exigir los pesos reales: una descarga interrumpida deja solo metadatos (generation_config.json).
         let modelDir = dir.appendingPathComponent(folder)
         return ["AudioEncoder.mlmodelc", "TextDecoder.mlmodelc", "MelSpectrogram.mlmodelc"].allSatisfy {
             FileManager.default.fileExists(atPath: modelDir.appendingPathComponent($0).path)
         }
     }
 
-    /// Transcribes an audio file fully on-device. `model` is a WhisperKit model name (see `models`).
-    /// `vocabulary` (context words/names) biases recognition via Whisper prompt tokens.
-    /// Public entry: serializes decodes on the shared pipeline (see `serialTail`).
+    /// Transcribe un archivo de audio por completo en el dispositivo. `model` es un nombre de modelo de WhisperKit (ver `models`).
+    /// `vocabulary` (palabras/nombres de contexto) sesga el reconocimiento vía prompt tokens de Whisper.
+    /// Entrada pública: serializa las decodificaciones sobre el pipeline compartido (ver `serialTail`).
     func transcribe(audioURL: URL, model: String, language: String?, vocabulary: String) async throws -> String {
         let previous = serialTail
         let job = Task<String, Error> {
-            _ = await previous.value   // wait for any in-flight decode before touching the shared WhisperKit
+            _ = await previous.value   // esperar cualquier decodificación en curso antes de tocar el WhisperKit compartido
             return try await self.performTranscribe(audioURL: audioURL, model: model, language: language, vocabulary: vocabulary)
         }
-        serialTail = Task { _ = try? await job.value }   // next call chains after this one
+        serialTail = Task { _ = try? await job.value }   // la siguiente llamada se encadena tras esta
         return try await job.value
     }
 
@@ -72,18 +72,18 @@ actor LocalTranscriber {
         opts.task = .transcribe
         opts.skipSpecialTokens = true
         opts.withoutTimestamps = true
-        // SPEED: split long audio at silence (energy VAD) and decode chunks in parallel
-        // (concurrentWorkerCount defaults to 16). Short clips stay one chunk → no overhead; long uploads
-        // transcribe much faster. The model is loaded once and reused (see `pipeline`).
+        // VELOCIDAD: dividir el audio largo en los silencios (VAD por energía) y decodificar los trozos en paralelo
+        // (concurrentWorkerCount por defecto es 16). Los clips cortos quedan en un solo trozo → sin overhead; las
+        // subidas largas se transcriben mucho más rápido. El modelo se carga una vez y se reutiliza (ver `pipeline`).
         opts.chunkingStrategy = .vad
         if let language, !language.isEmpty {
-            opts.language = language          // explicit audio language
+            opts.language = language          // idioma explícito del audio
             opts.detectLanguage = false
         } else {
-            opts.detectLanguage = true        // "auto-detect"
+            opts.detectLanguage = true        // "autodetección"
         }
-        // Bias toward the user's context words/names (same idea as the cloud `prompt`): encode them as
-        // Whisper prompt tokens. WhisperKit also strips special tokens and caps length internally.
+        // Sesgar hacia las palabras/nombres de contexto del usuario (misma idea que el `prompt` de la nube):
+        // codificarlos como prompt tokens de Whisper. WhisperKit además quita tokens especiales y limita la longitud internamente.
         let vocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
         if !vocab.isEmpty, let tok = wk.tokenizer {
             let ids = tok.encode(text: " " + vocab).filter { $0 < tok.specialTokens.specialTokenBegin }
@@ -98,8 +98,8 @@ actor LocalTranscriber {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Remembers a model id that failed to load → the id it fell back to, so we don't re-attempt the
-    /// failing download on every subsequent transcription.
+    /// Recuerda un id de modelo que falló al cargar → el id al que se hizo fallback, para no reintentar la
+    /// descarga fallida en cada transcripción posterior.
     private var fallbackFor: [String: String] = [:]
 
     private func pipeline(for model: String) async throws -> WhisperKit {
@@ -107,11 +107,11 @@ actor LocalTranscriber {
         if let pipe, loadedModel == effective { return pipe }
         let wk: WhisperKit
         do {
-            wk = try await WhisperKit(WhisperKitConfig(model: effective))   // downloads the model on first use
+            wk = try await WhisperKit(WhisperKitConfig(model: effective))   // descarga el modelo en el primer uso
             loadedModel = effective
         } catch {
-            // A bad/unavailable model id (or a failed download for that variant) shouldn't break every
-            // transcription — fall back to the default model and remember it (no repeated failed downloads).
+            // Un id de modelo malo/no disponible (o una descarga fallida de esa variante) no debería romper todas
+            // las transcripciones — hacer fallback al modelo por defecto y recordarlo (sin repetir descargas fallidas).
             guard effective != Self.defaultModel else { throw error }
             wk = try await WhisperKit(WhisperKitConfig(model: Self.defaultModel))
             loadedModel = Self.defaultModel

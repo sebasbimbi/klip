@@ -18,7 +18,7 @@ enum HistoryFilter: String, CaseIterable, Identifiable {
     }
 }
 
-/// Panel UI: header, type filters, list and guide.
+/// UI del panel: cabecera, filtros por tipo, lista y guía.
 struct HistoryView: View {
     @ObservedObject var manager: ClipboardManager
     @ObservedObject var selection: SelectionModel
@@ -58,7 +58,7 @@ struct HistoryView: View {
     }()
 
     private var sortedItems: [ClipboardItem] {
-        // Newest first. A starred item is NOT floated to the top — the star is just a mark you can filter by.
+        // Lo más reciente primero. Un ítem con estrella NO flota arriba — la estrella es solo una marca por la que se puede filtrar.
         manager.items.sorted { $0.createdAt > $1.createdAt }
     }
 
@@ -74,8 +74,8 @@ struct HistoryView: View {
         }
     }
 
-    /// Only the filters that currently have items (plus "All"): a user who only copied text
-    /// won't see empty Image/Voice/Credential chips that look like they "don't work".
+    /// Solo los filtros que actualmente tienen ítems (más "Todos"): un usuario que solo copió texto
+    /// no verá chips vacíos de Imagen/Voz/Credencial que parezcan que "no funcionan".
     private var availableFilters: [HistoryFilter] {
         HistoryFilter.allCases.filter { f in
             f == .all || manager.items.contains { matches($0, f) }
@@ -88,8 +88,8 @@ struct HistoryView: View {
         guard !search.isEmpty else { return base }
         let q = search.lowercased()
         base = base.filter {
-            // Don't match the cleartext of a credential (the preview is masked) — otherwise typing part
-            // of a known token would surface/confirm the secret.
+            // No comparar contra el texto en claro de una credencial (la vista previa está enmascarada) — si no,
+            // escribir parte de un token conocido revelaría/confirmaría el secreto.
             let inText = $0.isCredential == true ? false : ($0.text ?? "").lowercased().contains(q)
             return ($0.name ?? "").lowercased().contains(q) || inText || $0.preview.lowercased().contains(q)
         }
@@ -111,14 +111,14 @@ struct HistoryView: View {
         .onChange(of: filter) { _, _ in syncVisible() }
         .onChange(of: collectionFilter) { _, _ in syncVisible() }
         .onChange(of: manager.items) { _, _ in
-            // If the filtered collection no longer exists (its last item was deleted/renamed), drop the
-            // filter: otherwise the list would look falsely empty with no visible chip to clear it.
+            // Si la colección filtrada ya no existe (su último ítem fue borrado/renombrado), quitar el
+            // filtro: si no, la lista se vería falsamente vacía sin ningún chip visible para limpiarlo.
             if let cf = collectionFilter, !manager.collections.contains(cf) { collectionFilter = nil }
-            // If the filtered type no longer has items, its chip disappears: fall back to "All" so we
-            // don't end up with an empty list and no visible selected chip.
+            // Si el tipo filtrado ya no tiene ítems, su chip desaparece: volver a "Todos" para no
+            // quedarnos con una lista vacía y sin chip seleccionado visible.
             if !availableFilters.contains(filter) { filter = .all }
-            // Prune from the batch the ids that no longer exist (e.g. auto-trim by maxItems when new clips
-            // come in): keeps the "N sel." counter in sync with what will actually be exported.
+            // Depurar del lote los ids que ya no existen (p. ej. auto-recorte por maxItems cuando llegan
+            // clips nuevos): mantiene el contador "N sel." en sincronía con lo que realmente se exportará.
             if !selectedBatch.isEmpty {
                 let pruned = selectedBatch.intersection(Set(manager.items.map(\.id)))
                 if pruned.count != selectedBatch.count { selectedBatch = pruned }
@@ -129,17 +129,17 @@ struct HistoryView: View {
         .onChange(of: selection.openToken) { _, _ in
             search = ""; filter = .all; collectionFilter = nil
             selecting = false; selectedBatch = []
-            ocrResultID = nil; ocrText = ""; ocrRunning = false   // don't show a stale OCR box on reopen
+            ocrResultID = nil; ocrText = ""; ocrRunning = false   // no mostrar un cuadro de OCR obsoleto al reabrir
             selection.updateVisible(sortedItems.map(\.id))
             selection.selectedIndex = sortedItems.isEmpty ? -1 : 0
             searchFocused = true
         }
-        .onChange(of: selection.focusToken) { _, _ in searchFocused = true }   // re-focus without clearing the search
+        .onChange(of: selection.focusToken) { _, _ in searchFocused = true }   // re-enfocar sin limpiar la búsqueda
     }
 
     private func syncVisible() { selection.updateVisible(filtered.map(\.id)) }
 
-    // MARK: - Header
+    // MARK: - Cabecera
 
     private var header: some View {
         VStack(spacing: 10) {
@@ -157,7 +157,7 @@ struct HistoryView: View {
                     .help(L10n.t("rec.transcribing"))
                     .padding(.trailing, 2)
                 }
-                // Action icons: uniform size and generous spacing so they don't overlap.
+                // Iconos de acción: tamaño uniforme y espaciado generoso para que no se superpongan.
                 HStack(spacing: 15) {
                     Button { toggleSelecting() } label: {
                         Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
@@ -213,8 +213,8 @@ struct HistoryView: View {
                     chip(name, icon: "folder", selected: collectionFilter == name) {
                         let now = (collectionFilter == name ? nil : name)
                         collectionFilter = now
-                        // When activating a collection, drop the type filter: otherwise an invisible `.image`
-                        // (or other) would keep hiding items in the collection without any chip showing it.
+                        // Al activar una colección, quitar el filtro de tipo: si no, un `.image` invisible
+                        // (u otro) seguiría ocultando ítems de la colección sin que ningún chip lo muestre.
                         if now != nil { filter = .all }
                     }
                 }
@@ -237,7 +237,7 @@ struct HistoryView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Batch selection (vibe coders)
+    // MARK: - Selección por lote (vibe coders)
 
     private func toggleSelecting() {
         selecting.toggle()
@@ -246,9 +246,9 @@ struct HistoryView: View {
     private func toggleCheck(_ id: UUID) {
         if selectedBatch.contains(id) { selectedBatch.remove(id) } else { selectedBatch.insert(id) }
     }
-    // VISIBLE order (pinned first, then by date) — not manager.items' insertion order — so that
-    // the PDF/ZIP comes out in the same order the user sees and checks the items. Includes selected
-    // items even if a filter change has hidden them from `filtered`.
+    // Orden VISIBLE (anclados primero, luego por fecha) — no el orden de inserción de manager.items — para
+    // que el PDF/ZIP salga en el mismo orden en que el usuario ve y marca los ítems. Incluye ítems
+    // seleccionados aunque un cambio de filtro los haya ocultado de `filtered`.
     private var batchItems: [ClipboardItem] { sortedItems.filter { selectedBatch.contains($0.id) } }
 
     private var batchBar: some View {
@@ -306,7 +306,7 @@ struct HistoryView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             if manager.items.isEmpty && search.isEmpty && filter == .all {
-                // First run: welcome with the actual (configured) shortcuts and a tip.
+                // Primer arranque: bienvenida con los atajos reales (configurados) y un consejo.
                 if let logo = Self.appLogo {
                     Image(nsImage: logo).resizable().frame(width: 46, height: 46).opacity(0.9)
                 }
@@ -357,21 +357,21 @@ struct HistoryView: View {
 
     private func runOCR(_ item: ClipboardItem) {
         ocrResultID = item.id; ocrText = ""; ocrRunning = true
-        let pbCount = NSPasteboard.general.changeCount   // don't clobber a clip the user makes during OCR
-        DispatchQueue.global(qos: .userInitiated).async {   // Storage.loadImage + OCR are both off-main safe
+        let pbCount = NSPasteboard.general.changeCount   // no pisar un clip que el usuario haga durante el OCR
+        DispatchQueue.global(qos: .userInitiated).async {   // Storage.loadImage + OCR son seguros fuera del hilo principal
             let img = item.imageFileName.flatMap { Storage.shared.loadImage(fileName: $0) }
             let text = img.map { OCR.recognizeText(in: $0) } ?? ""
             DispatchQueue.main.async {
                 ocrRunning = false; ocrText = text
-                // Only push the recognized text to the clipboard if the user hasn't copied something else
-                // meanwhile (the result is still shown in the UI either way).
+                // Solo enviar el texto reconocido al portapapeles si el usuario no copió otra cosa
+                // mientras tanto (el resultado se muestra en la UI de todos modos).
                 if !text.isEmpty, NSPasteboard.general.changeCount == pbCount { manager.setClipboardText(text) }
             }
         }
     }
 }
 
-/// A single history row. Images are shown large (image on top, metadata below).
+/// Una fila individual del historial. Las imágenes se muestran en grande (imagen arriba, metadatos abajo).
 struct ItemRow: View {
     let item: ClipboardItem
     let isSelected: Bool
@@ -400,7 +400,7 @@ struct ItemRow: View {
         return nm
     }
 
-    /// Playable audio of a voice note (only if the file is still on disk).
+    /// Audio reproducible de una nota de voz (solo si el archivo sigue en disco).
     private var voiceAudioFile: String? {
         guard item.isVoiceNote == true, let af = item.audioFileName,
               Storage.shared.audioExists(fileName: af) else { return nil }
@@ -408,14 +408,14 @@ struct ItemRow: View {
     }
     private var isTranscribing: Bool { item.transcribing == true }
 
-    /// Color if the item's text is a hex value (#RGB / #RRGGBB / #RRGGBBAA) → shows a swatch.
+    /// Color si el texto del ítem es un valor hex (#RGB / #RRGGBB / #RRGGBBAA) → muestra una muestra de color.
     private var swatchColor: NSColor? {
         guard item.kind == .text, item.isVoiceNote != true, item.isCredential != true,
               let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
         return NSColor(klipHex: t)
     }
 
-    /// Highlights search matches in a text (yellow background).
+    /// Resalta las coincidencias de búsqueda en un texto (fondo amarillo).
     static func highlight(_ text: String, _ term: String) -> AttributedString {
         let q = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return AttributedString(text) }
@@ -434,10 +434,10 @@ struct ItemRow: View {
 
 
     private var displayedPreview: String {
-        // The eye toggles masked/real (item.preview is always masked for credentials).
+        // El ojo alterna enmascarado/real (item.preview siempre está enmascarado para credenciales).
         if isCredential, let t = item.text {
-            // Sealed-but-undecryptable (credential encrypted on another Mac): never show the raw token,
-            // even when "revealed" — show the stored placeholder.
+            // Sellada pero no descifrable (credencial cifrada en otro Mac): nunca mostrar el token crudo,
+            // ni siquiera al "revelar" — mostrar el placeholder guardado.
             if CredentialCrypto.isSealed(t) { return item.preview.isEmpty ? CredentialDetector.maskedPlaceholder : item.preview }
             return revealed ? t : CredentialDetector.masked(t)
         }
@@ -464,8 +464,8 @@ struct ItemRow: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture { if selecting { onToggleCheck() } else { onPick(item) } }
-        .onChange(of: resetToken) { _, _ in revealed = false }   // re-mask when reopening the panel
-        .onChange(of: hovering) { _, h in if !h { revealed = false } }   // re-mask once the pointer leaves the row (covers search/filter/scroll)
+        .onChange(of: resetToken) { _, _ in revealed = false }   // re-enmascarar al reabrir el panel
+        .onChange(of: hovering) { _, h in if !h { revealed = false } }   // re-enmascarar cuando el puntero sale de la fila (cubre búsqueda/filtro/scroll)
     }
 
     private var imageCard: some View {
@@ -529,8 +529,8 @@ struct ItemRow: View {
                 .frame(width: 46, height: 46).foregroundStyle(.yellow)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.yellow.opacity(0.14)))
         } else if item.isVoiceNote == true {
-            // No text (transcribing/failed) + audio: ▶ button, consistent with the row tap (plays).
-            // With text: static icon (the row tap pastes the text; playback lives in the actions).
+            // Sin texto (transcribiendo/falló) + audio: botón ▶, consistente con el tap en la fila (reproduce).
+            // Con texto: icono estático (el tap en la fila pega el texto; la reproducción vive en las acciones).
             if !hasText, let af = voiceAudioFile {
                 VoicePlayButton(fileName: af, large: true)
             } else {
@@ -560,8 +560,8 @@ struct ItemRow: View {
 
     private var actions: some View {
         HStack(spacing: 4) {
-            // Inline: only the type's primary action + copy + star. Everything else lives in the ⋯ menu so
-            // the row stays readable (icons alone weren't clear).
+            // Inline: solo la acción primaria del tipo + copiar + estrella. Todo lo demás vive en el menú ⋯ para
+            // que la fila siga legible (los iconos solos no eran claros).
             if item.isVoiceNote == true {
                 if let af = voiceAudioFile {
                     if hasText { VoicePlayButton(fileName: af, large: false) }
@@ -574,14 +574,14 @@ struct ItemRow: View {
             } else {
                 iconButton("doc.on.doc", L10n.t("row.copy")) { onPick(item) }
             }
-            // Star: a filterable mark — it does NOT float the item to the top.
+            // Estrella: una marca filtrable — NO hace flotar el ítem hacia arriba.
             iconButton(item.pinned ? "star.fill" : "star", L10n.t(item.pinned ? "row.unpin" : "row.pin")) { manager.togglePin(item) }
             Menu { moreMenu } label: { Image(systemName: "ellipsis.circle").font(.system(size: 12)) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(L10n.t("act.more"))
         }
     }
 
-    /// The ⋯ menu: every secondary action, with text labels so it's clear (unlike the bare icons).
+    /// El menú ⋯: todas las acciones secundarias, con etiquetas de texto para que quede claro (a diferencia de los iconos pelados).
     @ViewBuilder private var moreMenu: some View {
         if item.isVoiceNote == true {
             if let af = voiceAudioFile {
@@ -617,7 +617,7 @@ struct ItemRow: View {
             .buttonStyle(.borderless).help(help)
     }
 
-    /// Human-readable date label: "Hoy · 10:43", "Ayer · 10:43" or "martes 04 de julio · 10:43".
+    /// Etiqueta de fecha legible: "Hoy · 10:43", "Ayer · 10:43" o "martes 04 de julio · 10:43".
     static func timeLabel(_ date: Date) -> String {
         let cal = Calendar.current
         let en = Settings.shared.uiLanguage == "en"
@@ -630,8 +630,8 @@ struct ItemRow: View {
         return "\(df(fmt, en).string(from: date)) · \(time)"
     }
 
-    /// DateFormatters cached by (language, format, time zone) — avoids recreating them on every render, while
-    /// still reflecting a system time-zone change mid-session (the TZ in the key busts a stale formatter).
+    /// DateFormatters cacheados por (idioma, formato, zona horaria) — evita recrearlos en cada render, y aun
+    /// así refleja un cambio de zona horaria del sistema a mitad de sesión (la TZ en la clave invalida un formatter obsoleto).
     private static var dfCache: [String: DateFormatter] = [:]
     private static func df(_ format: String, _ en: Bool) -> DateFormatter {
         let cacheKey = "\(en ? "en" : "es")|\(format)|\(TimeZone.current.identifier)"
@@ -646,7 +646,7 @@ struct ItemRow: View {
 }
 
 extension NSColor {
-    /// Parses a hex color (#RGB, #RRGGBB, #RRGGBBAA, with or without #). nil if it isn't a valid hex.
+    /// Parsea un color hex (#RGB, #RRGGBB, #RRGGBBAA, con o sin #). nil si no es un hex válido.
     convenience init?(klipHex raw: String) {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.hasPrefix("#") { s.removeFirst() }
@@ -669,16 +669,16 @@ extension NSColor {
     }
 }
 
-/// Formats seconds as m:ss (0:14, 1:05…) or h:mm:ss for long uploaded audios (1:02:03).
+/// Formatea segundos como m:ss (0:14, 1:05…) o h:mm:ss para audios subidos largos (1:02:03).
 func mmss(_ t: TimeInterval) -> String {
     let s = max(0, Int(t.rounded()))
     if s >= 3600 { return String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
     return String(format: "%d:%02d", s / 60, s % 60)
 }
 
-/// Shows the audio duration and, while THAT file is playing, the elapsed time + progress bar.
-/// Observes AudioPlayer.shared: all visible VoicePlaybackInfo re-evaluate ~5/s while something is playing
-/// (acceptable because the body is trivial and LazyVStack limits it to the on-screen rows).
+/// Muestra la duración del audio y, mientras ESE archivo se reproduce, el tiempo transcurrido + barra de progreso.
+/// Observa AudioPlayer.shared: todos los VoicePlaybackInfo visibles se re-evalúan ~5/s mientras algo se reproduce
+/// (aceptable porque el body es trivial y LazyVStack lo limita a las filas en pantalla).
 struct VoicePlaybackInfo: View {
     let fileName: String
     let duration: Double?
@@ -699,8 +699,8 @@ struct VoicePlaybackInfo: View {
     }
 }
 
-/// ▶/⏹ button for a voice note. Observes AudioPlayer.shared (like VoicePlaybackInfo): keeps the
-/// observation out of ItemRow so the whole row isn't recomputed on every playback change.
+/// Botón ▶/⏹ para una nota de voz. Observa AudioPlayer.shared (como VoicePlaybackInfo): mantiene la
+/// observación fuera de ItemRow para que no se recompute toda la fila en cada cambio de reproducción.
 struct VoicePlayButton: View {
     let fileName: String
     var large: Bool = false

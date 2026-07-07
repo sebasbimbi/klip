@@ -1,13 +1,13 @@
 import AppKit
 
-/// Turns rich clipboard text (RTF/HTML, e.g. an AI chat answer on a dark theme) into CLEAN Markdown:
-/// bold → **…**, italic → *…*, emojis kept as-is, while colors, background and fonts are dropped. This is
-/// what "always paste clean" stores, so a clip pastes without dragging styling but keeps its bold/italic.
+/// Convierte texto enriquecido del portapapeles (RTF/HTML, p. ej. una respuesta de chat IA en tema oscuro) en
+/// Markdown LIMPIO: negrita → **…**, cursiva → *…*, los emojis se conservan tal cual, y colores, fondo y fuentes
+/// se descartan. Es lo que guarda "pegar siempre limpio": el clip pega sin arrastrar estilos pero conserva negrita/cursiva.
 enum RichText {
-    /// Clean Markdown for the pasteboard's rich text, or nil if it carries no usable rich text.
+    /// Markdown limpio para el texto enriquecido del portapapeles, o nil si no trae texto enriquecido usable.
     static func cleanMarkdown(from pb: NSPasteboard) -> String? {
-        // Parsing rich text runs synchronously on the capture (poll/main) thread; a multi-MB blob can take
-        // seconds and freeze the UI. Cap it — over the limit, fall back to the plain string instantly.
+        // Parsear texto enriquecido corre síncrono en el hilo de captura (poll/main); un blob de varios MB puede
+        // tardar segundos y congelar la UI. Limitarlo — por encima del límite, caer al string plano al instante.
         let limit = 256_000
         let rtf = pb.data(forType: .rtf) ?? pb.data(forType: NSPasteboard.PasteboardType("public.rtf"))
         if let rtf, rtf.count < limit, let attr = try? NSAttributedString(
@@ -26,8 +26,8 @@ enum RichText {
     private static func markdown(from attr: NSAttributedString) -> String {
         let ns = attr.string as NSString
         guard ns.length > 0 else { return "" }
-        // Merge consecutive characters that share the same (bold, italic), ignoring colour/background/font,
-        // so adjacent runs don't produce doubled markers like **a****b**.
+        // Fusionar caracteres consecutivos que comparten el mismo (negrita, cursiva), ignorando color/fondo/fuente,
+        // para que runs adyacentes no produzcan marcadores duplicados como **a****b**.
         var spans: [Span] = []
         attr.enumerateAttribute(.font, in: NSRange(location: 0, length: attr.length), options: []) { value, range, _ in
             var bold = false, italic = false
@@ -36,7 +36,7 @@ enum RichText {
                 bold = traits.contains(.bold)
                 italic = traits.contains(.italic)
             }
-            // Slice on the String (grapheme-safe) so a run boundary can't split an emoji's surrogate pair.
+            // Cortar sobre el String (seguro a nivel de grafema) para que un borde de run no parta el par sustituto de un emoji.
             let text = Range(range, in: attr.string).map { String(attr.string[$0]) } ?? ns.substring(with: range)
             if var last = spans.last, last.bold == bold, last.italic == italic {
                 last.text += text; spans[spans.count - 1] = last
@@ -48,7 +48,7 @@ enum RichText {
         for s in spans {
             let trimmed = s.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, s.bold || s.italic else { out += s.text; continue }
-            // Keep surrounding spaces OUTSIDE the markers (WhatsApp/Markdown ignore "* x *").
+            // Mantener los espacios circundantes FUERA de los marcadores (WhatsApp/Markdown ignoran "* x *").
             let lead = String(s.text.prefix(while: { $0 == " " }))
             let trail = String(s.text.reversed().prefix(while: { $0 == " " }).reversed())
             let marker = s.bold && s.italic ? "***" : (s.bold ? "**" : "*")

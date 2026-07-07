@@ -1,10 +1,10 @@
 import AppKit
 
-/// Drawing tools for the snapshot editor (parity with Lightshot).
+/// Herramientas de dibujo para el editor de capturas (paridad con Lightshot).
 enum SnapTool: String, CaseIterable {
     case pencil, line, arrow, rectangle, ellipse, marker, text
 
-    /// Our own SF Symbol (we don't use Lightshot's assets — they're Skillbrains' IP).
+    /// Nuestro propio SF Symbol (no usamos los assets de Lightshot — son propiedad intelectual de Skillbrains).
     var symbol: String {
         switch self {
         case .pencil:    return "pencil.tip"
@@ -30,8 +30,8 @@ enum SnapTool: String, CaseIterable {
     }
 }
 
-/// A drawable annotation. `points` holds the freehand stroke (pencil/marker); shapes use the
-/// first and last point; text stores its string and its origin.
+/// Una anotación dibujable. `points` guarda el trazo a mano alzada (lápiz/marcador); las formas usan el
+/// primer y el último punto; el texto guarda su cadena y su origen.
 struct Annotation {
     var id = UUID()
     var tool: SnapTool
@@ -39,14 +39,14 @@ struct Annotation {
     var lineWidth: CGFloat
     var points: [CGPoint]
     var text: String?
-    var fontSize: CGFloat = 20   // only for .text
+    var fontSize: CGFloat = 20   // solo para .text
 
     var start: CGPoint { points.first ?? .zero }
     var end: CGPoint { points.last ?? .zero }
 
     var textFont: NSFont { NSFont.systemFont(ofSize: fontSize, weight: .semibold) }
 
-    /// Rectangle occupied by the text (for selection/hit-testing/moving). nil if not text.
+    /// Rectángulo que ocupa el texto (para selección/hit-testing/mover). nil si no es texto.
     func textBounds() -> CGRect? {
         guard tool == .text, let text, !text.isEmpty else { return nil }
         let size = (text as NSString).size(withAttributes: [.font: textFont])
@@ -54,7 +54,7 @@ struct Annotation {
         return CGRect(x: o.x, y: o.y, width: size.width, height: size.height)
     }
 
-    /// Draws the annotation in the current context (view coordinates, not flipped).
+    /// Dibuja la anotación en el contexto actual (coordenadas de la vista, sin voltear).
     func draw() {
         color.set()
         switch tool {
@@ -87,7 +87,7 @@ struct Annotation {
         let path = NSBezierPath()
         path.lineWidth = width
         path.lineJoinStyle = .round
-        path.lineCapStyle = round ? .square : .round   // marker: square cap (highlighter stroke)
+        path.lineCapStyle = round ? .square : .round   // marcador: extremo cuadrado (trazo de resaltador)
         path.move(to: pts[0])
         for p in pts.dropFirst() { path.line(to: p) }
         path.stroke()
@@ -98,11 +98,11 @@ struct Annotation {
     }
 
     private func drawArrow(from a: CGPoint, to b: CGPoint, width: CGFloat) {
-        // `a` = where you press, `b` = where you release → the tip points at `b`. A FILLED triangle head
-        // makes it unmistakable which end is the point.
+        // `a` = donde presionas, `b` = donde sueltas → la punta apunta a `b`. Una cabeza triangular RELLENA
+        // hace inconfundible cuál extremo es la punta.
         let angle = atan2(b.y - a.y, b.x - a.x)
         let head = max(14, width * 4.5)
-        // Stop the shaft at the base of the head so the line doesn't poke through the filled tip.
+        // Detener el asta en la base de la cabeza para que la línea no asome a través de la punta rellena.
         let base = CGPoint(x: b.x - cos(angle) * head, y: b.y - sin(angle) * head)
         let shaft = NSBezierPath(); shaft.move(to: a); shaft.line(to: base)
         shaft.lineWidth = width; shaft.lineCapStyle = .round; shaft.stroke()

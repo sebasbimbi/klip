@@ -2,7 +2,7 @@ import Foundation
 import Vision
 import AppKit
 
-/// Text recognition in images using the Vision framework (on-device).
+/// Reconocimiento de texto en imágenes usando el framework Vision (en el dispositivo).
 enum OCR {
     static func recognizeText(in image: NSImage) -> String {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
@@ -11,8 +11,8 @@ enum OCR {
         return recognizeText(in: cg)
     }
 
-    /// Common code tokens that language correction tends to "fix" into prose; listing them as custom
-    /// words keeps them intact even though correction is off.
+    /// Tokens comunes de código que la corrección de idioma tiende a "arreglar" hacia prosa; listarlos como
+    /// palabras personalizadas los mantiene intactos aunque la corrección esté apagada.
     private static let codeWords = ["func", "let", "var", "const", "async", "await", "return", "nil",
                                     "null", "void", "import", "export", "class", "struct", "enum",
                                     "true", "false", "=>", "->", "==", "!=", "&&", "||"]
@@ -20,13 +20,13 @@ enum OCR {
     static func recognizeText(in cgImage: CGImage) -> String {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        // OFF for code: language correction rewrites symbols/identifiers into prose (== → =, names →
-        // dictionary words, dropped punctuation). Off is both more accurate for code and faster.
+        // APAGADO para código: la corrección de idioma reescribe símbolos/identificadores como prosa (== → =,
+        // nombres → palabras de diccionario, puntuación perdida). Apagado es más preciso para código y más rápido.
         request.usesLanguageCorrection = false
         request.recognitionLanguages = ["en-US", "es-ES"]
-        request.automaticallyDetectsLanguage = false   // we specify the languages → skip the detection pass (faster)
+        request.automaticallyDetectsLanguage = false   // especificamos los idiomas → saltar la pasada de detección (más rápido)
         request.customWords = codeWords
-        request.minimumTextHeight = 0   // don't skip tiny terminal/log fonts
+        request.minimumTextHeight = 0   // no saltarse fuentes diminutas de terminal/logs
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         do {

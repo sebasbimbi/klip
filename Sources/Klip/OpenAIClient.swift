@@ -20,7 +20,7 @@ enum OpenAIError: Error, LocalizedError {
     }
 }
 
-/// OpenAI HTTP client. Reads the key from the Keychain on every request (never hardcodes it).
+/// Cliente HTTP de OpenAI. Lee la clave del Llavero en cada solicitud (nunca la incrusta en el código).
 final class OpenAIClient {
     static let shared = OpenAIClient()
     private let session: URLSession
@@ -36,7 +36,7 @@ final class OpenAIClient {
         return v
     }
 
-    // MARK: - Audio transcription
+    // MARK: - Transcripción de audio
 
     func transcribe(audioURL: URL, language: String?, model: String, vocabulary: String = "") async throws -> String {
         let key = try apiKey()
@@ -57,7 +57,7 @@ final class OpenAIClient {
         append("\r\n")
         field("model", model)
         if let language, !language.isEmpty { field("language", language) }
-        // Bias recognition toward the user's context words/names (Whisper & gpt-4o-transcribe `prompt`).
+        // Sesga el reconocimiento hacia las palabras/nombres del contexto del usuario (`prompt` de Whisper y gpt-4o-transcribe).
         let vocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
         if !vocab.isEmpty { field("prompt", vocab) }
         field("response_format", "json")
@@ -90,8 +90,8 @@ final class OpenAIClient {
         }
     }
 
-    /// OpenAI validates the format by the filename extension. Rename extensions the API doesn't accept to
-    /// an equivalent it does: .opus (Ogg-Opus) → .ogg; .m4b (MP4 audiobook) → .m4a (same MP4 container).
+    /// OpenAI valida el formato por la extensión del nombre de archivo. Renombra extensiones que la API no acepta a
+    /// un equivalente que sí acepta: .opus (Ogg-Opus) → .ogg; .m4b (audiolibro MP4) → .m4a (mismo contenedor MP4).
     private static func uploadFilename(for url: URL) -> String {
         let ext = url.pathExtension.lowercased()
         let rename: [String: String] = ["opus": "ogg", "m4b": "m4a"]

@@ -1,12 +1,12 @@
 import Foundation
 
-/// Type of item stored in the clipboard history.
+/// Tipo de elemento guardado en el historial del portapapeles.
 enum ClipboardKind: String, Codable {
     case text
     case image
 }
 
-/// An item in the clipboard history (text or image).
+/// Un elemento del historial del portapapeles (texto o imagen).
 struct ClipboardItem: Identifiable, Codable, Equatable {
     let id: UUID
     var kind: ClipboardKind
@@ -16,17 +16,17 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
     var createdAt: Date
     var pinned: Bool
 
-    // New fields (Optional => the old items.json decodes without error: they stay nil).
+    // Campos nuevos (Optional => el items.json antiguo decodifica sin error: quedan en nil).
     var sourceName: String?       // "Google Chrome", "Notas"…
     var sourceBundleID: String?   // "com.google.Chrome"
-    var isRemote: Bool?           // heuristic: "another Apple device"
-    var isVoiceNote: Bool?        // voice note transcription
-    var transcribing: Bool?       // voice note: transcription in progress (state, language-independent)
-    var isCredential: Bool?       // marked as a credential (token/API key)
-    var audioFileName: String?    // voice note: original audio file saved (m4a) for playback
-    var audioDuration: Double?    // audio duration in seconds (for display and the progress bar)
-    var name: String?             // user-set label (searchable title; applies to any item)
-    var collection: String?       // name of the collection it belongs to (groups batches of context)
+    var isRemote: Bool?           // heurística: "otro dispositivo Apple"
+    var isVoiceNote: Bool?        // transcripción de nota de voz
+    var transcribing: Bool?       // nota de voz: transcripción en curso (estado, independiente del idioma)
+    var isCredential: Bool?       // marcado como credencial (token/API key)
+    var audioFileName: String?    // nota de voz: archivo de audio original guardado (m4a) para reproducción
+    var audioDuration: Double?    // duración del audio en segundos (para mostrarla y para la barra de progreso)
+    var name: String?             // etiqueta puesta por el usuario (título buscable; aplica a cualquier elemento)
+    var collection: String?       // nombre de la colección a la que pertenece (agrupa lotes de contexto)
 
     init(id: UUID = UUID(),
          kind: ClipboardKind,
@@ -64,20 +64,20 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
         self.collection = collection
     }
 
-    /// The clip as a web URL if it's exactly a single http(s) link — used by the Links filter and the
-    /// "Open link" row action.
+    /// El clip como URL web si es exactamente un único enlace http(s) — lo usan el filtro de Enlaces y la
+    /// acción de fila "Abrir enlace".
     var linkURL: URL? {
         guard kind == .text, isVoiceNote != true, isCredential != true,
               let t = text?.trimmingCharacters(in: .whitespacesAndNewlines),
               t.lowercased().hasPrefix("http://") || t.lowercased().hasPrefix("https://"),
-              !t.contains(where: \.isWhitespace),   // a single URL: no spaces, tabs or newlines
+              !t.contains(where: \.isWhitespace),   // una única URL: sin espacios, tabs ni saltos de línea
               let u = URL(string: t), u.host != nil else { return nil }
         return u
     }
 
-    // Full ==: SwiftUI uses it to decide whether to re-render a row. It must also reflect
-    // text/preview/audioFileName so the voice note updates when it goes from "Transcribiendo…"
-    // to its final text (and when its audio is saved).
+    // == completo: SwiftUI lo usa para decidir si re-renderiza una fila. También debe reflejar
+    // text/preview/audioFileName para que la nota de voz se actualice cuando pasa de "Transcribiendo…"
+    // a su texto final (y cuando se guarda su audio).
     static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
         lhs.id == rhs.id && lhs.pinned == rhs.pinned && lhs.createdAt == rhs.createdAt
             && lhs.isCredential == rhs.isCredential && lhs.isVoiceNote == rhs.isVoiceNote
@@ -85,7 +85,7 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
             && lhs.isRemote == rhs.isRemote
             && lhs.text == rhs.text && lhs.preview == rhs.preview
             && lhs.imageFileName == rhs.imageFileName && lhs.audioFileName == rhs.audioFileName
-            && lhs.audioDuration == rhs.audioDuration   // drives the voice-note progress bar UI
+            && lhs.audioDuration == rhs.audioDuration   // alimenta la UI de la barra de progreso de la nota de voz
             && lhs.name == rhs.name && lhs.collection == rhs.collection
     }
 }

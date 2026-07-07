@@ -1,20 +1,20 @@
 import Carbon.HIToolbox
 import AppKit
 
-/// GLOBAL keyboard shortcut (works even when the app is not in the foreground),
-/// using the Carbon RegisterEventHotKey API. Does not require Accessibility permissions.
+/// Atajo de teclado GLOBAL (funciona incluso cuando la app no está en primer plano),
+/// usando la API Carbon RegisterEventHotKey. No requiere permisos de Accesibilidad.
 final class HotKey {
     private var hotKeyRef: EventHotKeyRef?
     private let id: UInt32
     private let callback: () -> Void
 
-    /// Static map so the C callback (which can't capture) can locate the instance.
+    /// Mapa estático para que el callback C (que no puede capturar) pueda localizar la instancia.
     private static var instances: [UInt32: HotKey] = [:]
     private static var handlerInstalled = false
 
     /// - Parameters:
-    ///   - keyCode: virtual key code (e.g. kVK_ANSI_V).
-    ///   - modifiers: Carbon combination (e.g. cmdKey | shiftKey).
+    ///   - keyCode: código de tecla virtual (p. ej. kVK_ANSI_V).
+    ///   - modifiers: combinación Carbon (p. ej. cmdKey | shiftKey).
     init?(keyCode: UInt32, modifiers: UInt32, id: UInt32 = 1, callback: @escaping () -> Void) {
         self.id = id
         self.callback = callback
@@ -53,12 +53,12 @@ final class HotKey {
         }, 1, &eventType, nil, nil)
     }
 
-    /// Hot-reloads with a new combination, reusing the id and callback.
-    /// The already-installed global handler stays valid; it is not reinstalled.
+    /// Recarga en caliente con una combinación nueva, reutilizando el id y el callback.
+    /// El handler global ya instalado sigue siendo válido; no se reinstala.
     @discardableResult
     func reRegister(keyCode: UInt32, modifiers: UInt32) -> Bool {
-        // Register the NEW one in a temporary ref; only release the old one if it succeeded,
-        // so we don't end up without a shortcut if the combination collides.
+        // Registrar el NUEVO en un ref temporal; liberar el antiguo solo si tuvo éxito,
+        // para no quedarnos sin atajo si la combinación colisiona.
         let hotKeyID = EventHotKeyID(signature: OSType(0x50415354), id: id) // 'PAST'
         var newRef: EventHotKeyRef?
         let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
@@ -71,8 +71,8 @@ final class HotKey {
 
     deinit {
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
-        // The Carbon event handler is a single process-lifetime global (installHandlerIfNeeded), shared by
-        // all HotKey instances via the static `instances` map — intentionally not removed per-instance.
+        // El handler de eventos Carbon es un global único de vida del proceso (installHandlerIfNeeded), compartido
+        // por todas las instancias de HotKey vía el mapa estático `instances` — a propósito no se quita por instancia.
         HotKey.instances[id] = nil
     }
 }

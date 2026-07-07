@@ -1,27 +1,27 @@
 import AppKit
 
-/// Editor canvas: draws the base capture and the annotations on top. Handles live drawing,
-/// in-place text (a temporary NSTextField — supports accents), and for text: selecting, moving,
-/// re-editing, and resizing. Flattens everything to a full-resolution image.
+/// Lienzo del editor: dibuja la captura base y las anotaciones encima. Gestiona el dibujo en vivo,
+/// texto in situ (un NSTextField temporal — soporta tildes) y, para texto: seleccionar, mover,
+/// reeditar y redimensionar. Aplana todo a una imagen a resolución completa.
 final class AnnotationCanvasView: NSView {
     private let baseImage: NSImage
     private(set) var annotations: [Annotation] = []
     private var draft: Annotation?
 
-    // In-place text / selection.
+    // Texto in situ / selección.
     private var activeTextField: NSTextField?
-    private var editingID: UUID?              // text annotation currently being re-edited
+    private var editingID: UUID?              // anotación de texto en reedición
     private var editFontSize: CGFloat = 20
     private var editColor: NSColor = .systemRed
-    private(set) var selectedTextID: UUID?    // selected text (highlighted box)
-    private var movingTextID: UUID?           // text currently being dragged
+    private(set) var selectedTextID: UUID?    // texto seleccionado (caja resaltada)
+    private var movingTextID: UUID?           // texto que se está arrastrando
     private var moveOffset = CGSize.zero
     private var movedDuringDrag = false
-    /// Full-state undo snapshots: add / move / edit / recolor / resize / delete are all reversible.
+    /// Instantáneas de undo con estado completo: añadir / mover / editar / recolorear / redimensionar / borrar son reversibles.
     private var undoStack: [[Annotation]] = []
     private var preMoveSnapshot: [Annotation]?
-    /// Fired when in-place text editing starts (true) / ends (false), so the editor can disable its
-    /// ⌘C/⌘Z/⌘S/Esc key equivalents while the user types into the field (otherwise they hijack editing).
+    /// Se dispara cuando la edición de texto in situ empieza (true) / termina (false), para que el editor
+    /// desactive sus equivalentes ⌘C/⌘Z/⌘S/Esc mientras el usuario escribe en el campo (si no, secuestran la edición).
     var onTextEditingChanged: ((Bool) -> Void)?
 
     var currentTool: SnapTool = .arrow
@@ -29,7 +29,7 @@ final class AnnotationCanvasView: NSView {
     var currentLineWidth: CGFloat = 3
     var currentFontSize: CGFloat = 20
 
-    /// Notifies selection changes (so the toolbar reflects the size of the selected text).
+    /// Notifica cambios de selección (para que la barra de herramientas refleje el tamaño del texto seleccionado).
     var onSelectionChange: (() -> Void)?
 
     init(image: NSImage) {
@@ -43,8 +43,8 @@ final class AnnotationCanvasView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         baseImage.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
-        // The text being re-edited is hidden from the canvas (the NSTextField on top shows it);
-        // that way an Undo/cancel during re-editing restores the original instead of losing it.
+        // El texto en reedición se oculta del lienzo (el NSTextField encima lo muestra);
+        // así un Undo/cancelar durante la reedición restaura el original en vez de perderlo.
         for a in annotations where a.id != editingID { a.draw() }
         draft?.draw()
         drawSelectionHighlight()
@@ -61,45 +61,45 @@ final class AnnotationCanvasView: NSView {
         path.stroke()
     }
 
-    // MARK: - Mouse
+    // MARK: - Ratón
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
 
         if currentTool == .text {
             commitActiveText()
-            // Click on an existing text? (top to bottom)
+            // ¿Clic sobre un texto existente? (de arriba hacia abajo)
             if let idx = annotations.lastIndex(where: {
                 $0.tool == .text && ($0.textBounds()?.insetBy(dx: -6, dy: -6).contains(p) ?? false)
             }) {
                 let ann = annotations[idx]
                 if event.clickCount >= 2 {
-                    // Double click → re-edit. It is NOT removed from the array: it's hidden via
-                    // editingID while editing (draw skips it), so an Undo/cancel restores the original text.
+                    // Doble clic → reeditar. NO se elimina del array: se oculta vía
+                    // editingID mientras se edita (draw lo omite), así un Undo/cancelar restaura el texto original.
                     editingID = ann.id
                     selectedTextID = nil
                     beginTextEditing(at: ann.start, existing: ann)
                 } else {
-                    // Single click → select and prepare to drag.
+                    // Clic simple → seleccionar y preparar el arrastre.
                     selectedTextID = ann.id
                     movingTextID = ann.id
                     moveOffset = CGSize(width: p.x - ann.start.x, height: p.y - ann.start.y)
-                    preMoveSnapshot = annotations   // snapshot in case the drag moves it (undoable)
+                    preMoveSnapshot = annotations   // instantánea por si el arrastre lo mueve (deshacible)
                     movedDuringDrag = false
                     onSelectionChange?()
                 }
                 needsDisplay = true
                 return
             }
-            // Empty space → new text.
+            // Espacio vacío → texto nuevo.
             selectedTextID = nil
-            onSelectionChange?()   // with no text selected, the toolbar reflects the current color/size
+            onSelectionChange?()   // sin texto seleccionado, la barra refleja el color/tamaño actual
             beginTextEditing(at: p, existing: nil)
             needsDisplay = true
             return
         }
 
-        // Drawing tools.
+        // Herramientas de dibujo.
         selectedTextID = nil
         onSelectionChange?()
         commitActiveText()
@@ -110,7 +110,7 @@ final class AnnotationCanvasView: NSView {
     override func mouseDragged(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
 
-        // Move a selected text.
+        // Mover un texto seleccionado.
         if let movingID = movingTextID, let idx = annotations.firstIndex(where: { $0.id == movingID }) {
             annotations[idx].points = [CGPoint(x: p.x - moveOffset.width, y: p.y - moveOffset.height)]
             movedDuringDrag = true
@@ -130,14 +130,14 @@ final class AnnotationCanvasView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         if movingTextID != nil {
-            if movedDuringDrag, let snap = preMoveSnapshot { pushUndo(snap) }   // record the move for undo
+            if movedDuringDrag, let snap = preMoveSnapshot { pushUndo(snap) }   // registra el movimiento para undo
             movingTextID = nil; preMoveSnapshot = nil; movedDuringDrag = false
             return
         }
         guard let d = draft else { return }
         draft = nil
-        // Require an actual stroke: a no-drag click (count == 1) must not create an invisible annotation
-        // that silently consumes an Undo press.
+        // Exigir un trazo real: un clic sin arrastre (count == 1) no debe crear una anotación invisible
+        // que consuma en silencio una pulsación de Undo.
         if d.points.count > 1 {
             pushUndo()
             annotations.append(d)
@@ -145,7 +145,7 @@ final class AnnotationCanvasView: NSView {
         needsDisplay = true
     }
 
-    // MARK: - In-place text
+    // MARK: - Texto in situ
 
     private func beginTextEditing(at point: NSPoint, existing: Annotation?) {
         let fontSize = existing?.fontSize ?? currentFontSize
@@ -153,7 +153,7 @@ final class AnnotationCanvasView: NSView {
         let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
         let lineHeight = font.ascender - font.descender
         let fieldHeight = max(24, lineHeight + 8)
-        // Position the field so that, on commit, the drawn text lands at `point`.
+        // Posicionar el campo de modo que, al confirmar, el texto dibujado caiga en `point`.
         let field = NSTextField(frame: NSRect(x: point.x - 4,
                                               y: point.y - (fieldHeight - lineHeight) / 2,
                                               width: 260, height: fieldHeight))
@@ -172,7 +172,7 @@ final class AnnotationCanvasView: NSView {
         activeTextField = field
         editFontSize = fontSize
         editColor = color
-        onTextEditingChanged?(true)   // let the toolbar release ⌘C/⌘Z/⌘S/Esc while typing
+        onTextEditingChanged?(true)   // deja que la barra libere ⌘C/⌘Z/⌘S/Esc mientras se escribe
     }
 
     @objc private func textFieldCommitted(_ sender: NSTextField) { commitActiveText() }
@@ -186,11 +186,11 @@ final class AnnotationCanvasView: NSView {
         activeTextField = nil
         editingID = nil
         field.removeFromSuperview()
-        onTextEditingChanged?(false)   // restore the toolbar key equivalents
-        // Record undo only if this commit actually changes the annotations (new text, or re-edit).
+        onTextEditingChanged?(false)   // restaura los equivalentes de teclado de la barra
+        // Registrar undo solo si este commit cambia realmente las anotaciones (texto nuevo, o reedición).
         if !text.isEmpty || id != nil { pushUndo() }
-        // If a text was being re-edited, remove the original: we replace it below, or (if it ended up
-        // empty) we delete it by committing empty.
+        // Si se estaba reeditando un texto, eliminar el original: lo reemplazamos abajo, o (si quedó
+        // vacío) lo borramos al confirmar vacío.
         if let id { annotations.removeAll { $0.id == id } }
         guard !text.isEmpty else { needsDisplay = true; return }
         let lineHeight = font.ascender - font.descender
@@ -198,28 +198,28 @@ final class AnnotationCanvasView: NSView {
         let origin = CGPoint(x: frame.minX + 4, y: drawY)
         var ann = Annotation(tool: .text, color: editColor, lineWidth: currentLineWidth,
                              points: [origin], text: text, fontSize: editFontSize)
-        if let id { ann.id = id }   // preserves identity when re-editing
+        if let id { ann.id = id }   // conserva la identidad al reeditar
         annotations.append(ann)
         selectedTextID = ann.id
         onSelectionChange?()
         needsDisplay = true
     }
 
-    // MARK: - Font size
+    // MARK: - Tamaño de fuente
 
-    /// Effective size to show in the toolbar: that of the selected text, or the current one.
+    /// Tamaño efectivo a mostrar en la barra de herramientas: el del texto seleccionado, o el actual.
     var effectiveFontSize: CGFloat {
         if let id = selectedTextID, let a = annotations.first(where: { $0.id == id }) { return a.fontSize }
         return currentFontSize
     }
 
-    /// Effective color to reflect in the toolbar: that of the selected text, or the current one.
+    /// Color efectivo a reflejar en la barra de herramientas: el del texto seleccionado, o el actual.
     var effectiveColor: NSColor {
         if let id = selectedTextID, let a = annotations.first(where: { $0.id == id }) { return a.color }
         return currentColor
     }
 
-    /// Applies a new size: to the selected text (if any) and as the default size for the next one.
+    /// Aplica un nuevo tamaño: al texto seleccionado (si lo hay) y como tamaño por defecto para el siguiente.
     func setFontSize(_ size: CGFloat) {
         let clamped = max(10, min(120, size))
         currentFontSize = clamped
@@ -236,8 +236,8 @@ final class AnnotationCanvasView: NSView {
 
     func bumpFontSize(_ delta: CGFloat) { setFontSize(effectiveFontSize + delta) }
 
-    /// Sets the current color and, if there is selected or being-edited text, recolors it.
-    /// Use for explicit user color actions (tapping a swatch / the color panel).
+    /// Establece el color actual y, si hay texto seleccionado o en edición, lo recolorea.
+    /// Usar para acciones de color explícitas del usuario (tocar una muestra / el panel de color).
     func setColor(_ color: NSColor) {
         currentColor = color
         if let field = activeTextField { field.textColor = color; editColor = color }
@@ -248,51 +248,51 @@ final class AnnotationCanvasView: NSView {
         needsDisplay = true
     }
 
-    /// Color-panel drags fire continuously (isContinuous), so a plain setColor per tick would flood the
-    /// 50-entry undo stack and wipe real history. armColorCoalescing() re-arms before a drag; the FIRST
-    /// coalesced change snapshots once, the rest recolor in place.
+    /// Los arrastres del panel de color disparan de forma continua (isContinuous), así que un setColor normal
+    /// por tick inundaría la pila de undo de 50 entradas y borraría el historial real. armColorCoalescing()
+    /// se rearma antes de un arrastre; el PRIMER cambio coalescido toma una instantánea, el resto recolorea in situ.
     private var colorCoalescingArmed = false
     func armColorCoalescing() { colorCoalescingArmed = true }
 
     func setColorCoalesced(_ color: NSColor) {
         if colorCoalescingArmed {
             colorCoalescingArmed = false
-            if selectedTextID != nil { pushUndo() }   // one snapshot for the whole drag
+            if selectedTextID != nil { pushUndo() }   // una instantánea para todo el arrastre
         }
         currentColor = color
         if let field = activeTextField { field.textColor = color; editColor = color }
         if let id = selectedTextID, let idx = annotations.firstIndex(where: { $0.id == id }) {
-            annotations[idx].color = color   // no pushUndo: already snapshotted at drag start
+            annotations[idx].color = color   // sin pushUndo: ya hay instantánea del inicio del arrastre
         }
         needsDisplay = true
     }
 
-    /// Sets the default color for FUTURE strokes only — never recolors a committed selected annotation.
-    /// Used on tool switches so changing tools doesn't silently rewrite an existing text's color.
+    /// Establece el color por defecto solo para trazos FUTUROS — nunca recolorea una anotación ya confirmada.
+    /// Se usa al cambiar de herramienta para no reescribir en silencio el color de un texto existente.
     func setDefaultColor(_ color: NSColor) {
         currentColor = color
         if let field = activeTextField { field.textColor = color; editColor = color }
         needsDisplay = true
     }
 
-    // MARK: - Actions
+    // MARK: - Acciones
 
     private func pushUndo(_ snapshot: [Annotation]? = nil) {
         undoStack.append(snapshot ?? annotations)
-        if undoStack.count > 50 { undoStack.removeFirst() }   // bound memory
+        if undoStack.count > 50 { undoStack.removeFirst() }   // acota la memoria
     }
 
     func undo() {
-        // If text is being edited, cancel the edit first: the original stays in the array (hidden by
-        // editingID) and reappears once editingID is cleared. The re-edited text is not lost.
+        // Si se está editando texto, cancelar la edición primero: el original permanece en el array (oculto
+        // por editingID) y reaparece al limpiar editingID. El texto reeditado no se pierde.
         if activeTextField != nil {
             activeTextField?.removeFromSuperview(); activeTextField = nil; editingID = nil
             onTextEditingChanged?(false)
             needsDisplay = true
             return
         }
-        // Restore the last snapshot — reverses ANY operation (add/move/edit/recolor/resize/delete),
-        // not just the most-recently-added annotation.
+        // Restaurar la última instantánea — revierte CUALQUIER operación (añadir/mover/editar/recolorear/redimensionar/borrar),
+        // no solo la anotación añadida más recientemente.
         guard let prev = undoStack.popLast() else { return }
         annotations = prev
         selectedTextID = nil
@@ -300,7 +300,7 @@ final class AnnotationCanvasView: NSView {
         needsDisplay = true
     }
 
-    /// Deletes the currently selected text annotation (Delete / Backspace), undoably.
+    /// Borra la anotación de texto seleccionada (Delete / Backspace), de forma deshacible.
     override func keyDown(with event: NSEvent) {
         let isDelete = event.keyCode == 51 || event.keyCode == 117   // Backspace / Forward-Delete
         if isDelete, activeTextField == nil, let id = selectedTextID,
@@ -315,18 +315,18 @@ final class AnnotationCanvasView: NSView {
         super.keyDown(with: event)
     }
 
-    /// Flattens base + annotations into an NSImage at full pixel resolution (Retina).
+    /// Aplana base + anotaciones en un NSImage a resolución completa de píxeles (Retina).
     func flattened() -> NSImage {
         commitActiveText()
         let savedSelection = selectedTextID
-        selectedTextID = nil   // don't rasterize the selection box
+        selectedTextID = nil   // no rasterizar la caja de selección
         defer { selectedTextID = savedSelection }
 
         let pxW = baseImage.representations.first?.pixelsWide ?? Int(bounds.width)
         let pxH = baseImage.representations.first?.pixelsHigh ?? Int(bounds.height)
-        // Rasterize in the base image's OWN color space. Using a generic `.deviceRGB` bitmap rep would
-        // strip a Display P3 (wide-gamut) profile and produce a washed-out PNG on capable displays; a
-        // CGContext in `baseCG.colorSpace` preserves the colors the user actually saw.
+        // Rasterizar en el espacio de color PROPIO de la imagen base. Un bitmap rep genérico `.deviceRGB`
+        // eliminaría un perfil Display P3 (gama amplia) y produciría un PNG deslavado en pantallas capaces; un
+        // CGContext en `baseCG.colorSpace` conserva los colores que el usuario vio realmente.
         let baseCG = baseImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
         let colorSpace = baseCG?.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)
         if pxW > 0, pxH > 0, bounds.width > 0, bounds.height > 0, let colorSpace,
@@ -348,8 +348,8 @@ final class AnnotationCanvasView: NSView {
             }
         }
 
-        // Fallback (couldn't create the pixel-resolution bitmap): rasterize at point size
-        // BUT including the annotations. Never return the clean base: it would lose the user's work.
+        // Fallback (no se pudo crear el bitmap a resolución de píxeles): rasterizar a tamaño en puntos
+        // PERO incluyendo las anotaciones. Nunca devolver la base limpia: perdería el trabajo del usuario.
         let out = NSImage(size: bounds.size)
         out.lockFocus()
         baseImage.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)

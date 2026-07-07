@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import Carbon.HIToolbox
 
-/// Field that records a key combination for the global shortcut.
+/// Campo que graba una combinación de teclas para el atajo global.
 struct KeyRecorderView: NSViewRepresentable {
     @Binding var combo: KeyCombo
     var onChange: (KeyCombo) -> Void
@@ -36,11 +36,11 @@ final class RecorderNSView: NSView {
 
     override func keyDown(with event: NSEvent) {
         guard recording else { super.keyDown(with: event); return }
-        if event.keyCode == 53 { recording = false; return }   // Esc cancels
+        if event.keyCode == 53 { recording = false; return }   // Esc cancela
         let carbon = cocoaToCarbonModifiers(
             event.modifierFlags.intersection(.deviceIndependentFlagsMask))
         let candidate = KeyCombo(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
-        guard candidate.isValid else { NSSound.beep(); return }  // requires a modifier
+        guard candidate.isValid else { NSSound.beep(); return }  // requiere un modificador
         current = candidate
         recording = false
         onCapture?(candidate)
@@ -68,7 +68,7 @@ final class RecorderNSView: NSView {
     }
 }
 
-/// Shortcut field with a recorder + a menu of suggested combinations.
+/// Campo de atajo con un grabador + un menú de combinaciones sugeridas.
 struct HotKeyField: View {
     @Binding var combo: KeyCombo
     var onChange: (KeyCombo) -> Void

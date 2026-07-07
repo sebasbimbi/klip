@@ -1,21 +1,21 @@
 import AppKit
 
-/// Shield-level window that CAN become key (unlike a plain borderless NSWindow, which by default
-/// never receives keyboard events → Esc would not cancel). Required so keyboard cancellation works
-/// while the window sits at the system shield level.
+/// Ventana a nivel shield que SÍ puede volverse key (a diferencia de una NSWindow borderless normal, que por defecto
+/// nunca recibe eventos de teclado → Esc no cancelaría). Necesaria para que la cancelación por teclado funcione
+/// mientras la ventana está en el nivel shield del sistema.
 private final class ShieldWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
 
-/// Borderless full-screen window that shows the frozen, dimmed capture and lets
-/// the user drag out a region. On release, it crops and returns an NSImage of the chosen area.
+/// Ventana borderless a pantalla completa que muestra la captura congelada y atenuada, y permite
+/// al usuario arrastrar para marcar una región. Al soltar, recorta y devuelve un NSImage del área elegida.
 final class CaptureOverlayController {
     private var window: NSWindow?
     private let shot: DisplayShot
     private let onComplete: (NSImage?) -> Void
-    private var resolved = false               // avoids double-dismiss / firing onComplete twice
-    private var escMonitor: Any?               // Esc backup while Klip is active (see present() for the limit)
+    private var resolved = false               // evita el doble dismiss / disparar onComplete dos veces
+    private var escMonitor: Any?               // respaldo de Esc mientras Klip está activo (ver present() para el límite)
 
     init(shot: DisplayShot, onComplete: @escaping (NSImage?) -> Void) {
         self.shot = shot
@@ -44,17 +44,17 @@ final class CaptureOverlayController {
         win.makeFirstResponder(view)
         self.window = win
 
-        // Esc backup (keyCode 53) for when the contentView isn't first responder but Klip is still active.
-        // It's a LOCAL monitor, so it can't fire if the overlay never became active at all — in that case a
-        // single click (mouseUp with no drag → onCancel) is the way out, not Esc.
+        // Respaldo de Esc (keyCode 53) para cuando el contentView no es first responder pero Klip sigue activo.
+        // Es un monitor LOCAL, así que no puede dispararse si el overlay nunca llegó a activarse — en ese caso
+        // la salida es un clic simple (mouseUp sin arrastre → onCancel), no Esc.
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { self?.dismiss(nil); return nil }
             return event
         }
     }
 
-    /// Converts the selection (points, bottom-left origin of the view) to bitmap pixels
-    /// (top-left origin) and crops the CGImage.
+    /// Convierte la selección (puntos, origen abajo-izquierda de la vista) a píxeles del bitmap
+    /// (origen arriba-izquierda) y recorta el CGImage.
     private func finish(selectionInView rect: NSRect) {
         guard !resolved else { return }
         guard rect.width >= 4, rect.height >= 4 else { dismiss(nil); return }
@@ -63,10 +63,10 @@ final class CaptureOverlayController {
         let imgBounds = CGRect(x: 0, y: 0, width: shot.cgImage.width, height: shot.cgImage.height)
         let px = CGRect(
             x: rect.minX * scale,
-            y: (viewH - rect.maxY) * scale,        // flip Y: Cocoa (bottom) → CGImage (top)
+            y: (viewH - rect.maxY) * scale,        // invertir Y: Cocoa (abajo) → CGImage (arriba)
             width: rect.width * scale,
             height: rect.height * scale
-        ).integral.intersection(imgBounds)         // clamp: a selection at the edge must not exceed the bitmap
+        ).integral.intersection(imgBounds)         // clamp: una selección en el borde no debe exceder el bitmap
 
         guard !px.isNull, px.width >= 1, px.height >= 1,
               let cropped = shot.cgImage.cropping(to: px) else { dismiss(nil); return }
@@ -84,7 +84,7 @@ final class CaptureOverlayController {
     }
 }
 
-/// View that draws the frozen capture, the dimming, the selection, and the dimensions badge.
+/// Vista que dibuja la captura congelada, el atenuado, la selección y la insignia de dimensiones.
 private final class CaptureOverlayView: NSView {
     private let shot: DisplayShot
     private let onSelect: (NSRect) -> Void
@@ -108,22 +108,22 @@ private final class CaptureOverlayView: NSView {
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
 
     override func draw(_ dirtyRect: NSRect) {
-        // Background: the frozen capture.
+        // Fondo: la captura congelada.
         bgImage.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
 
-        // Overall dimming.
+        // Atenuado general.
         NSColor.black.withAlphaComponent(0.45).setFill()
         bounds.fill()
 
         guard currentRect.width > 0, currentRect.height > 0 else {
-            drawHint()   // no selection yet: explain what to do
+            drawHint()   // aún no hay selección: explicar qué hacer
             return
         }
 
-        // "Hole": repaint the selected area without dimming.
+        // "Agujero": repintar el área seleccionada sin atenuado.
         bgImage.draw(in: currentRect, from: pixelSourceRect(for: currentRect), operation: .copy, fraction: 1)
 
-        // Selection border.
+        // Borde de la selección.
         NSColor.controlAccentColor.setStroke()
         let border = NSBezierPath(rect: currentRect.insetBy(dx: -0.5, dy: -0.5))
         border.lineWidth = 1.5
@@ -132,10 +132,10 @@ private final class CaptureOverlayView: NSView {
         drawDimensionBadge(for: currentRect)
     }
 
-    /// Source rect (in image points, bottom-left origin) corresponding to the view area.
+    /// Rect de origen (en puntos de imagen, origen abajo-izquierda) correspondiente al área de la vista.
     private func pixelSourceRect(for rect: NSRect) -> NSRect { rect }
 
-    /// Centered hint shown while the user hasn't dragged anything yet (so the overlay is self-explanatory).
+    /// Pista centrada que se muestra mientras el usuario aún no ha arrastrado nada (para que el overlay se explique solo).
     private func drawHint() {
         let text = L10n.t("capture.hint")
         let attrs: [NSAttributedString.Key: Any] = [
@@ -164,7 +164,7 @@ private final class CaptureOverlayView: NSView {
         let pad: CGFloat = 6
         var badge = NSRect(x: rect.minX, y: rect.maxY + 6,
                            width: textSize.width + pad * 2, height: textSize.height + pad)
-        // If it doesn't fit above, place it inside/below.
+        // Si no cabe arriba, colocarla dentro/abajo.
         if badge.maxY > bounds.maxY { badge.origin.y = rect.minY - badge.height - 6 }
         if badge.minY < bounds.minY { badge.origin.y = rect.minY + 6 }
         badge.origin.x = max(bounds.minX, min(badge.origin.x, bounds.maxX - badge.width))
@@ -174,7 +174,7 @@ private final class CaptureOverlayView: NSView {
         (label as NSString).draw(at: NSPoint(x: badge.minX + pad, y: badge.minY + pad / 2), withAttributes: attrs)
     }
 
-    // MARK: - Mouse
+    // MARK: - Ratón
 
     override func mouseDown(with event: NSEvent) {
         startPoint = convert(event.locationInWindow, from: nil)
@@ -201,6 +201,6 @@ private final class CaptureOverlayView: NSView {
         else { super.keyDown(with: event) }
     }
 
-    /// Esc through the standard responder chain (in addition to keyDown and the safety-net monitor).
+    /// Esc a través de la responder chain estándar (además de keyDown y el monitor de respaldo).
     override func cancelOperation(_ sender: Any?) { onCancel() }
 }

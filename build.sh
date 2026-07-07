@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Klip and assembles the .app bundle (no Xcode, just Command Line Tools).
+# Compila Klip y arma el bundle .app (sin Xcode, solo Command Line Tools).
 set -e
 
 APP_NAME="Klip"
@@ -11,18 +11,18 @@ ENTITLEMENTS="Resources/Klip.entitlements"
 
 cd "$(dirname "$0")"
 
-echo "→ Building ($CONFIG)…"
+echo "→ Compilando ($CONFIG)…"
 swift build -c "$CONFIG"
 
-echo "→ Assembling $BUNDLE…"
+echo "→ Armando $BUNDLE…"
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$BUNDLE/Contents/Info.plist"
 
-# .icns icon from Resources/AppIcon.png via iconutil/sips (no Xcode).
+# Icono .icns desde Resources/AppIcon.png vía iconutil/sips (sin Xcode).
 if [ -f "Resources/AppIcon.png" ]; then
-    echo "→ Generating icon…"
+    echo "→ Generando icono…"
     ICONSET="$(mktemp -d)/AppIcon.iconset"
     mkdir -p "$ICONSET"
     for s in 16 32 128 256 512; do
@@ -32,7 +32,7 @@ if [ -f "Resources/AppIcon.png" ]; then
     iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
-echo "→ Signing ad-hoc (retries for synced folders that re-add metadata)…"
+echo "→ Firmando ad-hoc (reintentos para carpetas sincronizadas que re-añaden metadatos)…"
 SIGNED=0
 for attempt in 1 2 3; do
     xattr -cr "$BUNDLE" 2>/dev/null || true
@@ -42,11 +42,11 @@ for attempt in 1 2 3; do
     fi
 done
 if [ "$SIGNED" = "1" ] && codesign --verify --strict "$BUNDLE" 2>/dev/null; then
-    echo "  valid signature ✓"
+    echo "  firma válida ✓"
 else
-    echo "  ⚠ local signature invalid (synced folder). Use ./install.sh: it signs in /Applications."
+    echo "  ⚠ firma local inválida (carpeta sincronizada). Usa ./install.sh: firma en /Applications."
 fi
 
 echo ""
-echo "✓ Done: $BUNDLE   (run:  open $BUNDLE)"
-echo "  Shortcuts: ⌥⌘Y (history) · ⌥⌘R (voice) · ⌥⌘T (capture) · ⌥⌘G (upload)   ·   Install: ./install.sh"
+echo "✓ Listo: $BUNDLE   (ejecutar:  open $BUNDLE)"
+echo "  Atajos: ⌥⇧E (historial) · ⌥⇧R (voz) · ⌥⇧D (anotar) · ⌥⇧F (OCR) · ⌥⇧O (subir)   ·   Instalar: ./install.sh"

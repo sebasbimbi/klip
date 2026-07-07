@@ -2,21 +2,21 @@ import AppKit
 import ApplicationServices   // AXIsProcessTrusted, kAXTrustedCheckOptionPrompt
 import CoreGraphics          // CGEvent, CGEventSource
 
-/// Reactivates the previous app and synthesizes ⌘V to automatically paste the chosen item.
-/// Requires Accessibility permission; if missing, it degrades to just returning focus (the content
-/// is already on the pasteboard and the user pastes manually).
+/// Reactiva la app anterior y sintetiza ⌘V para pegar automáticamente el ítem elegido.
+/// Requiere permiso de Accesibilidad; si falta, degrada a solo devolver el foco (el contenido
+/// ya está en el portapapeles y el usuario pega manualmente).
 enum Paster {
 
-    private static let keyCodeV: CGKeyCode = 9          // kVK_ANSI_V (physical position, valid for ⌘V)
+    private static let keyCodeV: CGKeyCode = 9          // kVK_ANSI_V (posición física, válida para ⌘V)
     private static let activationDelay: TimeInterval = 0.13
 
-    /// Silent check (no dialog). Used to decide auto-paste vs fallback.
+    /// Comprobación silenciosa (sin diálogo). Se usa para decidir auto-pegado vs fallback.
     static var hasAccessibilityPermission: Bool {
         AXIsProcessTrusted()
     }
 
-    /// Check that OPENS the system dialog if permission isn't granted yet.
-    /// Only call this under explicit user action.
+    /// Comprobación que ABRE el diálogo del sistema si el permiso aún no está concedido.
+    /// Llamar solo bajo una acción explícita del usuario.
     @discardableResult
     static func ensureAccessibilityPermission(prompt: Bool) -> Bool {
         guard prompt else { return AXIsProcessTrusted() }
@@ -25,9 +25,9 @@ enum Paster {
         return AXIsProcessTrustedWithOptions(options)
     }
 
-    /// Reactivates `target` and, if permitted, synthesizes ⌘V after a brief delay.
-    /// The content must already be on the pasteboard BEFORE calling.
-    /// - Returns: true if auto-paste was attempted; false if it fell back (copy-only).
+    /// Reactiva `target` y, si hay permiso, sintetiza ⌘V tras un breve retraso.
+    /// El contenido ya debe estar en el portapapeles ANTES de llamar.
+    /// - Returns: true si se intentó el auto-pegado; false si cayó al fallback (solo copiar).
     @discardableResult
     static func paste(into target: NSRunningApplication?) -> Bool {
         target?.activate()

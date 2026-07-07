@@ -2,10 +2,10 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Window to upload audio files and transcribe them: drop zone + file picker.
+/// Ventana para subir archivos de audio y transcribirlos: zona de arrastre + selector de archivos.
 struct UploadView: View {
     @ObservedObject var recorder: Recorder
-    @ObservedObject var settings = Settings.shared   // re-localize live when the UI language changes
+    @ObservedObject var settings = Settings.shared   // se re-localiza en vivo cuando cambia el idioma de la UI
     var onChoose: (String) -> Void
     var onFiles: ([URL], String) -> Void
     var onClose: () -> Void
@@ -13,12 +13,12 @@ struct UploadView: View {
     var onCopy: (String) -> Void
 
     @State private var hovering = false
-    /// nil = follow the global/platform language (stays reactive); set = override for this upload session.
+    /// nil = sigue el idioma global/de la plataforma (se mantiene reactivo); con valor = override para esta sesión de subida.
     @State private var languageOverride: String?
     private var effectiveLanguage: String { languageOverride ?? settings.transcriptionLanguage }
 
-    // Formats the transcribers actually accept. (Dropped aac/aiff: OpenAI rejects them and they'd fail
-    // silently; .m4b is treated as .m4a on upload.)
+    // Formatos que los transcriptores realmente aceptan. (Se quitaron aac/aiff: OpenAI los rechaza y fallarían
+    // en silencio; .m4b se trata como .m4a al subir.)
     private let exts = ["m4a", "m4b", "mp3", "wav", "mp4", "flac", "ogg", "oga", "opus",
                         "webm", "mpga", "mpeg"]
 
@@ -61,11 +61,11 @@ struct UploadView: View {
         }
         .frame(minWidth: 400, maxWidth: .infinity, minHeight: 360, maxHeight: .infinity, alignment: .top)
         .padding()
-        // Each fresh upload session (results cleared by uploadAudio) starts back at the global language.
+        // Cada sesión de subida nueva (resultados limpiados por uploadAudio) arranca de nuevo con el idioma global.
         .onChange(of: recorder.uploadResults.isEmpty) { _, empty in if empty { languageOverride = nil } }
     }
 
-    /// The transcriptions of the just-uploaded files, filled in live as each one finishes.
+    /// Las transcripciones de los archivos recién subidos, rellenadas en vivo conforme termina cada una.
     private var resultsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L10n.t("upload.results")).font(.system(size: 11, weight: .semibold))
@@ -75,7 +75,7 @@ struct UploadView: View {
                     ForEach(recorder.uploadResults) { resultRow($0) }
                 }
             }
-            .frame(maxHeight: .infinity)   // take the remaining space → the Close button stays pinned + reachable
+            .frame(maxHeight: .infinity)   // ocupa el espacio restante → el botón Cerrar queda fijo + alcanzable
         }
     }
 
@@ -111,11 +111,11 @@ struct UploadView: View {
 
     private func copyText(_ text: String) {
         guard !text.isEmpty else { return }
-        onCopy(text)   // route through the manager so the poll doesn't re-capture it as a duplicate item
+        onCopy(text)   // pasa por el manager para que el poll no lo vuelva a capturar como item duplicado
     }
 
-    /// Per-upload language: defaults to the platform/global language but can be overridden for this specific
-    /// audio (e.g. a French clip while the app default is Spanish).
+    /// Idioma por subida: por defecto usa el idioma global/de la plataforma pero puede sobrescribirse para este
+    /// audio en concreto (p. ej. un clip en francés cuando el idioma por defecto de la app es español).
     private var languagePicker: some View {
         Picker(L10n.t("upload.audioLang"), selection: Binding(
             get: { effectiveLanguage },
@@ -152,8 +152,8 @@ struct UploadView: View {
         for p in providers {
             group.enter()
             p.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                // loadItem delivers its callback on an arbitrary internal queue and the providers run in
-                // parallel: accumulating on main serializes the appends (Array is not thread-safe).
+                // loadItem entrega su callback en una cola interna arbitraria y los providers corren en
+                // paralelo: acumular en main serializa los appends (Array no es thread-safe).
                 let resolved: URL? = (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
                     ?? (item as? URL)
                 DispatchQueue.main.async {
@@ -163,8 +163,8 @@ struct UploadView: View {
             }
         }
         group.notify(queue: .main) {
-            // Accept audio (exts) and video (MediaAudioExtractor is the single source of truth for video, so the
-            // drop filter and the file picker admit the same set); a video's audio is extracted before transcribing.
+            // Acepta audio (exts) y video (MediaAudioExtractor es la única fuente de verdad para video, así el filtro
+            // del drop y el selector de archivos admiten el mismo conjunto); el audio del video se extrae antes de transcribir.
             let media = urls.filter { exts.contains($0.pathExtension.lowercased()) || MediaAudioExtractor.isVideo($0) }
             if !media.isEmpty { onFiles(media, effectiveLanguage) }
         }
