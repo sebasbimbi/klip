@@ -1,12 +1,12 @@
 import Foundation
 
-/// Lightweight localization for the main UI. English is the base language; every other language
-/// falls back to English for any missing key. The language is chosen in Preferences.
-/// To add a string: add the English value to `en` with a new key, then translate it in the others.
+/// Localización ligera para la UI principal. El inglés es el idioma base; todos los demás idiomas
+/// recurren al inglés para cualquier clave faltante. El idioma se elige en Preferencias.
+/// Para añadir una cadena: agrega el valor en inglés a `en` con una clave nueva y luego tradúcela en los demás.
 enum L10n {
     static var lang: String { Settings.shared.uiLanguage }
 
-    /// UI languages offered in Preferences (code, endonym). English is the default/base language.
+    /// Idiomas de UI ofrecidos en Preferencias (código, endónimo). El inglés es el idioma predeterminado/base.
     static let supported: [(code: String, name: String)] = [
         ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
         ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語")
@@ -535,8 +535,8 @@ enum L10n {
         "voice.downloading": "Downloading model (first use)…"
     ]
 
-    // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation flow; any
-    // missing key falls back to English. Keep the keys identical to `en`.
+    // Las traducciones de abajo (fr/de/it/pt/zh/ja) las rellena el flujo de traducción; cualquier
+    // clave faltante recurre al inglés. Mantén las claves idénticas a `en`.
     private static let fr: [String: String] = [
         "menu.show": "Afficher l'historique",
         "menu.capture": "Capturer une zone",
@@ -763,7 +763,37 @@ enum L10n {
         "autopaste.denied.info": "Klip a ouvert les Réglages Système. Active Klip dans Confidentialité et sécurité › Accessibilité pour le collage automatique (effet au prochain collage).",
         "sel.count": "%d sél.",
         "ocr.label": "OCR :",
-        "voice.downloading": "Téléchargement du modèle (première utilisation)…"
+        "voice.downloading": "Téléchargement du modèle (première utilisation)…",
+        "export.credentialHidden": "Identifiant masqué (%@)",
+        "export.doc.title": "Klip — Historique du presse-papiers",
+        "export.otherDevice": "Autre appareil",
+        "export.voiceNote": "Note vocale",
+        "filter.link": "Liens",
+        "menu.captureText": "Capturer le texte (OCR)",
+        "prefs.cleanpaste": "Toujours coller proprement (garde gras/italique, supprime les styles)",
+        "prefs.sc.captureText": "Capturer le texte (OCR) :",
+        "row.email": "Copier pour e-mail",
+        "row.whatsapp": "Copier pour WhatsApp",
+        "upload.audioLang": "Langue de ce fichier",
+        "upload.extractFailed": "Impossible d'extraire l'audio de la vidéo",
+        "upload.extracting": "Extraction de l'audio de la vidéo…",
+        "upload.failed": "Échec de la transcription",
+        "upload.noAudioTrack": "Cette vidéo n'a pas de piste audio",
+        "upload.results": "Transcriptions",
+        "upload.tooLarge": "L'audio est trop volumineux pour la transcription cloud — passez au mode local",
+        "upload.videoProtected": "Cette vidéo est protégée et ne peut pas être lue",
+        "welcome.history.body": "Tout ce que vous copiez est enregistré localement sur votre Mac. Ouvrez-le à tout moment et collez ce dont vous avez besoin.",
+        "welcome.history.title": "Historique du presse-papiers",
+        "welcome.prefsHint": "Vous pouvez changer la langue, les raccourcis et plus encore dans les Préférences.",
+        "welcome.privacy.body": "Rien ne quitte votre Mac, sauf si vous ajoutez une clé IA pour la transcription vocale. Les mots de passe et les clés sont détectés et masqués.",
+        "welcome.privacy.title": "Privé par conception",
+        "welcome.shortcuts.title": "Raccourcis",
+        "welcome.start": "Commencer",
+        "welcome.tagline": "Votre presse-papiers, surpuissant — pour ceux qui copient et collent du code toute la journée.",
+        "welcome.title": "Bienvenue dans Klip",
+        "welcome.voice.body": "Enregistrez ou importez de l'audio pour le transcrire, et capturez des zones d'écran pour les annoter.",
+        "welcome.voice.title": "Notes vocales et capture",
+        "win.welcome": "Bienvenue",
     ]
 
     private static let de: [String: String] = [
@@ -992,7 +1022,37 @@ enum L10n {
         "autopaste.denied.info": "Klip hat die Systemeinstellungen geöffnet. Aktiviere Klip unter Datenschutz & Sicherheit › Bedienungshilfen, damit es automatisch einfügen kann (wirkt beim nächsten Einfügen).",
         "sel.count": "%d ausgew.",
         "ocr.label": "OCR:",
-        "voice.downloading": "Modell wird geladen (erste Nutzung)…"
+        "voice.downloading": "Modell wird geladen (erste Nutzung)…",
+        "export.credentialHidden": "Verborgene Zugangsdaten (%@)",
+        "export.doc.title": "Klip — Zwischenablage-Verlauf",
+        "export.otherDevice": "Anderes Gerät",
+        "export.voiceNote": "Sprachnotiz",
+        "filter.link": "Links",
+        "menu.captureText": "Text erfassen (OCR)",
+        "prefs.cleanpaste": "Immer bereinigt einfügen (Fett/Kursiv behalten, Formatierung entfernen)",
+        "prefs.sc.captureText": "Text erfassen (OCR):",
+        "row.email": "Für E-Mail kopieren",
+        "row.whatsapp": "Für WhatsApp kopieren",
+        "upload.audioLang": "Sprache dieser Datei",
+        "upload.extractFailed": "Audio konnte nicht aus dem Video extrahiert werden",
+        "upload.extracting": "Audio wird aus dem Video extrahiert…",
+        "upload.failed": "Transkription fehlgeschlagen",
+        "upload.noAudioTrack": "Dieses Video hat keine Audiospur",
+        "upload.results": "Transkriptionen",
+        "upload.tooLarge": "Audio ist zu groß für die Cloud-Transkription — auf lokale Transkription wechseln",
+        "upload.videoProtected": "Dieses Video ist geschützt und kann nicht gelesen werden",
+        "welcome.history.body": "Alles, was du kopierst, wird lokal auf deinem Mac gespeichert. Öffne den Verlauf jederzeit und füge ein, was du brauchst.",
+        "welcome.history.title": "Zwischenablage-Verlauf",
+        "welcome.prefsHint": "Sprache, Kurzbefehle und mehr kannst du in den Einstellungen ändern.",
+        "welcome.privacy.body": "Nichts verlässt deinen Mac, es sei denn, du fügst einen KI-Schlüssel für die Sprachtranskription hinzu. Passwörter und Schlüssel werden erkannt und verborgen.",
+        "welcome.privacy.title": "Privat von Grund auf",
+        "welcome.shortcuts.title": "Kurzbefehle",
+        "welcome.start": "Loslegen",
+        "welcome.tagline": "Deine Zwischenablage, aufgeladen — für alle, die den ganzen Tag Code kopieren und einfügen.",
+        "welcome.title": "Willkommen bei Klip",
+        "welcome.voice.body": "Nimm Audio auf oder lade es hoch, um es zu transkribieren, und erfasse Bildschirmbereiche zum Annotieren.",
+        "welcome.voice.title": "Sprachnotizen & Aufnahme",
+        "win.welcome": "Willkommen",
     ]
 
     private static let it: [String: String] = [
@@ -1221,7 +1281,37 @@ enum L10n {
         "autopaste.denied.info": "Klip ha aperto Impostazioni di Sistema. Abilita Klip in Privacy e sicurezza › Accessibilità per l'incolla automatico (effetto al prossimo incolla).",
         "sel.count": "%d sel.",
         "ocr.label": "OCR:",
-        "voice.downloading": "Download del modello (primo utilizzo)…"
+        "voice.downloading": "Download del modello (primo utilizzo)…",
+        "export.credentialHidden": "Credenziale nascosta (%@)",
+        "export.doc.title": "Klip — Cronologia degli appunti",
+        "export.otherDevice": "Altro dispositivo",
+        "export.voiceNote": "Nota vocale",
+        "filter.link": "Link",
+        "menu.captureText": "Cattura testo (OCR)",
+        "prefs.cleanpaste": "Incolla sempre pulito (mantieni grassetto/corsivo, rimuovi gli stili)",
+        "prefs.sc.captureText": "Cattura testo (OCR):",
+        "row.email": "Copia per email",
+        "row.whatsapp": "Copia per WhatsApp",
+        "upload.audioLang": "Lingua di questo file",
+        "upload.extractFailed": "Impossibile estrarre l'audio dal video",
+        "upload.extracting": "Estrazione dell'audio dal video…",
+        "upload.failed": "Trascrizione non riuscita",
+        "upload.noAudioTrack": "Questo video non ha una traccia audio",
+        "upload.results": "Trascrizioni",
+        "upload.tooLarge": "L'audio è troppo grande per la trascrizione nel cloud — usa quella sul dispositivo",
+        "upload.videoProtected": "Questo video è protetto e non può essere letto",
+        "welcome.history.body": "Tutto ciò che copi viene salvato localmente sul tuo Mac. Aprilo quando vuoi e incolla ciò che ti serve.",
+        "welcome.history.title": "Cronologia degli appunti",
+        "welcome.prefsHint": "Puoi cambiare lingua, scorciatoie e altro nelle Preferenze.",
+        "welcome.privacy.body": "Nulla esce dal tuo Mac, a meno che tu non aggiunga una chiave AI per la trascrizione vocale. Password e chiavi vengono rilevate e nascoste.",
+        "welcome.privacy.title": "Progettato per la privacy",
+        "welcome.shortcuts.title": "Scorciatoie",
+        "welcome.start": "Inizia",
+        "welcome.tagline": "I tuoi appunti, potenziati — per chi copia e incolla codice tutto il giorno.",
+        "welcome.title": "Benvenuto in Klip",
+        "welcome.voice.body": "Registra o carica audio da trascrivere e cattura porzioni di schermo da annotare.",
+        "welcome.voice.title": "Note vocali e cattura",
+        "win.welcome": "Benvenuto",
     ]
 
     private static let pt: [String: String] = [
@@ -1450,7 +1540,37 @@ enum L10n {
         "autopaste.denied.info": "O Klip abriu as Definições do Sistema. Ativa o Klip em Privacidade e Segurança › Acessibilidade para colar automaticamente (efeito na próxima colagem).",
         "sel.count": "%d sel.",
         "ocr.label": "OCR:",
-        "voice.downloading": "A descarregar o modelo (primeira utilização)…"
+        "voice.downloading": "A descarregar o modelo (primeira utilização)…",
+        "export.credentialHidden": "Credencial oculta (%@)",
+        "export.doc.title": "Klip — Histórico da área de transferência",
+        "export.otherDevice": "Outro dispositivo",
+        "export.voiceNote": "Nota de voz",
+        "filter.link": "Links",
+        "menu.captureText": "Capturar texto (OCR)",
+        "prefs.cleanpaste": "Sempre colar limpo (mantém negrito/itálico, remove estilos)",
+        "prefs.sc.captureText": "Capturar texto (OCR):",
+        "row.email": "Copiar para e-mail",
+        "row.whatsapp": "Copiar para WhatsApp",
+        "upload.audioLang": "Idioma deste arquivo",
+        "upload.extractFailed": "Não foi possível extrair o áudio do vídeo",
+        "upload.extracting": "Extraindo áudio do vídeo…",
+        "upload.failed": "Falha na transcrição",
+        "upload.noAudioTrack": "Este vídeo não tem faixa de áudio",
+        "upload.results": "Transcrições",
+        "upload.tooLarge": "O áudio é muito grande para transcrição na nuvem — use a transcrição local",
+        "upload.videoProtected": "Este vídeo está protegido e não pode ser lido",
+        "welcome.history.body": "Tudo o que você copia é salvo localmente no seu Mac. Abra quando quiser e cole o que precisar.",
+        "welcome.history.title": "Histórico da área de transferência",
+        "welcome.prefsHint": "Você pode mudar o idioma, os atalhos e mais nas Preferências.",
+        "welcome.privacy.body": "Nada sai do seu Mac, a menos que você adicione uma chave de IA para transcrever voz. Senhas e chaves são detectadas e ocultadas.",
+        "welcome.privacy.title": "Privado por padrão",
+        "welcome.shortcuts.title": "Atalhos",
+        "welcome.start": "Começar",
+        "welcome.tagline": "Sua área de transferência, turbinada — para quem copia e cola código o dia todo.",
+        "welcome.title": "Bem-vindo ao Klip",
+        "welcome.voice.body": "Grave ou envie áudios para transcrevê-los, e capture regiões da tela para anotá-las.",
+        "welcome.voice.title": "Notas de voz e captura",
+        "win.welcome": "Bem-vindo",
     ]
 
     private static let zh: [String: String] = [
@@ -1679,7 +1799,37 @@ enum L10n {
         "autopaste.denied.info": "Klip 已打开系统设置。请在隐私与安全性 › 辅助功能中启用 Klip，即可自动粘贴（下次粘贴生效）。",
         "sel.count": "已选 %d",
         "ocr.label": "OCR：",
-        "voice.downloading": "正在下载模型（首次使用）…"
+        "voice.downloading": "正在下载模型（首次使用）…",
+        "export.credentialHidden": "已隐藏的凭证（%@）",
+        "export.doc.title": "Klip — 剪贴板历史",
+        "export.otherDevice": "其他设备",
+        "export.voiceNote": "语音笔记",
+        "filter.link": "链接",
+        "menu.captureText": "捕获文字（OCR）",
+        "prefs.cleanpaste": "始终纯净粘贴（保留粗体/斜体，去除其他样式）",
+        "prefs.sc.captureText": "捕获文字（OCR）：",
+        "row.email": "复制为邮件格式",
+        "row.whatsapp": "复制为 WhatsApp 格式",
+        "upload.audioLang": "此文件的语言",
+        "upload.extractFailed": "无法从视频中提取音频",
+        "upload.extracting": "正在从视频中提取音频…",
+        "upload.failed": "转录失败",
+        "upload.noAudioTrack": "此视频没有音轨",
+        "upload.results": "转录结果",
+        "upload.tooLarge": "音频过大，无法云端转录，请切换到本地转录",
+        "upload.videoProtected": "此视频受保护，无法读取",
+        "welcome.history.body": "你复制的所有内容都会保存在 Mac 本地。随时打开，粘贴你需要的内容。",
+        "welcome.history.title": "剪贴板历史",
+        "welcome.prefsHint": "你可以在偏好设置中更改语言、快捷键等。",
+        "welcome.privacy.body": "除非你添加 AI 密钥用于语音转录，否则任何数据都不会离开你的 Mac。密码和密钥会被自动检测并隐藏。",
+        "welcome.privacy.title": "隐私优先设计",
+        "welcome.shortcuts.title": "快捷键",
+        "welcome.start": "开始使用",
+        "welcome.tagline": "你的剪贴板，全面升级——为整天复制粘贴代码的人打造。",
+        "welcome.title": "欢迎使用 Klip",
+        "welcome.voice.body": "录制或上传音频进行转录，还可截取屏幕区域并添加标注。",
+        "welcome.voice.title": "语音笔记与截图",
+        "win.welcome": "欢迎",
     ]
 
     private static let ja: [String: String] = [
@@ -1908,6 +2058,36 @@ enum L10n {
         "autopaste.denied.info": "Klip がシステム設定を開きました。プライバシーとセキュリティ › アクセシビリティ で Klip を有効にすると自動ペーストできます（次回のペーストから有効）。",
         "sel.count": "%d 件選択",
         "ocr.label": "OCR：",
-        "voice.downloading": "モデルをダウンロード中（初回）…"
+        "voice.downloading": "モデルをダウンロード中（初回）…",
+        "export.credentialHidden": "非表示の認証情報 (%@)",
+        "export.doc.title": "Klip — クリップボード履歴",
+        "export.otherDevice": "他のデバイス",
+        "export.voiceNote": "ボイスメモ",
+        "filter.link": "リンク",
+        "menu.captureText": "テキストをキャプチャ (OCR)",
+        "prefs.cleanpaste": "常にクリーンにペースト（太字・斜体は維持、スタイルは除去）",
+        "prefs.sc.captureText": "テキストをキャプチャ (OCR):",
+        "row.email": "メール用にコピー",
+        "row.whatsapp": "WhatsApp用にコピー",
+        "upload.audioLang": "このファイルの言語",
+        "upload.extractFailed": "動画から音声を抽出できませんでした",
+        "upload.extracting": "動画から音声を抽出中…",
+        "upload.failed": "文字起こしに失敗しました",
+        "upload.noAudioTrack": "この動画には音声トラックがありません",
+        "upload.results": "文字起こし結果",
+        "upload.tooLarge": "音声が大きすぎてクラウドでは文字起こしできません — オンデバイスに切り替えてください",
+        "upload.videoProtected": "この動画は保護されているため読み取れません",
+        "welcome.history.body": "コピーしたものはすべてMacにローカル保存されます。いつでも開いて、必要なものをペーストできます。",
+        "welcome.history.title": "クリップボード履歴",
+        "welcome.prefsHint": "言語やショートカットなどは環境設定で変更できます。",
+        "welcome.privacy.body": "音声の文字起こし用にAIキーを追加しない限り、データがMacの外に出ることはありません。パスワードやキーは検出して非表示にします。",
+        "welcome.privacy.title": "プライバシー重視の設計",
+        "welcome.shortcuts.title": "ショートカット",
+        "welcome.start": "はじめる",
+        "welcome.tagline": "あなたのクリップボードを強化 — 一日中コードをコピペする人のために。",
+        "welcome.title": "Klipへようこそ",
+        "win.welcome": "ようこそ",
+        "welcome.voice.body": "音声を録音またはアップロードして文字起こしし、画面の一部をキャプチャして注釈を付けられます。",
+        "welcome.voice.title": "ボイスメモとキャプチャ",
     ]
 }
