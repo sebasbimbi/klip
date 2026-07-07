@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Puente ObservableObject para una API key (OpenAI o Gemini), guardada en un archivo local 0600.
+/// ObservableObject bridge for an API key (OpenAI or Gemini), stored in a local 0600 file.
 @MainActor
 final class APIKeyModel: ObservableObject {
     let key: SecretStore.Key
@@ -27,7 +27,7 @@ final class APIKeyModel: ObservableObject {
             return false
         }
         do {
-            let ok = try SecretStore.set(trimmed, key)   // escribe y RE-LEE para confirmar
+            let ok = try SecretStore.set(trimmed, key)   // writes and RE-READS to confirm
             if ok {
                 errorMessage = nil; savedOK = true
             } else {
@@ -49,7 +49,7 @@ final class APIKeyModel: ObservableObject {
     }
 }
 
-/// Ventana de Preferencias de Klip.
+/// Klip's Preferences window.
 struct PreferencesView: View {
     @ObservedObject var settings = Settings.shared
     var onHotKeyChange: (KeyCombo) -> Void
@@ -70,11 +70,11 @@ struct PreferencesView: View {
     @State private var accessibilityGranted = Paster.hasAccessibilityPermission
 
     private let models = ["gpt-4o-mini-transcribe", "whisper-1"]
-    // Modelos de Gemini. Los alias "-latest" evitan 404 por deprecación; también
-    // se incluyen versiones fijadas para quien quiera un comportamiento estable.
+    // Gemini models. The "-latest" aliases avoid 404s from deprecation; pinned
+    // versions are also included for anyone who wants stable behavior.
     private let geminiModels = ["gemini-flash-latest", "gemini-flash-lite-latest",
                                 "gemini-pro-latest", "gemini-2.5-flash", "gemini-2.5-pro"]
-    // Idiomas de dictado/audio pasados al proveedor de transcripción (endónimos). "" = autodetección.
+    // Dictation/audio languages passed to the transcription provider (endonyms). "" = auto-detect.
     private let dictationLanguages = DictationLanguage.all
 
     private var appLogo: NSImage? {
@@ -169,7 +169,7 @@ struct PreferencesView: View {
                     Text("Gemini").tag("gemini")
                 }
                 .pickerStyle(.segmented)
-                // Explica la elección justo debajo del picker: qué opción es gratis/offline vs. cuál necesita key.
+                // Explain the choice right under the picker: which option is free/offline vs. needs a key.
                 Text(settings.aiProvider == "local" ? L10n.t("prefs.local.info")
                      : settings.aiProvider == "gemini" ? L10n.t("prefs.voice.useGemini")
                      : L10n.t("prefs.voice.useOpenAI"))
@@ -275,20 +275,20 @@ struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    /// Fuerza al campo con foco a confirmar su edición ANTES de leer el binding.
-    /// SwiftUI no siempre propaga el texto pegado a `draftKey` antes de que corra la
-    /// acción del botón (campo dentro de un Form .grouped, aún first responder): cuando
-    /// el NSTextField termina de editar, el valor en curso se vuelca al binding.
-    /// Sin esto, `save` leía el valor antiguo.
+    /// Forces the focused field to commit its edit BEFORE reading the binding.
+    /// SwiftUI doesn't always propagate the pasted text to `draftKey` before the button's
+    /// action runs (field inside a .grouped Form, still the first responder): when the
+    /// NSTextField finishes editing, the in-progress value is flushed to the binding.
+    /// Without this, `save` was reading the old value.
     private func commitFocusedField() {
         if let window = NSApp.keyWindow {
-            window.makeFirstResponder(nil)   // endEditing → vuelca el texto al binding
+            window.makeFirstResponder(nil)   // endEditing → flushes the text to the binding
         }
     }
 
     private func saveOpenAI() {
         commitFocusedField()
-        // Tras volcar el binding en este ciclo del runloop, lee el valor ya actualizado.
+        // After flushing the binding in this runloop cycle, read the now-updated value.
         DispatchQueue.main.async {
             if apiKey.save(draftKey) { draftKey = ""; showKey = false }
         }
@@ -341,7 +341,7 @@ struct PreferencesView: View {
     }
 }
 
-/// Enlace con icono que abre el navegador.
+/// Link with an icon that opens the browser.
 private struct Link: View {
     let label: String
     let text: String

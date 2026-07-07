@@ -1,17 +1,17 @@
 import AppKit
 
-/// Orquesta el flujo de captura de "Klip Snap": permiso → capturar la pantalla bajo el cursor →
-/// overlay de selección → editor de anotaciones → historial de Klip.
+/// Orchestrates the "Klip Snap" capture flow: permission → capture the display under the cursor →
+/// selection overlay → annotation editor → Klip history.
 final class SnapController {
     private let manager: ClipboardManager
     private var overlay: CaptureOverlayController?
     private var editor: SnapEditorController?
     private var inProgress = false
 
-    /// Se invoca tras añadir una captura al historial (para revelar el panel: el elemento "vuela" hacia Klip).
+    /// Invoked after adding a capture to the history (to reveal the panel: the item "flies" to Klip).
     var onCaptured: (() -> Void)?
 
-    /// Qué hacer con la región seleccionada: abrir el editor de anotaciones, o extraer su texto (OCR) directo al portapapeles.
+    /// What to do with the selected region: open the annotation editor, or OCR it straight to the clipboard.
     enum Mode { case annotate, text }
 
     init(manager: ClipboardManager) {
@@ -19,15 +19,15 @@ final class SnapController {
         ScreenCapturer.warmUp()
     }
 
-    /// Punto de entrada (atajo o menú): capturar una región y abrir el editor de anotaciones.
+    /// Entry point (shortcut or menu): capture a region and open the annotation editor.
     func start() { begin(mode: .annotate) }
 
-    /// Punto de entrada: capturar una región y extraer su texto (OCR) directo al portapapeles — sin editor.
+    /// Entry point: capture a region and extract its text (OCR) straight to the clipboard — no editor.
     func startTextCapture() { begin(mode: .text) }
 
     private func begin(mode: Mode) {
-        // Bloquear la reentrada durante TODO el flujo: mientras se captura (inProgress) y mientras el overlay de
-        // selección o el editor están en pantalla. Si no, un segundo disparo apilaría ventanas escudo y filtraría la primera.
+        // Block re-entry for the WHOLE flow: while capturing (inProgress) and while the selection overlay
+        // or the editor is on screen. Otherwise a second trigger would stack shield windows and leak the first.
         guard !inProgress, overlay == nil, editor == nil else { return }
 
         guard ScreenCapturer.hasPermission() else {
@@ -43,7 +43,7 @@ final class SnapController {
                 self.inProgress = false
                 self.presentOverlay(shot, mode: mode)
             } catch CaptureError.noPermission {
-                self.inProgress = false          // liberar ANTES del modal (evita reentrancia del runloop)
+                self.inProgress = false          // release BEFORE the modal (avoids runloop reentrancy)
                 self.promptForPermission()
             } catch {
                 self.inProgress = false
@@ -66,14 +66,14 @@ final class SnapController {
         overlay.present()
     }
 
-    /// Aplica OCR a la región seleccionada FUERA del hilo principal, luego pone el texto en el portapapeles + en el historial.
+    /// OCR the selected region OFF the main thread, then put the text on the clipboard + into history.
     @MainActor
     private func extractText(from image: NSImage) {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { NSSound.beep(); return }
         Task { @MainActor [weak self] in
-            let text = await Task.detached { OCR.recognizeText(in: cg) }.value   // OCR fuera del hilo principal
+            let text = await Task.detached { OCR.recognizeText(in: cg) }.value   // OCR off the main thread
             guard let self else { return }
-            guard self.manager.addCapturedText(text) else { NSSound.beep(); return }   // nada reconocido
+            guard self.manager.addCapturedText(text) else { NSSound.beep(); return }   // nothing recognized
             self.onCaptured?()
         }
     }
@@ -82,7 +82,7 @@ final class SnapController {
     private func openEditor(with image: NSImage) {
         let editor = SnapEditorController(image: image) { [weak self] result in
             self?.editor = nil
-            guard let self, let result else { return }   // nil = cerrado sin guardar
+            guard let self, let result else { return }   // nil = closed without saving
             self.manager.addAnnotatedScreenshot(result, copyToClipboard: true)
             self.onCaptured?()
         }
@@ -90,14 +90,14 @@ final class SnapController {
         editor.present()
     }
 
-    /// Sin permiso de Grabación de Pantalla. La PRIMERA vez solo mostramos el aviso nativo del sistema
-    /// (`requestPermission`); en intentos posteriores (cuando el aviso nativo ya no reaparece) mostramos
-    /// nuestra propia guía con un acceso directo a Ajustes. Así los dos mensajes nunca se solapan.
+    /// No Screen Recording permission. The FIRST time we only show the native system prompt
+    /// (`requestPermission`); on later attempts (when the native prompt no longer reappears) we show
+    /// our own guide with a shortcut to Settings. This way the two messages never overlap.
     private func promptForPermission() {
         let askedKey = "klip.askedScreenRecording"
         if !UserDefaults.standard.bool(forKey: askedKey) {
             UserDefaults.standard.set(true, forKey: askedKey)
-            ScreenCapturer.requestPermission()   // solo el aviso nativo la primera vez
+            ScreenCapturer.requestPermission()   // only the native prompt the first time
             return
         }
         let alert = NSAlert()

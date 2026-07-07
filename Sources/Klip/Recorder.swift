@@ -8,59 +8,59 @@ enum RecorderState: Equatable {
     case idle
     case recording
     case missingAPIKey
-    case micDenied          // permiso de micrófono denegado → guiar a Ajustes del Sistema
-    case error(String)      // error ANTES de que empiece la grabación (permiso/clave). La transcripción corre en segundo plano.
+    case micDenied          // microphone permission denied → guide to System Settings
+    case error(String)      // error BEFORE recording starts (permission/key). Transcription runs in the background.
 }
 
-/// La transcripción de un archivo de audio subido, mostrada en vivo en la ventana de Upload. `text == nil` mientras corre.
+/// The transcription of an uploaded audio file, shown live in the Upload window. `text == nil` while it runs.
 struct UploadTranscription: Identifiable, Equatable {
-    let id: UUID            // el id del ítem de nota de voz
-    let name: String        // nombre original del archivo
-    var text: String?       // se rellena cuando la transcripción termina
+    let id: UUID            // the voice note item's id
+    let name: String        // original file name
+    var text: String?       // filled in when the transcription finishes
     var failed: Bool = false
-    var errorKey: String? = nil   // clave L10n para un fallo ESPECÍFICO (sin pista de audio / DRM / demasiado grande); nil → genérico
+    var errorKey: String? = nil   // L10n key for a SPECIFIC failure (no audio track / DRM / too large); nil → generic
 }
 
-/// Graba una nota de voz a .m4a y la transcribe con OpenAI (no en vivo: la nota completa de una vez).
-/// La transcripción corre en segundo plano: una vez detenida, el grabador queda libre para grabar otra.
+/// Records a voice note to .m4a and transcribes it with OpenAI (not live: the whole note at once).
+/// Transcription runs in the background: once stopped, the recorder is free to record another.
 @MainActor
 final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @Published private(set) var state: RecorderState = .idle
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var level: Float = 0
-    /// true cuando llevamos >2 min en silencio: la UI muestra "¿Sigues ahí?".
+    /// true once we've been silent for >2 min: the UI shows "Are you still there?".
     @Published private(set) var silenceWarning = false
-    /// Número de transcripciones corriendo en segundo plano (para el indicador del encabezado).
+    /// Number of transcriptions running in the background (for the header indicator).
     @Published private(set) var transcribingCount = 0
-    /// True mientras una transcripción en el dispositivo espera a que el modelo cargue por primera vez en esta
-    /// sesión (el calentamiento único de ~20 s del Neural Engine). Permite que la UI diga "Preparando modelo…"
-    /// para que la primera nota no parezca atascada en un simple spinner de "Transcribiendo…".
+    /// True while an on-device transcription waits for the model to load for the first time this
+    /// session (the one-time ~20 s Neural Engine warm-up). Lets the UI say "Preparing model…"
+    /// so the first note doesn't look stuck on a plain "Transcribing…" spinner.
     @Published private(set) var preparingModel = false
-    /// Transcripciones de archivos soltados/elegidos en la ventana de Upload, las más nuevas primero — para que el
-    /// resultado aparezca ahí mismo al terminar (no solo en el historial). Con tope; se limpia al abrir una sesión de subida nueva.
+    /// Transcriptions of files dropped/picked in the Upload window, newest first — so the
+    /// result shows up right there when done (not just in the history). Capped; cleared when a new upload session opens.
     @Published private(set) var uploadResults: [UploadTranscription] = []
-    /// Número de subidas actualmente DEMUXEANDO la pista de audio de un video (antes de que empiece la transcripción).
-    /// Alimenta el estado "Extrayendo audio…" para que un video largo no parezca atascado en un simple spinner de "Transcribiendo…".
+    /// Number of uploads currently DEMUXING a video's audio track (before transcription starts).
+    /// Feeds the "Extracting audio…" state so a long video doesn't look stuck on a plain "Transcribing…" spinner.
     @Published private(set) var extractingCount = 0
 
-    /// El audio ya está guardado: crea el ítem de nota de voz (placeholder) y devuelve su id.
-    /// `audioFileName` puede ser nil si el archivo no se pudo guardar (la transcripción se guarda igual).
+    /// The audio is already saved: creates the voice note item (placeholder) and returns its id.
+    /// `audioFileName` may be nil if the file could not be saved (the transcription is stored anyway).
     var onVoiceNoteStarted: ((String?, Double?) -> UUID?)?
-    /// Rellena la transcripción en el ítem ya creado.
+    /// Fills in the transcription on the already-created item.
     var onVoiceNoteTranscribed: ((UUID, String) -> Void)?
-    /// Rellena la duración del audio una vez leída fuera del hilo principal (evita que la UI se congele en subidas masivas).
+    /// Fills in the audio duration once read off the main thread (keeps the UI from freezing on bulk uploads).
     var onVoiceNoteDuration: ((UUID, Double) -> Void)?
-    /// La transcripción falló o no había voz: el ítem conserva el audio para reproducirlo/recuperarlo.
+    /// Transcription failed or there was no speech: the item keeps the audio for playback/recovery.
     var onVoiceNoteFailed: ((UUID) -> Void)?
-    /// Reintento: marca un ítem existente como "Transcribiendo…" de nuevo.
+    /// Retry: marks an existing item as "Transcribing…" again.
     var onVoiceNoteRetrying: ((UUID) -> Void)?
-    /// Primer uso en el dispositivo: el modelo se está descargando, así que se muestra un estado distinto en vez de "Transcribiendo…".
+    /// First on-device use: the model is downloading, so a distinct state is shown instead of "Transcribing…".
     var onVoiceNoteDownloadingModel: ((UUID) -> Void)?
-    /// Una subida clasificada como video resultó ser audio puro (.mp4 solo-audio, etc.): su audio se almacenó, así que
-    /// se adjunta a la nota para que reproducción/reintento sigan funcionando (los videos reales intencionalmente no se almacenan).
+    /// An upload classified as video turned out to be pure audio (audio-only .mp4, etc.): its audio was stored, so
+    /// attach it to the note so playback/retry keep working (real videos are intentionally not stored).
     var onVoiceNoteAudioStored: ((UUID, String) -> Void)?
 
-    // Detección de silencio (timer a 0.1 s): avisa a los 2 min, detiene a los 3 min.
+    // Silence detection (0.1 s timer): warns at 2 min, stops at 3 min.
     private var silentTicks = 0
     private let silenceLevel: Float = 0.10
     private let warnTicks = 1200    // 120 s
@@ -70,14 +70,14 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var meterTimer: Timer?
     private var currentFileName: String?
     private let storage = Storage.shared
-    /// Listener de CoreAudio para detectar cambios en el micrófono por defecto (p. ej. conectar audífonos).
+    /// CoreAudio listener to detect default microphone changes (e.g. plugging in headphones).
     private var deviceListener: AudioObjectPropertyListenerBlock?
 
-    /// Intención pendiente de grabar (cubre la ventana asíncrona del permiso).
+    /// Pending intent to record (covers the async permission window).
     private var startRequested = false
-    /// true desde que se pide detener hasta que el delegate termina (el estado sigue en .recording en ese lapso).
+    /// true from when stop is requested until the delegate finishes (state stays .recording in that window).
     private(set) var finishing = false
-    /// Solo bloquea iniciar otra GRABACIÓN; transcribir en segundo plano no cuenta como ocupado.
+    /// Only blocks starting another RECORDING; transcribing in the background doesn't count as busy.
     var isRecording: Bool { startRequested || state == .recording }
 
     private func requestMicPermission() async -> Bool {
@@ -101,7 +101,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             guard await requestMicPermission() else {
                 state = .micDenied; startRequested = false; return
             }
-            guard startRequested else { return }   // stop()/cancel() mientras se esperaba el permiso
+            guard startRequested else { return }   // stop()/cancel() while waiting for permission
             let name = "\(UUID().uuidString).m4a"
             let url = storage.audioURL(for: name)
             let settings: [String: Any] = [
@@ -115,7 +115,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 rec.delegate = self
                 rec.isMeteringEnabled = true
                 guard rec.prepareToRecord(), rec.record() else {
-                    storage.deleteAudio(fileName: name)   // prepareToRecord() creó el archivo; record() falló → no dejarlo huérfano
+                    storage.deleteAudio(fileName: name)   // prepareToRecord() created the file; record() failed → don't leave it orphaned
                     state = .error(L10n.t("rec.err.start")); startRequested = false; return
                 }
                 recorder = rec
@@ -135,11 +135,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @MainActor
     func stop() {
         startRequested = false
-        guard state == .recording, !finishing, let rec = recorder else { return }   // ignorar doble stop
+        guard state == .recording, !finishing, let rec = recorder else { return }   // ignore double stop
         finishing = true
         stopMeterTimer()
         removeDeviceListener()
-        rec.stop()   // dispara audioRecorderDidFinishRecording
+        rec.stop()   // fires audioRecorderDidFinishRecording
     }
 
     @MainActor
@@ -148,7 +148,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         finishing = false
         stopMeterTimer()
         removeDeviceListener()
-        recorder?.delegate = nil   // evita que el delegate sobrescriba .idle con .error
+        recorder?.delegate = nil   // keeps the delegate from overwriting .idle with .error
         recorder?.stop()
         recorder = nil
         if let f = currentFileName { storage.deleteAudio(fileName: f) }
@@ -156,19 +156,19 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         state = .idle
     }
 
-    // MARK: - Cambio de dispositivo de entrada (audífonos)
+    // MARK: - Input device change (headphones)
 
-    /// Vigila el micrófono por defecto. Si cambia DURANTE la grabación (p. ej. conectas audífonos),
-    /// AVAudioRecorder se queda en el dispositivo viejo y el medidor se congela → terminamos la nota
-    /// limpiamente (lo grabado hasta ahí se guarda y se transcribe) en vez de dejar un estado roto.
+    /// Watches the default microphone. If it changes DURING recording (e.g. you plug in headphones),
+    /// AVAudioRecorder stays on the old device and the meter freezes → we finish the note
+    /// cleanly (what was recorded so far is saved and transcribed) instead of leaving a broken state.
     private func installDeviceListener() {
         guard deviceListener == nil else { return }
         var addr = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-        // El block se despacha en DispatchQueue.main (pasado abajo), así que ya corre en el hilo
-        // principal — asertar MainActor directamente en vez de un salto async extra.
+        // The block is dispatched on DispatchQueue.main (passed below), so it already runs on the main
+        // thread — assert MainActor directly instead of an extra async hop.
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             MainActor.assumeIsolated { self?.handleInputDeviceChange() }
         }
@@ -191,10 +191,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @MainActor
     private func handleInputDeviceChange() {
         guard state == .recording, !finishing else { return }
-        stop()   // terminar y transcribir lo grabado hasta el cambio de dispositivo
+        stop()   // finish and transcribe what was recorded up to the device change
     }
 
-    /// Vuelve a .idle desde estados terminales (error o falta de API key) para revalidar al reabrir.
+    /// Returns to .idle from terminal states (error or missing API key) to revalidate on reopen.
     func reset() {
         switch state {
         case .error, .missingAPIKey, .micDenied: state = .idle
@@ -204,7 +204,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     private func startMeterTimer() {
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {   // corre en RunLoop.main; asertarlo para el compilador
+            MainActor.assumeIsolated {   // runs on RunLoop.main; assert it for the compiler
                 guard let self, let rec = self.recorder else { return }
                 rec.updateMeters()
                 self.duration = rec.currentTime
@@ -228,69 +228,69 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             silenceWarning = true
             NSSound.beep()
         } else if silentTicks >= stopTicks {
-            stop()   // detener por inactividad: terminar y transcribir (ya en MainActor vía el timer del medidor)
+            stop()   // stop due to inactivity: finish and transcribe (already on MainActor via the meter timer)
         }
     }
 
-    /// El usuario pulsa "Continuar": reinicia el contador de silencio.
+    /// The user taps "Continue": resets the silence counter.
     func continueRecording() { silentTicks = 0; silenceWarning = false }
 
-    /// Transcribe uno o más archivos de audio subidos por el usuario (en segundo plano).
-    /// Cada audio se copia a nuestro almacén para poder reproducirlo y conservarlo después.
-    /// `language` sobrescribe la pista de idioma hablado solo para ESTA subida (p. ej. el usuario soltó un audio
-    /// en francés mientras el default de la app es español). Pasa "" para autodetección, nil para usar el default global.
+    /// Transcribes one or more audio files uploaded by the user (in the background).
+    /// Each audio is copied into our store so it can be played back and kept afterwards.
+    /// `language` overrides the spoken-language hint for THIS upload only (e.g. the user dropped a French
+    /// audio while the app default is Spanish). Pass "" for auto-detect, nil to use the global default.
     @MainActor
     func transcribeFiles(_ urls: [URL], language: String? = nil) {
         guard !urls.isEmpty else { return }
         guard AIProvider.hasKey else {
-            // `state` se comparte con una grabación en vivo (RecordingView/UploadView lo observan ambas). Solo
-            // reportar "falta la clave" a través de él cuando está idle, para que una subida sin clave no mate una nota en curso.
+            // `state` is shared with a live recording (RecordingView/UploadView both observe it). Only
+            // report "missing key" through it when idle, so a keyless upload doesn't kill an in-progress note.
             if state != .recording && !finishing { state = .missingAPIKey }
             return
         }
-        // Sin auto-copiado forzado: finishVoiceNote ya deja la transcripción en el portapapeles cuando es
-        // seguro (guard de changeCount — no pisa lo que el usuario copió mientras tanto — y nunca un secreto).
+        // No forced auto-copy: finishVoiceNote already puts the transcription on the clipboard when it's
+        // safe (changeCount guard — doesn't clobber what the user copied in the meantime — and never a secret).
         for url in urls {
-            // Video: no copiar el archivo (a menudo grande) al almacén de audio — transcribir directo del
-            // original (la app no está sandboxeada, así que la URL sigue legible) y dejar que el cuello de
-            // botella de la transcripción demuxee su audio a un archivo temporal. La nota resultante es solo
-            // texto (sin reproducción/reintento), lo cual es honesto porque deliberadamente no conservamos el
-            // video. El audio mantiene el copiado al almacén para seguir reproducible/reintentable en el historial.
+            // Video: don't copy the (often large) file into the audio store — transcribe straight from the
+            // original (the app is not sandboxed, so the URL stays readable) and let the transcription
+            // bottleneck demux its audio to a temp file. The resulting note is text-only
+            // (no playback/retry), which is honest because we deliberately don't keep the
+            // video. Audio keeps the copy-to-store so it stays playable/retryable in the history.
             let isVideo = MediaAudioExtractor.isVideo(url)
-            let stored = isVideo ? nil : storage.importAudio(from: url)        // copia a audio/ (nil si falla)
+            let stored = isVideo ? nil : storage.importAudio(from: url)        // copies to audio/ (nil on failure)
             let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
             enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL,
                                  uploadName: url.lastPathComponent, language: language)
         }
     }
 
-    /// Limpia la lista de resultados de la ventana de Upload (se llama al abrir una sesión de subida nueva, ver PanelController).
+    /// Clears the Upload window's results list (called when a new upload session opens, see PanelController).
     @MainActor func clearUploadResults() { uploadResults.removeAll() }
 
     private func fillUploadResult(_ id: UUID, text: String?, failed: Bool, errorKey: String? = nil) {
-        guard let i = uploadResults.firstIndex(where: { $0.id == id }) else { return }   // no es una subida: no-op
+        guard let i = uploadResults.firstIndex(where: { $0.id == id }) else { return }   // not an upload: no-op
         uploadResults[i].text = text
         uploadResults[i].failed = failed
         uploadResults[i].errorKey = errorKey
     }
 
-    /// Crea el ítem de nota de voz con su audio ya guardado y lanza la transcripción.
-    /// El audio NUNCA se borra aquí: sigue accesible aunque la transcripción falle.
-    /// `state` vuelve a .idle de inmediato → el grabador queda libre para grabar otra nota.
+    /// Creates the voice note item with its audio already saved and kicks off the transcription.
+    /// The audio is NEVER deleted here: it stays accessible even if the transcription fails.
+    /// `state` returns to .idle immediately → the recorder is free to record another note.
     @MainActor
     private func ingest(audioFileName name: String) {
-        storage.protectAudio(fileName: name)   // 0600: la grabación contiene la voz del usuario
+        storage.protectAudio(fileName: name)   // 0600: the recording contains the user's voice
         enqueueTranscription(audioFileName: name, transcribeURL: storage.audioURL(for: name))
         state = .idle
     }
 
-    /// Lanza una transcripción en segundo plano: crea el ítem placeholder y lo rellena al terminar.
-    /// No toca `state` (solo el contador), así que no interfiere con una grabación nueva en curso.
+    /// Kicks off a background transcription: creates the placeholder item and fills it in when done.
+    /// Doesn't touch `state` (only the counter), so it doesn't interfere with a new recording in progress.
     @MainActor
     private func enqueueTranscription(audioFileName: String?, transcribeURL: URL, uploadName: String? = nil, language: String? = nil) {
         let id = onVoiceNoteStarted?(audioFileName, nil)
-        // Leer la duración construye un AVAudioPlayer (parsea el archivo) — hacerlo fuera del main actor para que
-        // una subida masiva no congele la UI, y luego rellenarla. Lo persiste el guardado inminente de la transcripción.
+        // Reading the duration builds an AVAudioPlayer (parses the file) — do it off the main actor so
+        // a bulk upload doesn't freeze the UI, then fill it in. The imminent transcription save persists it.
         if let id {
             Task { @MainActor in
                 if let dur = await Task.detached(priority: .utility, operation: { AudioPlayer.duration(of: transcribeURL) }).value {
@@ -298,11 +298,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 }
             }
         }
-        if let uploadName, let id {   // mostrar el progreso + resultado de este archivo en la ventana de Upload
+        if let uploadName, let id {   // show this file's progress + result in the Upload window
             uploadResults.insert(UploadTranscription(id: id, name: uploadName), at: 0)
-            // Tope de la lista: preferir desalojar una entrada COMPLETADA/fallida (nunca una en vuelo — eso
-            // dejaría huérfano su fillUploadResult). Si TODAS siguen en vuelo, un tope duro descarta la más
-            // vieja para que la lista no crezca sin límite.
+            // List cap: prefer evicting a COMPLETED/failed entry (never an in-flight one — that
+            // would orphan its fillUploadResult). If ALL are still in flight, a hard cap drops the
+            // oldest so the list doesn't grow unbounded.
             if uploadResults.count > 25 {
                 if let i = uploadResults.lastIndex(where: { $0.text != nil || $0.failed }) { uploadResults.remove(at: i) }
                 else if uploadResults.count > 50 { uploadResults.removeLast() }
@@ -311,56 +311,56 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         transcribeInBackground(id: id, url: transcribeURL, languageOverride: language)
     }
 
-    /// Reintenta transcribir el audio de un ítem que ya existe (una nota fallida con su audio).
+    /// Retries transcribing the audio of an existing item (a failed note with its audio).
     @MainActor
     func retry(itemID: UUID, audioFileName: String) {
         onVoiceNoteRetrying?(itemID)
         transcribeInBackground(id: itemID, url: storage.audioURL(for: audioFileName))
     }
 
-    /// Núcleo de la transcripción en segundo plano (compartido por grabar, subir y reintentar). No toca `state`.
+    /// Core of the background transcription (shared by record, upload and retry). Doesn't touch `state`.
     @MainActor
     private func transcribeInBackground(id: UUID?, url: URL, languageOverride: String? = nil) {
         transcribingCount += 1
-        // Resolver el modelo del proveedor activo aquí, en el MainActor (evita leer Settings.shared
-        // desde el hilo de transcripción). Gemini y OpenAI tienen cada uno su propio ajuste de modelo.
-        // Resolver el proveedor + su modelo aquí, en el MainActor (un solo snapshot — evita tanto un data race
-        // leyendo Settings.shared fuera del hilo como un TOCTOU de proveedor/modelo). Cada proveedor usa su propia
-        // clave, así que no hay fallback entre proveedores (grabar ya está condicionado a AIProvider.hasKey para la selección).
+        // Resolve the active provider's model here, on the MainActor (avoids reading Settings.shared
+        // from the transcription thread). Gemini and OpenAI each have their own model setting.
+        // Resolve the provider + its model here, on the MainActor (a single snapshot — avoids both a data race
+        // reading Settings.shared off-thread and a provider/model TOCTOU). Each provider uses its own
+        // key, so there is no cross-provider fallback (recording is already gated on AIProvider.hasKey for the selection).
         let provider = Settings.shared.aiProvider
         let model = provider == "gemini" ? Settings.shared.geminiModel
                   : provider == "local"  ? Settings.shared.localModel
                   : Settings.shared.transcriptionModel
-        let language = languageOverride ?? Settings.shared.transcriptionLanguage   // el override por subida gana
+        let language = languageOverride ?? Settings.shared.transcriptionLanguage   // the per-upload override wins
         let vocabulary = Settings.shared.transcriptionVocabulary
-        // El primer uso en el dispositivo descarga el modelo: mostrar "Descargando modelo…" para que no parezca atascado.
+        // First on-device use downloads the model: show "Downloading model…" so it doesn't look stuck.
         if provider == "local", !LocalTranscriber.isModelReady(model), let id { onVoiceNoteDownloadingModel?(id) }
-        // La primera transcripción en el dispositivo de la sesión paga un calentamiento único de Core ML / Neural
-        // Engine (~20 s, luego en caché): mostrarlo como "Preparando modelo…" en vez de un simple spinner de "Transcribiendo…".
+        // The session's first on-device transcription pays a one-time Core ML / Neural Engine
+        // warm-up (~20 s, then cached): surface it as "Preparing model…" instead of a plain "Transcribing…" spinner.
         if provider == "local", !LocalTranscriber.pipelineReady { preparingModel = true }
         Task { @MainActor in
-            // Limpiar "Preparando…" cuando el contador se vacía O el pipeline ya está caliente (una transcripción
-            // solapada entonces está realmente transcribiendo, no preparando).
+            // Clear "Preparing…" when the counter empties OR the pipeline is already warm (an overlapping
+            // transcription is then actually transcribing, not preparing).
             defer { transcribingCount -= 1; if transcribingCount == 0 || LocalTranscriber.pipelineReady { preparingModel = false } }
             do {
-                // NORMALIZACIÓN DE VIDEO: WhisperKit/AVAudioFile no pueden decodificar contenedores de video, así
-                // que primero demuxear la pista de audio a un .m4a temporal AAC mono de 16 kHz. Solo corre para
-                // entradas de video; el audio (grabar / reintentar / subir audio) se lo salta por completo. Corre
-                // fuera del MainActor → el await suspende sin bloquear la UI. Aguas arriba del switch de proveedor,
-                // así que local + ambas nubes reciben audio decodificable (y arregla el bug latente donde un .mp4 con pista de video fallaba en silencio en la ruta local).
+                // VIDEO NORMALIZATION: WhisperKit/AVAudioFile can't decode video containers, so
+                // first demux the audio track to a temp 16 kHz mono AAC .m4a. Only runs for
+                // video inputs; audio (record / retry / audio upload) skips it entirely. Runs
+                // off the MainActor → the await suspends without blocking the UI. Upstream of the provider switch,
+                // so local + both clouds receive decodable audio (and fixes the latent bug where an .mp4 with a video track failed silently on the local path).
                 let mediaURL: URL
                 if MediaAudioExtractor.isVideo(url) {
                     extractingCount += 1
                     do { mediaURL = try await MediaAudioExtractor.audioForTranscription(from: url) }
                     catch { extractingCount -= 1; throw error }
                     extractingCount -= 1
-                    // Passthrough (mediaURL == url) significa que era audio en un contenedor tipado como película
-                    // (p. ej. un .mp4 solo-audio), NO un video real — así que almacenarlo ahora para que la nota siga
-                    // reproducible/reintentable (un video real deliberadamente no se almacena, ver transcribeFiles).
-                    // Guardas: (1) no re-importar en un reintento (la fuente ya vive en el almacén — duplicaría el
-                    // archivo en cada reintento); (2) solo con pista de audio CONFIRMADA — un contenedor que
-                    // AVFoundation no puede demuxear (mkv/wmv/vob…) también cae en passthrough, y sin esta
-                    // comprobación copiaríamos el video completo al almacén como "audio" irreproducible.
+                    // Passthrough (mediaURL == url) means it was audio in a movie-typed container
+                    // (e.g. an audio-only .mp4), NOT a real video — so store it now so the note stays
+                    // playable/retryable (a real video is deliberately not stored, see transcribeFiles).
+                    // Guards: (1) don't re-import on a retry (the source already lives in the store — it would duplicate the
+                    // file on every retry); (2) only with a CONFIRMED audio track — a container that
+                    // AVFoundation can't demux (mkv/wmv/vob…) also falls into passthrough, and without this
+                    // check we'd copy the whole video into the store as unplayable "audio".
                     if mediaURL == url, let id,
                        !url.path.hasPrefix(storage.audioBaseURL.path),
                        (try? await AVURLAsset(url: url).loadTracks(withMediaType: .audio))?.isEmpty == false,
@@ -373,11 +373,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 let cleanupTemp = (mediaURL != url)
                 defer { if cleanupTemp { try? FileManager.default.removeItem(at: mediaURL) } }
 
-                // Guardia previa de tamaño para la nube: AAC mono a 16 kHz es ~14 MB/h, así que un clip muy largo
-                // aún puede exceder los topes de la nube. OpenAI envía bytes crudos (límite ~25 MB → piso de 24 MB);
-                // Gemini envía inline_data en base64 (inflación de ~4/3 contra un tope de request de ~20 MB → ~15 MB de audio crudo).
-                // Convertir el fallo HTTP opaco en una fila clara de "demasiado grande — cambia a en-dispositivo". Local
-                // (WhisperKit) no tiene límite de tamaño → saltar.
+                // Cloud size pre-check: 16 kHz mono AAC is ~14 MB/h, so a very long clip
+                // can still exceed the cloud caps. OpenAI sends raw bytes (~25 MB limit → 24 MB floor);
+                // Gemini sends base64 inline_data (~4/3 inflation against a ~20 MB request cap → ~15 MB of raw audio).
+                // Turn the opaque HTTP failure into a clear "too large — switch to on-device" row. Local
+                // (WhisperKit) has no size limit → skip.
                 let cloudLimit = provider == "gemini" ? 15_000_000 : 24_000_000
                 if provider != "local",
                    let sz = try? FileManager.default.attributesOfItem(atPath: mediaURL.path)[.size] as? Int,
@@ -390,9 +390,9 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 if trimmed.isEmpty { if let id { onVoiceNoteFailed?(id); fillUploadResult(id, text: nil, failed: true) } }
                 else { if let id { onVoiceNoteTranscribed?(id, trimmed); fillUploadResult(id, text: trimmed, failed: false) } }
             } catch {
-                NSLog("Klip: transcription failed — %@", String(describing: error))   // hacerlo visible, no fallar en silencio
+                NSLog("Klip: transcription failed — %@", String(describing: error))   // make it visible, don't fail silently
                 let key = (error as? MediaAudioExtractor.ExtractionError)?.uploadErrorKey
-                if let id { onVoiceNoteFailed?(id); fillUploadResult(id, text: nil, failed: true, errorKey: key) }   // el audio queda en el historial para reintentar/recuperar
+                if let id { onVoiceNoteFailed?(id); fillUploadResult(id, text: nil, failed: true, errorKey: key) }   // the audio stays in the history for retry/recovery
             }
         }
     }
@@ -407,19 +407,19 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     nonisolated func audioRecorderDidFinishRecording(_ r: AVAudioRecorder, successfully ok: Bool) {
         Task { @MainActor in
-            removeDeviceListener()   // asegura quitar el listener también si el delegate se dispara por su cuenta
+            removeDeviceListener()   // ensures the listener is removed even if the delegate fires on its own
             finishing = false
             recorder = nil
-            guard let name = currentFileName else { return }   // cancelado: no es un error, solo salir
+            guard let name = currentFileName else { return }   // cancelled: not an error, just bail
             currentFileName = nil
             guard ok else { state = .error(L10n.t("rec.err.failed")); return }
-            ingest(audioFileName: name)   // conserva el .m4a y transcribe
+            ingest(audioFileName: name)   // keeps the .m4a and transcribes
         }
     }
 
     deinit {
-        // Red de seguridad. deinit es nonisolated y no puede llamar al método @MainActor, así que quitar el
-        // listener de CoreAudio inline (acceder a la propiedad almacenada propia de la instancia en deinit está permitido).
+        // Safety net. deinit is nonisolated and can't call the @MainActor method, so remove the
+        // CoreAudio listener inline (accessing the instance's own stored property in deinit is allowed).
         if let block = deviceListener {
             var addr = AudioObjectPropertyAddress(
                 mSelector: kAudioHardwarePropertyDefaultInputDevice,

@@ -14,7 +14,7 @@ let inset: CGFloat = 76
 let rect = NSRect(x: inset, y: inset, width: canvas - 2 * inset, height: canvas - 2 * inset)
 let squircle = NSBezierPath(roundedRect: rect, xRadius: 200, yRadius: 200)
 
-// Fondo degradado (índigo → violeta).
+// Gradient background (indigo → violet).
 NSGraphicsContext.saveGraphicsState()
 squircle.addClip()
 let gradient = NSGradient(colors: [
@@ -24,7 +24,7 @@ let gradient = NSGradient(colors: [
 gradient.draw(in: rect, angle: -90)
 NSGraphicsContext.restoreGraphicsState()
 
-// Glifo de portapapeles (SF Symbol) teñido de blanco.
+// Clipboard glyph (SF Symbol) tinted white.
 let cfg = NSImage.SymbolConfiguration(pointSize: 470, weight: .semibold)
 if let base = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)?
     .withSymbolConfiguration(cfg) {

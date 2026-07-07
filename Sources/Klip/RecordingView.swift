@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// UI del popup dedicado de grabación de voz (separado del panel de historial).
+/// UI for the dedicated voice-recording popup (separate from the history panel).
 struct RecordingView: View {
     @ObservedObject var recorder: Recorder
-    @ObservedObject var settings = Settings.shared   // re-localiza en vivo cuando cambia el idioma de la UI
+    @ObservedObject var settings = Settings.shared   // re-localize live when the UI language changes
     var onStop: () -> Void
     var onCancel: () -> Void
     var onClose: () -> Void

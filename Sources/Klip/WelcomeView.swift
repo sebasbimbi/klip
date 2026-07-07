@@ -1,11 +1,11 @@
 import SwiftUI
 import AppKit
 
-/// Onboarding de primer arranque. Explica qué hace Klip y — importante para privacidad / revisión del App
-/// Store — divulga que mantiene un historial local del portapapeles y que nunca envía nada fuera del Mac salvo
-/// que el usuario añada una clave de IA para transcripción de voz. Se muestra una vez (Settings.hasSeenWelcome).
+/// First-run onboarding. Explains what Klip does and — importantly for privacy / App Store review —
+/// discloses that it keeps a local clipboard history and never sends anything off the Mac unless the
+/// user adds an AI key for voice transcription. Shown once (Settings.hasSeenWelcome).
 struct WelcomeView: View {
-    @ObservedObject var settings = Settings.shared   // re-localizar en vivo + mostrar los atajos actuales
+    @ObservedObject var settings = Settings.shared   // re-localize live + show the current shortcuts
     var onStart: () -> Void
 
     private var appLogo: NSImage? {

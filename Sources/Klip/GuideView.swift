@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Guía de uso: atajos de Klip + atajos de captura de pantalla de macOS + cómo usar.
+/// Usage guide: Klip shortcuts + macOS screenshot shortcuts + how to use.
 struct GuideView: View {
     @ObservedObject var settings = Settings.shared
 

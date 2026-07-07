@@ -1,6 +1,6 @@
 import Foundation
 
-/// Detecta si un texto parece una credencial (API key, token, secreto) para el mini gestor.
+/// Detects whether a text looks like a credential (API key, token, secret) for the mini manager.
 enum CredentialDetector {
     private static let patterns: [String] = [
         "sk-[A-Za-z0-9_-]{20,}",                              // OpenAI
@@ -13,13 +13,13 @@ enum CredentialDetector {
         "(sk|rk|pk)_(live|test)_[A-Za-z0-9]{16,}", "whsec_[A-Za-z0-9]{16,}",  // Stripe
         "SG\\.[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{16,}",        // SendGrid
         "SK[0-9a-fA-F]{32}", "AC[0-9a-fA-F]{32}",              // Twilio
-        "(?i)npm_[A-Za-z0-9]{20,}",                            // token de npm
-        "glpat-[A-Za-z0-9_-]{20,}",                            // PAT de GitLab
-        "-----BEGIN [A-Z ]*PRIVATE KEY-----",                  // clave privada PEM
+        "(?i)npm_[A-Za-z0-9]{20,}",                            // npm token
+        "glpat-[A-Za-z0-9_-]{20,}",                            // GitLab PAT
+        "-----BEGIN [A-Z ]*PRIVATE KEY-----",                  // PEM private key
         "hf_[A-Za-z0-9]{20,}",                                 // Hugging Face
-        "(?i)bearer\\s+[A-Za-z0-9._-]{20,}",                   // token Bearer
-        "(?i)[a-z][a-z0-9+.-]*://[^\\s:/@]+:[^\\s:/@]{6,}@",    // credenciales incrustadas en una URL: scheme://user:pass@host (postgres/mongodb/redis/https…)
-        "(?i)AccountKey=[A-Za-z0-9+/]{40,}={0,2}",             // cadena de conexión de Azure Storage
+        "(?i)bearer\\s+[A-Za-z0-9._-]{20,}",                   // Bearer token
+        "(?i)[a-z][a-z0-9+.-]*://[^\\s:/@]+:[^\\s:/@]{6,}@",    // credentials embedded in a URL: scheme://user:pass@host (postgres/mongodb/redis/https…)
+        "(?i)AccountKey=[A-Za-z0-9+/]{40,}={0,2}",             // Azure storage connection string
         "(?i)(api[_-]?key|secret|access[_-]?token|password|token)\\s*[:=]\\s*\"?[A-Za-z0-9._\\-+/]{12,}"
     ]
 
@@ -27,14 +27,14 @@ enum CredentialDetector {
         matchedSecret(in: text) != nil
     }
 
-    /// Subconjunto más estricto, de PREFIJO INEQUÍVOCO, usado SOLO para la promoción silenciosa en reposo al cargar
-    /// (Storage.decryptCredentials). El `sk-…` laxo (que coincide con kebab/CSS como `sk-modal-overlay-backdrop`) y
-    /// los patrones propensos a prosa `key:value` / `bearer …` quedan deliberadamente EXCLUIDOS aquí, para que cargar
-    /// el historial nunca cifre+oculte en silencio un clip ordinario. La captura en vivo sigue usando el
-    /// `looksLikeCredential` más amplio (donde un falso positivo es visible y se deshace con un clic).
+    /// Stricter, UNAMBIGUOUS-PREFIX subset used ONLY for the silent at-rest promotion on load (Storage
+    /// .decryptCredentials). The loose `sk-…` (which matches kebab/CSS like `sk-modal-overlay-backdrop`) and
+    /// the prose-prone `key:value` / `bearer …` patterns are deliberately EXCLUDED here, so loading history
+    /// never silently encrypts+hides an ordinary clip. Live capture still uses the broader `looksLikeCredential`
+    /// (where a false positive is visible and one click to undo).
     private static let strongPatterns: [String] = [
-        "sk-(proj|svcacct|admin|ant)-[A-Za-z0-9_-]{20,}",      // claves estructuradas de OpenAI/Anthropic
-        "sk-[A-Za-z0-9]{40,}",                                 // clave legacy sin prefijo: tira larga puramente alfanumérica (el kebab no puede)
+        "sk-(proj|svcacct|admin|ant)-[A-Za-z0-9_-]{20,}",      // OpenAI/Anthropic structured keys
+        "sk-[A-Za-z0-9]{40,}",                                 // legacy bare key: a long pure-alnum run (kebab can't)
         "ghp_[A-Za-z0-9]{20,}", "github_pat_[A-Za-z0-9_]{20,}", "gho_[A-Za-z0-9]{20,}",
         "xox[baprs]-[A-Za-z0-9-]{10,}",
         "AKIA[0-9A-Z]{16}",
@@ -47,7 +47,7 @@ enum CredentialDetector {
         "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{6,}",   // JWT
     ]
 
-    /// True solo ante un secreto estructurado de alta confianza — seguro para la promoción silenciosa en reposo (ver arriba).
+    /// True only on a high-confidence, structured secret — safe for silent at-rest promotion (see above).
     static func looksLikeHighConfidenceCredential(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.count >= 16, t.count <= 20_000 else { return false }
@@ -59,10 +59,10 @@ enum CredentialDetector {
         return false
     }
 
-    /// La subcadena que coincidió con un patrón de secreto, o nil. Escanea LÍNEA POR LÍNEA para que un secreto
-    /// dentro de un blob multilínea más grande (p. ej. un .env pegado, un bloque de config o un mensaje de chat con un token)
-    /// igual se detecte — la regla anterior `(newline && >=200 chars) → no es credencial` los dejaba pasar
-    /// y los mostraba en texto claro. Solo queda un tope superior de bytes, puramente por rendimiento.
+    /// The substring that matched a secret pattern, or nil. Scans LINE BY LINE so a secret inside a
+    /// larger multi-line blob (e.g. a pasted .env, a config block, or a chat message with a token) is
+    /// still caught — the previous `(newline && >=200 chars) → not a credential` rule let those through
+    /// and showed them in cleartext. Only an upper byte cap remains, purely for performance.
     static func matchedSecret(in text: String) -> String? {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.count >= 12, t.count <= 20_000 else { return nil }
@@ -76,12 +76,12 @@ enum CredentialDetector {
         return nil
     }
 
-    /// Un placeholder constante SIN caracteres derivados del secreto. Se usa para todo lo PERSISTIDO (el preview
-    /// en disco, backups) para que la pista de los últimos 4 de `masked` nunca acabe en items.json / el .zip.
+    /// A constant placeholder with NO secret-derived characters. Used for anything PERSISTED (the on-disk
+    /// preview, backups) so the last-4 reveal hint from `masked` never lands in items.json / the .zip.
     static let maskedPlaceholder = "🔑 ••••••"
 
-    /// Versión enmascarada para mostrar sin revelar el secreto. Para blobs multilínea nunca hacemos eco del
-    /// contenido (enmascarar solo la cola ocultaría una línea final inocua, no el secreto).
+    /// Masked version to display without revealing the secret. For multi-line blobs we never echo the
+    /// content (masking just the tail would hide a harmless trailing line, not the secret).
     static func masked(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.contains("\n") { return "🔑 ••••••" }

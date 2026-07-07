@@ -1,8 +1,8 @@
 import AppKit
 
-// Punto de entrada. App accesoria (sin icono en el Dock); vive en la barra de menús.
-// El código de nivel superior es nonisolated; todo el arranque corre en el hilo principal, así que se afirma
-// MainActor para el AppDelegate @MainActor. `delegate` se retiene aquí de por vida (NSApplication.delegate es weak).
+// Entry point. Accessory app (no Dock icon); lives in the menu bar.
+// Top-level code is nonisolated; the whole launch runs on the main thread, so assert MainActor for the
+// @MainActor AppDelegate. `delegate` is retained here for the app's lifetime (NSApplication.delegate is weak).
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     let delegate = AppDelegate()

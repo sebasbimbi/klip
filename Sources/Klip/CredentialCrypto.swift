@@ -2,19 +2,19 @@ import Foundation
 import CryptoKit
 import Security
 
-/// Cifra el texto de credenciales EN REPOSO. La clave AES-256 vive en el Llavero de macOS (protegida por el SO,
-/// no solo permisos de archivo), así que items.json — y el .zip de respaldo que lo copia — nunca contienen
-/// secretos de credenciales en claro. El cifrado ocurre solo en la frontera de persistencia (Storage.save/loadItems);
-/// todo en memoria sigue trabajando con texto plano. El texto cifrado lleva un prefijo de versión para que historiales
-/// antiguos en claro migren de forma transparente en el siguiente guardado, y para no tocar nunca texto no-credencial.
+/// Encrypts credential text AT REST. The AES-256 key lives in the macOS Keychain (OS-protected, not just
+/// file perms), so items.json — and the backup .zip that copies it — never contain credential secrets in
+/// the clear. Encryption happens only at the persistence boundary (Storage.save/loadItems); everything in
+/// memory keeps working with plaintext. Ciphertext carries a version prefix so older cleartext histories
+/// migrate transparently on the next save, and so non-credential text is never touched.
 enum CredentialCrypto {
     private static let prefix = "klipenc1:"
     private static let keyAccount = "com.proper.klip.credentialKey"
 
-    /// True si la cadena es uno de nuestros tokens sellados (para no sellar dos veces ni intentar descifrar texto plano).
+    /// True if the string is one of our sealed tokens (so we don't double-seal or try to decrypt plaintext).
     static func isSealed(_ s: String) -> Bool { s.hasPrefix(prefix) }
 
-    /// Devuelve un token sellado para `plaintext`, o nil si el cifrado no está disponible (el llamador conserva el texto plano).
+    /// Returns a sealed token for `plaintext`, or nil if encryption is unavailable (caller keeps plaintext).
     static func seal(_ plaintext: String) -> String? {
         guard let key = loadOrCreateKey(),
               let sealed = try? AES.GCM.seal(Data(plaintext.utf8), using: key),
@@ -22,7 +22,7 @@ enum CredentialCrypto {
         return prefix + combined.base64EncodedString()
     }
 
-    /// Descifra un token sellado de vuelta a texto plano, o nil si no es nuestro / la clave es de otra máquina.
+    /// Decrypts a sealed token back to plaintext, or nil if it isn't ours / the key is from another machine.
     static func open(_ token: String) -> String? {
         guard token.hasPrefix(prefix),
               let data = Data(base64Encoded: String(token.dropFirst(prefix.count))),
@@ -32,23 +32,23 @@ enum CredentialCrypto {
         return String(data: plain, encoding: .utf8)
     }
 
-    /// Asegura que la clave de cifrado exista (creándola si falta) SIN devolverla. Llamar FUERA del hilo
-    /// principal antes de un guardado que pueda necesitar sellar, para que el SecItemAdd único de la clave no corra en main.
+    /// Ensures the encryption key exists (creating it if absent) WITHOUT returning it. Call OFF the main
+    /// thread before a save that may need to seal, so the key's one-time SecItemAdd doesn't run on main.
     static func warmKey() { _ = loadOrCreateKey() }
 
-    // MARK: - Clave simétrica guardada en el Llavero
+    // MARK: - Keychain-stored symmetric key
 
     private static func loadKey() -> SymmetricKey? {
         let q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: keyAccount,
             kSecReturnData as String: true,
-            // NUNCA mostrar un prompt bloqueante del Llavero. Esta lectura corre durante el arranque (loadItems
-            // en el hilo principal). Si la identidad de firma cambió (p. ej. un rebuild ad-hoc), el ACL del ítem
-            // ya no confía en nosotros y el comportamiento POR DEFECTO es un diálogo modal "Klip wants to use your
-            // keychain" que ATASCA toda la app antes de que llegue a correr (sin barra de menús, sin poll, sin
-            // captura). Mejor fallar rápido: open() devuelve entonces nil, el token sellado se conserva, y el
-            // descifrado se reanuda cuando vuelva una identidad de confianza (un certificado de firma estable).
+            // NEVER show a blocking Keychain prompt. This read runs during launch (loadItems on the main
+            // thread). If the signing identity changed (e.g. an ad-hoc rebuild), the item's ACL no longer
+            // trusts us and the DEFAULT behaviour is a modal "Klip wants to use your keychain" dialog that
+            // WEDGES the whole app before it ever runs (no menu bar, no poll, no capture). Fail fast instead:
+            // open() then returns nil, the sealed token is preserved, and decrypt resumes once a trusting
+            // identity is back (a stable signing cert).
             kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
         var out: CFTypeRef?
@@ -57,8 +57,8 @@ enum CredentialCrypto {
         return SymmetricKey(data: data)
     }
 
-    /// Serializa loadKey()+SecItemAdd para que un warmKey() concurrente (fuera de main) y saveItems→seal (main)
-    /// no puedan generar ambos una clave y competir por el insert (que si no podría divergir o dar errSecDuplicateItem).
+    /// Serializes loadKey()+SecItemAdd so a concurrent warmKey() (off-main) and saveItems→seal (main) can't
+    /// both generate a key and race the insert (which could otherwise diverge or hit errSecDuplicateItem).
     private static let keyLock = NSLock()
 
     private static func loadOrCreateKey() -> SymmetricKey? {
@@ -70,12 +70,12 @@ enum CredentialCrypto {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: keyAccount,
             kSecValueData as String: data,
-            // ThisDeviceOnly: disponible para el poll en segundo plano, pero NO se copia a respaldos del
-            // dispositivo/iCloud — así la clave no puede viajar a otro Mac y descifrar allí un items.json exportado.
+            // ThisDeviceOnly: available to the background poll, but NOT copied into device/iCloud backups —
+            // so the key can't travel to another Mac and decrypt an exported items.json there.
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
         let status = SecItemAdd(add as CFDictionary, nil)
         if status == errSecSuccess { return key }
-        return loadKey()   // errSecDuplicateItem (otro camino ganó la carrera) o transitorio → usar lo almacenado
+        return loadKey()   // errSecDuplicateItem (another path won the race) or transient → use what's stored
     }
 }

@@ -3,17 +3,17 @@ import AVFoundation
 import CoreAudio
 import UniformTypeIdentifiers
 
-/// Extrae la pista de audio de un archivo de VIDEO a un archivo de audio temporal pequeño que AMBAS rutas de transcripción aceptan.
-/// WhisperKit/AVAudioFile no puede decodificar contenedores de video (.mov/.mkv, y .mp4 con pista de video), y las
-/// subidas a la nube tienen tope de tamaño. La salida es AAC .m4a mono a 16 kHz — la tasa nativa de Whisper y la forma EXACTA de
-/// las notas de voz de la propia app (ver Recorder.start), así que WhisperKit ya la decodifica, OpenAI la acepta como
-/// audio/mp4, y a ~14 MB/hora un clip normal queda bajo los topes de la nube. Usa AVAssetReader → AVAssetWriter
-/// (no AVAssetExportSession) porque solo el par reader/writer permite fijar sample rate + canales + códec,
-/// y se mantiene en el piso de despliegue macOS 14 (el overload async export() es macOS 15+).
+/// Extracts the audio track of a VIDEO file into a small temporary audio file that BOTH transcription paths accept.
+/// WhisperKit/AVAudioFile can't decode video containers (.mov/.mkv, and .mp4 with a video track), and
+/// cloud uploads have a size cap. The output is 16 kHz mono AAC .m4a — Whisper's native rate and the EXACT shape of
+/// the app's own voice notes (see Recorder.start), so WhisperKit already decodes it, OpenAI accepts it as
+/// audio/mp4, and at ~14 MB/hour a normal clip stays under the cloud caps. Uses AVAssetReader → AVAssetWriter
+/// (not AVAssetExportSession) because only the reader/writer pair allows fixing sample rate + channels + codec,
+/// and it stays within the macOS 14 deployment floor (the async export() overload is macOS 15+).
 enum MediaAudioExtractor {
 
-    /// Contenedores de video que ADMITIMOS para subir (filtro de drop + selector de archivos). Los solapes con la lista de subida
-    /// de audio (mp4/mpeg/webm pueden ser cualquiera de los dos) los resuelve con precisión `audioForTranscription`, que sondea las pistas.
+    /// Video containers we ACCEPT for upload (drop filter + file picker). Overlaps with the audio upload
+    /// list (mp4/mpeg/webm can be either) are resolved precisely by `audioForTranscription`, which probes the tracks.
     static let videoExtensions: Set<String> = [
         "mov", "mp4", "m4v", "qt", "avi", "mkv", "webm", "mpg", "mpeg", "m2v",
         "m2ts", "mts", "ts", "3gp", "3g2", "flv", "wmv", "ogv", "mxf", "dv", "asf", "vob"
@@ -27,7 +27,7 @@ enum MediaAudioExtractor {
         case writeFailed
         case tooLargeForCloud
 
-        /// Clave L10n mostrada en la fila fallida de la ventana Upload (mapeada por el catch de Recorder).
+        /// L10n key shown on the failed row of the Upload window (mapped by Recorder's catch).
         var uploadErrorKey: String {
             switch self {
             case .drmProtected:     return "upload.videoProtected"
@@ -49,10 +49,10 @@ enum MediaAudioExtractor {
         }
     }
 
-    /// Chequeo grueso de admisión para el filtro de drop / selector de archivos: ¿es `url` plausiblemente un contenedor de video?
-    /// Prefiere el content type real del SO; un UTI de audio gana. Recurre al conjunto de extensiones para contenedores
-    /// que macOS no registra (mkv/webm). Sobre-incluir es inofensivo — `audioForTranscription` toma la decisión real
-    /// de extraer-vs-pasar-directo sondeando las pistas reales.
+    /// Coarse admission check for the drop filter / file picker: is `url` plausibly a video container?
+    /// Prefers the OS's real content type; an audio UTI wins. Falls back to the extension set for containers
+    /// macOS doesn't register (mkv/webm). Over-including is harmless — `audioForTranscription` makes the real
+    /// extract-vs-pass-through decision by probing the actual tracks.
     static func isVideo(_ url: URL) -> Bool {
         if let type = (try? url.resourceValues(forKeys: [.contentTypeKey]))?.contentType {
             if type.conforms(to: .audio) { return false }
@@ -61,25 +61,25 @@ enum MediaAudioExtractor {
         return videoExtensions.contains(url.pathExtension.lowercased())
     }
 
-    /// El punto de entrada del pipeline. Devuelve `url` SIN CAMBIOS cuando ya es un archivo solo-audio decodificable (el
-    /// caso común m4a/mp3/wav — un no-op barato). Si no, extrae la pista de audio de un contenedor de video a un
-    /// .m4a temporal que QUIEN LLAMA debe borrar tras la transcripción. Lanza un ExtractionError específico (mostrado como
-    /// fila fallida localizada) para entradas con DRM / sin audio / ilegibles.
+    /// The pipeline entry point. Returns `url` UNCHANGED when it's already a decodable audio-only file (the
+    /// common m4a/mp3/wav case — a cheap no-op). Otherwise extracts the audio track of a video container into a
+    /// temporary .m4a that the CALLER must delete after transcription. Throws a specific ExtractionError (shown as
+    /// a localized failed row) for DRM'd / audio-less / unreadable inputs.
     static func audioForTranscription(from url: URL) async throws -> URL {
         let asset = AVURLAsset(url: url)
 
-        // DRM: los medios protegidos con FairPlay no podemos decodificarlos ni nosotros ni la nube.
+        // DRM: FairPlay-protected media can't be decoded by us or by the cloud.
         if (try? await asset.load(.hasProtectedContent)) == true { throw ExtractionError.drmProtected }
 
-        // Sin pista de video visible → tratarlo como audio y entregar el archivo ORIGINAL al proveedor sin cambios.
-        // WhisperKit lee audio común directamente, y las APIs de la nube aceptan webm/ogg/mp3/mp4-audio/etc. Esto
-        // cubre .mp4 solo-audio (sin re-encode innecesario — y, una vez guardado, sigue reproducible en el historial) y
-        // contenedores que AVFoundation no puede demuxar pero la nube igual acepta. Solo una pista de video REAL se demuxa.
+        // No visible video track → treat it as audio and hand the ORIGINAL file to the provider unchanged.
+        // WhisperKit reads common audio directly, and the cloud APIs accept webm/ogg/mp3/mp4-audio/etc. This
+        // covers audio-only .mp4 (no needless re-encode — and, once saved, it stays playable in history) and
+        // containers AVFoundation can't demux but the cloud still accepts. Only a REAL video track gets demuxed.
         let videoTracks = (try? await asset.loadTracks(withMediaType: .video)) ?? []
         if videoTracks.isEmpty { return url }
 
-        // Un video real: sacar su pista de audio. Distinguir un archivo ilegible (load lanza) de uno que es
-        // legible pero genuinamente no tiene audio (una grabación de pantalla muda) para que la fila fallida sea específica.
+        // A real video: pull out its audio track. Distinguish an unreadable file (load throws) from one that is
+        // readable but genuinely has no audio (a silent screen recording) so the failed row is specific.
         let audioTracks: [AVAssetTrack]
         do { audioTracks = try await asset.loadTracks(withMediaType: .audio) }
         catch { throw ExtractionError.unreadable }
@@ -88,7 +88,7 @@ enum MediaAudioExtractor {
         return try await extract(asset: asset, track: track)
     }
 
-    // MARK: - Extracción (AVAssetReader → AVAssetWriter, AAC .m4a mono a 16 kHz)
+    // MARK: - Extraction (AVAssetReader → AVAssetWriter, 16 kHz mono AAC .m4a)
 
     private static func extract(asset: AVAsset, track: AVAssetTrack) async throws -> URL {
         let outURL = FileManager.default.temporaryDirectory
@@ -101,8 +101,8 @@ enum MediaAudioExtractor {
             writer = try AVAssetWriter(outputURL: outURL, fileType: .m4a)
         } catch { throw ExtractionError.unreadable }
 
-        // Un solo channel layout mono, compartido por el downmix del reader y el encoder AAC (doble seguro para
-        // que una fuente multicanal/5.1 se downmixee sin importar qué etapa respete el layout).
+        // A single mono channel layout, shared by the reader's downmix and the AAC encoder (double insurance so
+        // a multichannel/5.1 source gets downmixed regardless of which stage honors the layout).
         var mono = AudioChannelLayout(); mono.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
         let layout = Data(bytes: &mono, count: MemoryLayout<AudioChannelLayout>.size)
 
@@ -135,13 +135,13 @@ enum MediaAudioExtractor {
         guard writer.startWriting() else { throw ExtractionError.writeFailed }
         writer.startSession(atSourceTime: .zero)
 
-        // El bombeo corre en un callback de dispatch SIN Task actual, así que Task.isCancelled es inútil ahí;
-        // un flag protegido por lock que voltea el handler de cancelación se revisa en cada pasada.
+        // The pump runs in a dispatch callback with NO current Task, so Task.isCancelled is useless there;
+        // a lock-protected flag flipped by the cancellation handler is checked on every pass.
         let cancelled = Flag()
         let queue = DispatchQueue(label: "klip.audio-extraction")
 
-        // Los tipos de AVFoundation no son Sendable, pero el bombeo completo corre en la cola serial de arriba
-        // (el handler de cancelación solo toca el Flag), así que envolverlos en una caja @unchecked Sendable es seguro.
+        // AVFoundation types aren't Sendable, but the entire pump runs on the serial queue above
+        // (the cancellation handler only touches the Flag), so wrapping them in an @unchecked Sendable box is safe.
         let box = PumpBox(reader: reader, writer: writer, input: input, output: output)
 
         do {
@@ -176,14 +176,14 @@ enum MediaAudioExtractor {
                 cancelled.set()
             }
         } catch {
-            try? FileManager.default.removeItem(at: outURL)   // nunca dejar huérfano un archivo temporal parcial
+            try? FileManager.default.removeItem(at: outURL)   // never orphan a partial temp file
             throw error
         }
 
         return outURL
     }
 
-    /// Bool minúsculo protegido por lock tocado desde dos hilos (handler de cancelación + bombeo de extracción).
+    /// Tiny lock-protected Bool touched from two threads (cancellation handler + extraction pump).
     private final class Flag: @unchecked Sendable {
         private let lock = NSLock()
         private var flag = false
@@ -191,8 +191,8 @@ enum MediaAudioExtractor {
         func set() { lock.lock(); flag = true; lock.unlock() }
     }
 
-    /// Caja para pasar los objetos (no Sendable) del reader/writer al closure @Sendable del bombeo.
-    /// Seguro porque todos se usan solo en la cola serial de extracción.
+    /// Box to pass the (non-Sendable) reader/writer objects into the pump's @Sendable closure.
+    /// Safe because all of them are used only on the serial extraction queue.
     private struct PumpBox: @unchecked Sendable {
         let reader: AVAssetReader
         let writer: AVAssetWriter

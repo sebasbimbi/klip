@@ -1,6 +1,6 @@
 #!/bin/bash
-# Despliegue local: compila, firma con una identidad ESTABLE (para que macOS recuerde los
-# permisos de micrófono/accesibilidad entre actualizaciones), instala y relanza.
+# Local deploy: build, sign with a STABLE identity (so macOS remembers the
+# microphone/accessibility permissions across updates), install and relaunch.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -9,9 +9,9 @@ SRC_BUNDLE="$APP_NAME.app"
 DEST="/Applications/$APP_NAME.app"
 SIGN_IDENTITY_NAME="Klip Code Signing"
 
-# Crea (una sola vez) un certificado de firma autofirmado y lo marca como de confianza, para que la
-# firma sea estable entre builds → TCC (micrófono, etc.) NO vuelve a preguntar.
-# Imprime el nombre de la identidad en stdout; falla (return 1) si no se pudo preparar.
+# Creates (once) a self-signed code-signing certificate and marks it trusted, so the
+# signature stays stable across rebuilds → TCC (microphone, etc.) does NOT re-prompt.
+# Prints the identity name on stdout; fails (return 1) if it couldn't be prepared.
 ensure_identity() {
     if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY_NAME"; then
         echo "$SIGN_IDENTITY_NAME"; return 0
@@ -47,33 +47,33 @@ EOF
     rm -rf "$tmp"; return 1
 }
 
-echo "==> 1) Compilando la .app (release)…"
+echo "==> 1) Building the .app (release)…"
 ./build.sh release
 
-echo "==> 2) Cerrando instancias previas (si las hay)…"
+echo "==> 2) Closing previous instances (if any)…"
 /usr/bin/pkill -x "$APP_NAME" 2>/dev/null || true
-/usr/bin/pkill -x Pasta 2>/dev/null || true   # nombre anterior
+/usr/bin/pkill -x Pasta 2>/dev/null || true   # previous name
 perl -e 'select(undef,undef,undef,0.4)'
 
-echo "==> 3) Instalando en /Applications…"
+echo "==> 3) Installing into /Applications…"
 SUDO=""
 if [ ! -w /Applications ]; then SUDO="sudo"; fi
 $SUDO rm -rf "$DEST"
 $SUDO cp -R "$SRC_BUNDLE" "$DEST"
 $SUDO xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
-# Identidad de firma: estable si es posible (sin sudo, para poder usar el llavero del usuario).
+# Signing identity: stable if possible (no sudo, so it can use the user's keychain).
 SIGN_ID="-"
 if [ -z "$SUDO" ]; then
     if ID="$(ensure_identity)"; then SIGN_ID="$ID"; fi
 fi
 
-echo "==> 3.5) Firmando en /Applications (ubicación estable, sin metadatos re-añadidos)…"
+echo "==> 3.5) Signing in /Applications (stable location, no metadata re-added)…"
 $SUDO xattr -cr "$DEST" 2>/dev/null || true
 if ! $SUDO codesign --force --sign "$SIGN_ID" --identifier com.proper.klip \
         --entitlements Resources/Klip.entitlements "$DEST" 2>/tmp/klip_sign_err; then
     if [ "$SIGN_ID" != "-" ]; then
-        echo "  ⚠ la firma con '$SIGN_ID' falló; usando ad-hoc"
+        echo "  ⚠ signing with '$SIGN_ID' failed; falling back to ad-hoc"
         SIGN_ID="-"
         $SUDO codesign --force --sign - --identifier com.proper.klip \
             --entitlements Resources/Klip.entitlements "$DEST"
@@ -82,27 +82,27 @@ if ! $SUDO codesign --force --sign "$SIGN_ID" --identifier com.proper.klip \
     fi
 fi
 rm -f /tmp/klip_sign_err
-$SUDO codesign --verify --strict "$DEST" && echo "  ✓ firma válida en /Applications"
+$SUDO codesign --verify --strict "$DEST" && echo "  ✓ valid signature in /Applications"
 if [ "$SIGN_ID" = "-" ]; then
-    echo "  (firma ad-hoc: macOS volverá a pedir los permisos tras cada reinstalación)"
+    echo "  (ad-hoc signature: macOS will re-ask for permissions after each reinstall)"
 else
-    echo "  (firma estable '$SIGN_ID': el permiso de micrófono se recuerda entre actualizaciones)"
+    echo "  (stable signature '$SIGN_ID': the microphone permission is remembered across updates)"
 fi
 
-# Idioma local por defecto (UI + transcripción de audio). Solo en una instalación NUEVA (respeta una elección posterior).
-# Se puede forzar con KLIP_DEFAULT_LANG=en ./install.sh
+# Local default language (UI + audio transcription). Only on a FRESH install (respects a later choice).
+# Override with KLIP_DEFAULT_LANG=en ./install.sh
 KLIP_LANG="${KLIP_DEFAULT_LANG:-es}"
 defaults read com.proper.klip uiLanguage            >/dev/null 2>&1 || defaults write com.proper.klip uiLanguage            -string "$KLIP_LANG"
 defaults read com.proper.klip transcriptionLanguage >/dev/null 2>&1 || defaults write com.proper.klip transcriptionLanguage -string "$KLIP_LANG"
 
-echo "==> 4) Abriendo…"
+echo "==> 4) Launching…"
 open "$DEST"
 
 echo ""
-echo "✓ Instalado en $DEST"
-echo "  · Atajos por defecto:  Historial ⌥⇧E · Voz ⌥⇧R · Anotar ⌥⇧D · Texto OCR ⌥⇧F · Subir ⌥⇧O"
-echo "    (los exactos se ven en el menú de Klip y se cambian en Preferencias › Atajos)"
-echo "  · Abrir al iniciar sesión: se registra automáticamente la primera vez."
-echo "    Si Configuración › General › Ítems de inicio pide aprobación, actívalo ahí."
-echo "  · Auto-pegado: actívalo desde el menú de Klip → 'Activar auto-pegado…'"
-echo "    (concede Accesibilidad cuando el sistema lo pida)."
+echo "✓ Installed at $DEST"
+echo "  · Default shortcuts:  History ⌥⇧E · Voice ⌥⇧R · Annotate ⌥⇧D · OCR text ⌥⇧F · Upload ⌥⇧O"
+echo "    (the exact ones are shown in the Klip menu and can be changed in Preferences › Shortcuts)"
+echo "  · Launch at login: registered automatically the first time."
+echo "    If Settings › General › Login Items asks for approval, enable it there."
+echo "  · Auto-paste: enable it from the Klip menu → 'Enable auto-paste…'"
+echo "    (grant Accessibility when the system asks)."

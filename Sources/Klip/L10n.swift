@@ -1,12 +1,12 @@
 import Foundation
 
-/// Localización ligera para la UI principal. El inglés es el idioma base; todos los demás idiomas
-/// recurren al inglés para cualquier clave faltante. El idioma se elige en Preferencias.
-/// Para añadir una cadena: agrega el valor en inglés a `en` con una clave nueva y luego tradúcela en los demás.
+/// Lightweight localization for the main UI. English is the base language; every other language
+/// falls back to English for any missing key. The language is picked in Preferences.
+/// To add a string: add the English value to `en` under a new key, then translate it in the others.
 enum L10n {
     static var lang: String { Settings.shared.uiLanguage }
 
-    /// Idiomas de UI ofrecidos en Preferencias (código, endónimo). El inglés es el idioma predeterminado/base.
+    /// UI languages offered in Preferences (code, endonym). English is the default/base language.
     static let supported: [(code: String, name: String)] = [
         ("en", "English"), ("es", "Español"), ("fr", "Français"), ("de", "Deutsch"),
         ("it", "Italiano"), ("pt", "Português"), ("zh", "中文"), ("ja", "日本語")
@@ -535,8 +535,8 @@ enum L10n {
         "voice.downloading": "Downloading model (first use)…"
     ]
 
-    // Las traducciones de abajo (fr/de/it/pt/zh/ja) las rellena el flujo de traducción; cualquier
-    // clave faltante recurre al inglés. Mantén las claves idénticas a `en`.
+    // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
+    // missing key falls back to English. Keep the keys identical to `en`.
     private static let fr: [String: String] = [
         "menu.show": "Afficher l'historique",
         "menu.capture": "Capturer une zone",
