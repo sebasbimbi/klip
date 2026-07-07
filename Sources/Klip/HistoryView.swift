@@ -2,7 +2,9 @@ import SwiftUI
 import AppKit
 
 enum HistoryFilter: String, CaseIterable, Identifiable {
-    case all, text, link, image, voice, credential, pinned
+    // Display order. Favorites sits right after All: at the end of the row it scrolls out of sight,
+    // and it's the filter that answers "where did my starred clip go?" (stars don't float to the top).
+    case all, pinned, text, link, image, voice, credential
     var id: String { rawValue }
     var labelKey: String {
         switch self {
@@ -246,7 +248,7 @@ struct HistoryView: View {
     private func toggleCheck(_ id: UUID) {
         if selectedBatch.contains(id) { selectedBatch.remove(id) } else { selectedBatch.insert(id) }
     }
-    // VISIBLE order (pinned first, then by date) — not manager.items' insertion order — so that
+    // VISIBLE order (newest first) — not manager.items' insertion order — so that
     // the PDF/ZIP comes out in the same order the user sees and checks the items. Includes selected
     // items even if a filter change has hidden them from `filtered`.
     private var batchItems: [ClipboardItem] { sortedItems.filter { selectedBatch.contains($0.id) } }
