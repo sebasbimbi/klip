@@ -73,6 +73,9 @@ final class HotKey {
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
         // The Carbon event handler is a single process-lifetime global (installHandlerIfNeeded), shared by
         // all HotKey instances via the static `instances` map — intentionally not removed per-instance.
-        HotKey.instances[id] = nil
+        // Only clear the slot if it still points at US: re-creating a hotkey under the same id stores the
+        // NEW instance first and deallocates the old one after — an unconditional nil here would clobber
+        // the new registration and kill its callback for the whole session.
+        if HotKey.instances[id] === self { HotKey.instances[id] = nil }
     }
 }

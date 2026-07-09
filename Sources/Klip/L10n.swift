@@ -301,6 +301,8 @@ enum L10n {
         "meeting.stop": "Detener grabación de reunión",
         "meeting.them": "Ellos",
         "prefs.sc.meeting": "Grabar reunión:",
+        "voice.busyMeeting.info": "La grabación de la reunión está usando el micrófono. Deténla antes de grabar una nota de voz.",
+        "voice.busyMeeting.title": "Reunión en curso",
     ]
 
     private static let en: [String: String] = [
@@ -585,6 +587,8 @@ enum L10n {
         "meeting.stop": "Stop meeting recording",
         "meeting.them": "Them",
         "prefs.sc.meeting": "Record meeting:",
+        "voice.busyMeeting.info": "The meeting recording is using the microphone. Stop it before recording a voice note.",
+        "voice.busyMeeting.title": "Meeting in progress",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -872,6 +876,8 @@ enum L10n {
         "meeting.stop": "Arrêter l'enregistrement de la réunion",
         "meeting.them": "Eux",
         "prefs.sc.meeting": "Enregistrer la réunion :",
+        "voice.busyMeeting.info": "L'enregistrement de la réunion utilise le micro. Arrêtez-le avant d'enregistrer une note vocale.",
+        "voice.busyMeeting.title": "Réunion en cours",
     ]
 
     private static let de: [String: String] = [
@@ -1157,6 +1163,8 @@ enum L10n {
         "meeting.stop": "Meeting-Aufnahme beenden",
         "meeting.them": "Andere",
         "prefs.sc.meeting": "Meeting aufnehmen:",
+        "voice.busyMeeting.info": "Die Meeting-Aufnahme belegt das Mikrofon. Beende sie, bevor du eine Sprachnotiz aufnimmst.",
+        "voice.busyMeeting.title": "Meeting läuft",
     ]
 
     private static let it: [String: String] = [
@@ -1442,6 +1450,8 @@ enum L10n {
         "meeting.stop": "Interrompi registrazione riunione",
         "meeting.them": "Loro",
         "prefs.sc.meeting": "Registra riunione:",
+        "voice.busyMeeting.info": "La registrazione della riunione sta usando il microfono. Fermala prima di registrare una nota vocale.",
+        "voice.busyMeeting.title": "Riunione in corso",
     ]
 
     private static let pt: [String: String] = [
@@ -1727,6 +1737,8 @@ enum L10n {
         "meeting.stop": "Parar gravação da reunião",
         "meeting.them": "Eles",
         "prefs.sc.meeting": "Gravar reunião:",
+        "voice.busyMeeting.info": "A gravação da reunião está a usar o microfone. Pára-a antes de gravar uma nota de voz.",
+        "voice.busyMeeting.title": "Reunião em curso",
     ]
 
     private static let zh: [String: String] = [
@@ -2012,6 +2024,8 @@ enum L10n {
         "meeting.stop": "停止会议录制",
         "meeting.them": "对方",
         "prefs.sc.meeting": "录制会议：",
+        "voice.busyMeeting.info": "会议录制正在使用麦克风。请先停止会议录制，再录制语音笔记。",
+        "voice.busyMeeting.title": "会议录制中",
     ]
 
     private static let ja: [String: String] = [
@@ -2297,5 +2311,7 @@ enum L10n {
         "meeting.stop": "会議の録音を停止",
         "meeting.them": "相手",
         "prefs.sc.meeting": "会議を録音：",
+        "voice.busyMeeting.info": "ミーティング録音がマイクを使用中です。停止してからボイスメモを録音してください。",
+        "voice.busyMeeting.title": "ミーティング録音中",
     ]
 }

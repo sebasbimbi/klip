@@ -41,6 +41,8 @@ final class PanelController: NSObject, NSWindowDelegate {
     var onOpenPreferences: (() -> Void)?
     /// Injected by AppDelegate to trigger the new Klip Snap from the panel's camera button.
     var onCaptureAnnotate: (() -> Void)?
+    /// Injected by AppDelegate: true while a meeting recording owns the mic (blocks voice notes).
+    var isMeetingRecording: (() -> Bool)?
 
     private var keyMonitor: Any?
     private var localClickMonitor: Any?
@@ -453,6 +455,15 @@ final class PanelController: NSObject, NSWindowDelegate {
         MainActor.assumeIsolated {
             if recorder.state == .recording { recorder.stop(); return }
             guard !recorder.isRecording else { return }
+            if isMeetingRecording?() == true {   // the meeting owns the mic: two captures at once would double-record it
+                let a = NSAlert()
+                a.messageText = L10n.t("voice.busyMeeting.title")
+                a.informativeText = L10n.t("voice.busyMeeting.info")
+                a.addButton(withTitle: L10n.t("common.ok"))
+                NSApp.activate(ignoringOtherApps: true)
+                a.runModal()
+                return
+            }
             if recordingPanel?.isVisible != true {   // when re-recording with the popup open, keep the original app
                 previousApp = NSWorkspace.shared.frontmostApplication
             }

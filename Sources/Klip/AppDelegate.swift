@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panelController.onCaptureAnnotate = { [weak self] in self?.snapController.start() }
         // Meeting recording (mic + system audio → one mixed voice note in the history).
         meetingRecorder.isMicBusy = { [weak self] in self?.panelController.isVoiceRecording ?? false }
+        panelController.isMeetingRecording = { [weak self] in self?.meetingRecorder.isRecording ?? false }
         meetingRecorder.onMeetingReady = { [weak self] fileName, duration in
             guard let self else { return nil }
             let id = self.manager.beginVoiceNote(audioFileName: fileName, duration: duration, allowAutoCopy: false)
@@ -88,6 +89,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !Settings.shared.hasSeenWelcome {
             DispatchQueue.main.async { [weak self] in self?.panelController.showWelcome() }
         }
+    }
+
+    /// Quitting mid-meeting would abandon both temp tracks unfinalized (no moov atom → unplayable)
+    /// and lose the whole recording: finish the meeting first (mix + store + item), then terminate.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard meetingRecorder.isRecording else { return .terminateNow }
+        Task { @MainActor in
+            await meetingRecorder.stop()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     // An accessory app (.accessory) has no main menu, so SwiftUI text fields don't receive

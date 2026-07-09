@@ -64,6 +64,12 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
             Self.alert(L10n.t("meeting.busy.title"), L10n.t("meeting.busy.info"))
             return
         }
+        // Cloud provider without a key: fail BEFORE the meeting, not after an hour of recording
+        // (local returns true, so the on-device default never hits this).
+        guard AIProvider.hasKey else {
+            Self.alert(L10n.t("rec.nokey.title"), L10n.t("rec.nokey.info"))
+            return
+        }
         // Same Screen Recording flow as SnapController (shared askedKey): the FIRST time only the
         // native system prompt; afterwards our own guide with a shortcut to System Settings.
         guard ScreenCapturer.hasPermission() else {
@@ -143,10 +149,14 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
         let sysURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("system-\(UUID().uuidString).m4a")
         let writer = try SystemAudioWriter(url: sysURL, activity: activity)
+        // Track the file BEFORE the throwing calls: cleanupTempFiles is nil-safe, so a failure in
+        // addStreamOutput/startCapture no longer orphans system-*.m4a. Private audio → 0600.
+        self.systemURL = sysURL
+        Storage.restrict(sysURL.path, 0o600)
         let stream = SCStream(filter: filter, configuration: config, delegate: self)
         try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: writer.queue)
         try await stream.startCapture()
-        self.stream = stream; self.systemWriter = writer; self.systemURL = sysURL
+        self.stream = stream; self.systemWriter = writer
 
         // b) MIC: same shape as Recorder.start (AAC 16 kHz mono).
         let micURL = FileManager.default.temporaryDirectory
@@ -160,17 +170,25 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
         let rec = try AVAudioRecorder(url: micURL, settings: settings)
         rec.delegate = self
         rec.isMeteringEnabled = true   // feeds the silence auto-stop (see startTimer)
+        self.micURL = micURL           // track BEFORE the throwing guard so a record() failure is cleaned up
         guard rec.prepareToRecord(), rec.record() else { throw MeetingError.startFailed }
-        self.micRecorder = rec; self.micURL = micURL
+        Storage.restrict(micURL.path, 0o600)   // the recording contains the user's voice
+        self.micRecorder = rec
     }
 
     /// Stops mic + system stream and finalizes the system writer. Returns whether the system
     /// audio file is usable. Safe to call on a partially-started state (start failure path).
     private func teardownStreams() async -> Bool {
         if let rec = micRecorder {
-            // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()).
-            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                micStopContinuation = cont
+            if rec.isRecording {
+                // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()).
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    micStopContinuation = cont
+                    rec.stop()
+                }
+            } else {
+                // Already stopped on its own (encode error, device loss): stop() is a no-op and the
+                // delegate will never fire — awaiting here would hang the meeting forever.
                 rec.stop()
             }
             micRecorder = nil
@@ -271,6 +289,15 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
 
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         Task { @MainActor in
+            self.micStopContinuation?.resume()
+            self.micStopContinuation = nil
+        }
+    }
+
+    nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+        // The recorder dies without a didFinishRecording: release any waiter so stop() can't hang.
+        Task { @MainActor in
+            NSLog("Klip: meeting mic encode error — %@", String(describing: error))
             self.micStopContinuation?.resume()
             self.micStopContinuation = nil
         }
