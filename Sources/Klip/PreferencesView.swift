@@ -152,6 +152,10 @@ struct PreferencesView: View {
                         Button(L10n.t("prefs.grant")) { Paster.ensureAccessibilityPermission(prompt: true) }.font(.caption)
                     }
                 }
+                Picker(L10n.t("prefs.captureDest"), selection: $settings.captureDestination) {
+                    Text(L10n.t("prefs.captureDest.editor")).tag("editor")
+                    Text(L10n.t("prefs.captureDest.clipboard")).tag("clipboard")
+                }
                 Stepper(String(format: L10n.t("prefs.maxItems"), settings.maxItems),
                         value: $settings.maxItems, in: 20...1000, step: 10)
                 Text(L10n.t("prefs.maxItems.info"))

@@ -58,7 +58,16 @@ final class SnapController {
             self?.overlay = nil
             guard let self, let image else { return }
             switch mode {
-            case .annotate: self.openEditor(with: image)
+            case .annotate:
+                // Post-capture destination (Shottr-style): "clipboard" skips the annotation editor
+                // entirely — the region goes straight to history + clipboard.
+                if Settings.shared.captureDestination == "clipboard" {
+                    self.manager.addAnnotatedScreenshot(image)
+                    ToastHUD.show(L10n.t("toast.copied"))
+                    self.onCaptured?()
+                } else {
+                    self.openEditor(with: image)
+                }
             case .text:     self.extractText(from: image)
             }
         }
@@ -82,9 +91,21 @@ final class SnapController {
                 a.runModal()
                 return
             }
-            ToastHUD.show(L10n.t("toast.textCopied"), detail: text)
+            ToastHUD.show(L10n.t("toast.textCopied"), detail: text,
+                          actionTitle: L10n.t("toast.removeLineBreaks")) { [weak self] in
+                guard let self else { return }
+                // Re-copy through the same manager path so the cleaned text also lands in history.
+                self.manager.addCapturedText(Self.collapsingHardWraps(text))
+                ToastHUD.show(L10n.t("toast.copied"))
+            }
             self.onCaptured?()
         }
+    }
+
+    /// Collapses OCR hard-wrapping: a lone newline becomes a space; runs of 2+ newlines
+    /// (paragraph breaks) are kept as-is.
+    static func collapsingHardWraps(_ text: String) -> String {
+        text.replacingOccurrences(of: "(?<!\\n)\\n(?!\\n)", with: " ", options: .regularExpression)
     }
 
     @MainActor

@@ -92,6 +92,9 @@ private final class CaptureOverlayView: NSView {
 
     private var startPoint: NSPoint?
     private var currentRect: NSRect = .zero
+    private var lastDragPoint: NSPoint?         // current mouse position during the drag
+    private var shiftHeld = false               // Shift = constrain selection to a square
+    private var spaceHeld = false               // Space = move the in-progress selection
     private let bgImage: NSImage
 
     init(shot: DisplayShot, onSelect: @escaping (NSRect) -> Void, onCancel: @escaping () -> Void) {
@@ -180,27 +183,67 @@ private final class CaptureOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         startPoint = convert(event.locationInWindow, from: nil)
+        lastDragPoint = startPoint
+        shiftHeld = event.modifierFlags.contains(.shift)
         currentRect = .zero
         needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let start = startPoint else { return }
+        guard startPoint != nil else { return }
         let p = convert(event.locationInWindow, from: nil)
-        currentRect = NSRect(x: min(start.x, p.x), y: min(start.y, p.y),
-                             width: abs(p.x - start.x), height: abs(p.y - start.y))
+        if spaceHeld, let last = lastDragPoint, var start = startPoint {
+            // Space = move: translate the anchor by the mouse delta so the whole
+            // selection slides instead of resizing (size — square or not — is preserved).
+            start.x += p.x - last.x
+            start.y += p.y - last.y
+            startPoint = start
+        }
+        lastDragPoint = p
+        shiftHeld = event.modifierFlags.contains(.shift)
+        updateSelection()
+    }
+
+    /// Recomputes the selection from anchor + current mouse point, applying the
+    /// Shift square constraint. Called from mouseDragged AND flagsChanged so
+    /// pressing/releasing Shift updates the rect without needing mouse movement.
+    private func updateSelection() {
+        guard let start = startPoint, let p = lastDragPoint else { return }
+        var dx = p.x - start.x
+        var dy = p.y - start.y
+        if shiftHeld {
+            // Shift = square: smaller extent wins, drag direction preserved.
+            let side = min(abs(dx), abs(dy))
+            dx = dx < 0 ? -side : side
+            dy = dy < 0 ? -side : side
+        }
+        currentRect = NSRect(x: min(start.x, start.x + dx), y: min(start.y, start.y + dy),
+                             width: abs(dx), height: abs(dy))
         needsDisplay = true
     }
 
     override func mouseUp(with event: NSEvent) {
         let rect = currentRect
         startPoint = nil
+        lastDragPoint = nil
         if rect.width >= 4, rect.height >= 4 { onSelect(rect) } else { onCancel() }
     }
 
+    override func flagsChanged(with event: NSEvent) {
+        shiftHeld = event.modifierFlags.contains(.shift)
+        updateSelection()
+        super.flagsChanged(with: event)
+    }
+
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onCancel() }   // Esc
+        if event.keyCode == 53 { onCancel() }               // Esc
+        else if event.keyCode == 49 { spaceHeld = true }    // Space = move selection
         else { super.keyDown(with: event) }
+    }
+
+    override func keyUp(with event: NSEvent) {
+        if event.keyCode == 49 { spaceHeld = false }
+        else { super.keyUp(with: event) }
     }
 
     /// Esc through the standard responder chain (in addition to keyDown and the safety-net monitor).

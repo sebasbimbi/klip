@@ -13,11 +13,23 @@ extension Notification.Name {
 enum ToastHUD {
     private static var panel: NSPanel?
     private static var hideWork: DispatchWorkItem?
+    private static var actionTarget: ClickTarget?   // NSControl.target is weak: retain it here
+
+    /// Bridges the action button's click to a closure (ToastHUD is an enum: it can't be a target itself).
+    private final class ClickTarget: NSObject {
+        let handler: () -> Void
+        init(handler: @escaping () -> Void) { self.handler = handler }
+        @objc func fire() { handler() }
+    }
 
     /// Shows the toast. `detail` is a one-line preview (truncated); pass nil for a title-only toast.
-    static func show(_ title: String, detail: String? = nil) {
+    /// With `actionTitle` + `action` an inline button is added (Shottr-style): the panel then accepts
+    /// clicks — still without ever taking focus — and stays on screen longer.
+    static func show(_ title: String, detail: String? = nil,
+                     actionTitle: String? = nil, action: (() -> Void)? = nil) {
         hideWork?.cancel()
         panel?.orderOut(nil)
+        actionTarget = nil
 
         let titleField = NSTextField(labelWithString: "✓ " + title)
         titleField.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -34,6 +46,15 @@ enum ToastHUD {
             detailField.textColor = .secondaryLabelColor
             detailField.lineBreakMode = .byTruncatingTail
             stack.addArrangedSubview(detailField)
+        }
+        if let actionTitle, let action {
+            let target = ClickTarget { dismissNow(); action() }
+            actionTarget = target
+            let button = NSButton(title: actionTitle, target: target, action: #selector(ClickTarget.fire))
+            button.bezelStyle = .inline
+            button.controlSize = .small
+            button.font = .systemFont(ofSize: 11, weight: .medium)
+            stack.addArrangedSubview(button)
         }
 
         let fx = NSVisualEffectView()
@@ -66,7 +87,9 @@ enum ToastHUD {
         p.backgroundColor = .clear
         p.hasShadow = true
         p.level = .statusBar
-        p.ignoresMouseEvents = true   // purely informative: clicks pass through
+        // Purely informative toasts let clicks pass through; with an action button the panel must
+        // accept the click (the .nonactivatingPanel style keeps it from ever stealing focus).
+        p.ignoresMouseEvents = (action == nil)
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         p.contentView = fx
         p.alphaValue = 0
@@ -85,6 +108,15 @@ enum ToastHUD {
             }, completionHandler: { p.orderOut(nil); if panel === p { panel = nil } })
         }
         hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
+        // With a button the toast lingers so the user has time to reach it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + (action == nil ? 1.8 : 4.0), execute: work)
+    }
+
+    /// Immediate dismissal (button clicked). Leaves `actionTarget` alone — the click handler is still
+    /// on the stack; the next `show` clears it.
+    private static func dismissNow() {
+        hideWork?.cancel()
+        panel?.orderOut(nil)
+        panel = nil
     }
 }

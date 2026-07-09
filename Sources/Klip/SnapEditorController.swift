@@ -51,6 +51,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         scroll.hasHorizontalScroller = true
         scroll.documentView = canvas
         scroll.backgroundColor = .underPageBackgroundColor
+        // Large captures: allow zooming and open fitted so the WHOLE image is visible (1x if it fits).
+        scroll.allowsMagnification = true
+        scroll.minMagnification = 0.2
+        scroll.maxMagnification = 4
+        if scale < 1 { scroll.magnify(toFit: canvas.frame) }
         content.addSubview(scroll)
 
         let toolbar = buildToolbar(width: contentW)
@@ -100,6 +105,13 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             let b = makeToolButton(tool)
             b.widthAnchor.constraint(equalToConstant: 36).isActive = true
             b.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            // Shottr-style single-letter shortcut: a bare letter selects the tool. Registered in
+            // keyEquivControls so the letters return to the field while typing in-place text.
+            let key = Self.toolKey(tool)
+            b.keyEquivalent = key
+            b.keyEquivalentModifierMask = []
+            b.toolTip = "\(tool.tooltip) (\(key.uppercased()))"
+            keyEquivControls.append((b, key, []))
             toolButtons[tool] = b
             leading.addArrangedSubview(b)
         }
@@ -147,6 +159,13 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         undo.widthAnchor.constraint(equalToConstant: size).isActive = true
         leading.addArrangedSubview(undo)
         keyEquivControls.append((undo, "z", [.command]))
+
+        let redo = makeActionButton(symbol: "arrow.uturn.forward", tip: L10n.t("editor.redo"), action: #selector(redoTapped))
+        redo.keyEquivalent = "Z"; redo.keyEquivalentModifierMask = [.command, .shift]
+        redo.translatesAutoresizingMaskIntoConstraints = false
+        redo.widthAnchor.constraint(equalToConstant: size).isActive = true
+        leading.addArrangedSubview(redo)
+        keyEquivControls.append((redo, "Z", [.command, .shift]))
 
         // Right group: copy + save + close.
         let trailing = NSStackView()
@@ -343,6 +362,21 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     @objc private func textLarger() { canvas.bumpFontSize(+4) }
 
     @objc private func undoTapped() { canvas.undo() }
+    @objc private func redoTapped() { canvas.redo() }
+
+    /// Bare-letter tool shortcuts (Shottr parity): A arrow, P pencil, L line, R rectangle,
+    /// O ellipse, H highlighter, T text.
+    private static func toolKey(_ tool: SnapTool) -> String {
+        switch tool {
+        case .pencil:    return "p"
+        case .line:      return "l"
+        case .arrow:     return "a"
+        case .rectangle: return "r"
+        case .ellipse:   return "o"
+        case .marker:    return "h"
+        case .text:      return "t"
+        }
+    }
 
     @objc private func copyTapped() {
         let image = canvas.flattened()

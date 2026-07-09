@@ -474,6 +474,15 @@ struct ItemRow: View {
             .stroke(isSelected && !selecting ? Color.accentColor.opacity(0.6)
                     : (isCredential ? Color.yellow.opacity(0.4) : Color.clear), lineWidth: 1))
         .contentShape(Rectangle())
+        .contextMenu {
+            // Right-click mirrors the hover actions: copy + star, then everything the ⋯ menu offers.
+            if item.isVoiceNote != true || hasText {   // same condition as the hover copy button
+                Button { manager.copyToPasteboard(item) } label: { Label(L10n.t("row.copyonly"), systemImage: "doc.on.doc") }
+            }
+            Button { manager.togglePin(item) } label: { Label(L10n.t(item.pinned ? "row.unpin" : "row.pin"), systemImage: item.pinned ? "star.fill" : "star") }
+            Divider()
+            moreMenu
+        }
         .onHover { hovering = $0 }
         .onTapGesture { if selecting { onToggleCheck() } else { onPick(item) } }
         .onChange(of: resetToken) { _, _ in revealed = false }   // re-mask when reopening the panel

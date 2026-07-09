@@ -303,6 +303,16 @@ enum L10n {
         "prefs.sc.meeting": "Grabar reunión:",
         "voice.busyMeeting.info": "La grabación de la reunión está usando el micrófono. Deténla antes de grabar una nota de voz.",
         "voice.busyMeeting.title": "Reunión en curso",
+        "meeting.discard.info": "Se eliminará todo lo grabado hasta ahora. No se creará ninguna nota.",
+        "meeting.discard.title": "¿Descartar la grabación de la reunión?",
+        "meeting.finishing": "Mezclando y transcribiendo…",
+        "meeting.nosystem": "Aún no se detecta audio de la reunión — ¿alguien está hablando?",
+        "meeting.recording": "Grabando reunión",
+        "editor.redo": "Rehacer (⇧⌘Z)",
+        "prefs.captureDest": "Enviar capturas de región a:",
+        "prefs.captureDest.clipboard": "Portapapeles",
+        "prefs.captureDest.editor": "Editor de anotaciones",
+        "toast.removeLineBreaks": "Quitar saltos de línea",
     ]
 
     private static let en: [String: String] = [
@@ -589,6 +599,16 @@ enum L10n {
         "prefs.sc.meeting": "Record meeting:",
         "voice.busyMeeting.info": "The meeting recording is using the microphone. Stop it before recording a voice note.",
         "voice.busyMeeting.title": "Meeting in progress",
+        "meeting.discard.info": "Everything recorded so far will be deleted. No note will be created.",
+        "meeting.discard.title": "Discard the meeting recording?",
+        "meeting.finishing": "Mixing & transcribing…",
+        "meeting.nosystem": "No meeting audio detected yet — is anyone speaking?",
+        "meeting.recording": "Recording meeting",
+        "editor.redo": "Redo (⇧⌘Z)",
+        "prefs.captureDest": "Send region captures to:",
+        "prefs.captureDest.clipboard": "Clipboard",
+        "prefs.captureDest.editor": "Annotation editor",
+        "toast.removeLineBreaks": "Remove line breaks",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -878,6 +898,16 @@ enum L10n {
         "prefs.sc.meeting": "Enregistrer la réunion :",
         "voice.busyMeeting.info": "L'enregistrement de la réunion utilise le micro. Arrêtez-le avant d'enregistrer une note vocale.",
         "voice.busyMeeting.title": "Réunion en cours",
+        "meeting.discard.info": "Tout ce qui a été enregistré sera supprimé. Aucune note ne sera créée.",
+        "meeting.discard.title": "Abandonner l'enregistrement de la réunion ?",
+        "meeting.finishing": "Mixage et transcription…",
+        "meeting.nosystem": "Aucun son de la réunion détecté pour l'instant — quelqu'un parle-t-il ?",
+        "meeting.recording": "Réunion en cours d'enregistrement",
+        "editor.redo": "Rétablir (⇧⌘Z)",
+        "prefs.captureDest": "Envoyer les captures de zone vers :",
+        "prefs.captureDest.clipboard": "Presse-papiers",
+        "prefs.captureDest.editor": "Éditeur d'annotations",
+        "toast.removeLineBreaks": "Supprimer les sauts de ligne",
     ]
 
     private static let de: [String: String] = [
@@ -1165,6 +1195,16 @@ enum L10n {
         "prefs.sc.meeting": "Meeting aufnehmen:",
         "voice.busyMeeting.info": "Die Meeting-Aufnahme belegt das Mikrofon. Beende sie, bevor du eine Sprachnotiz aufnimmst.",
         "voice.busyMeeting.title": "Meeting läuft",
+        "meeting.discard.info": "Alles bisher Aufgenommene wird gelöscht. Es wird keine Notiz erstellt.",
+        "meeting.discard.title": "Meeting-Aufnahme verwerfen?",
+        "meeting.finishing": "Mischen & Transkribieren…",
+        "meeting.nosystem": "Noch kein Meeting-Audio erkannt — spricht gerade jemand?",
+        "meeting.recording": "Meeting wird aufgenommen",
+        "editor.redo": "Wiederholen (⇧⌘Z)",
+        "prefs.captureDest": "Bereichsaufnahmen senden an:",
+        "prefs.captureDest.clipboard": "Zwischenablage",
+        "prefs.captureDest.editor": "Anmerkungseditor",
+        "toast.removeLineBreaks": "Zeilenumbrüche entfernen",
     ]
 
     private static let it: [String: String] = [
@@ -1452,6 +1492,16 @@ enum L10n {
         "prefs.sc.meeting": "Registra riunione:",
         "voice.busyMeeting.info": "La registrazione della riunione sta usando il microfono. Fermala prima di registrare una nota vocale.",
         "voice.busyMeeting.title": "Riunione in corso",
+        "meeting.discard.info": "Tutto ciò che è stato registrato verrà eliminato. Non verrà creata alcuna nota.",
+        "meeting.discard.title": "Scartare la registrazione della riunione?",
+        "meeting.finishing": "Mixaggio e trascrizione…",
+        "meeting.nosystem": "Nessun audio della riunione rilevato — qualcuno sta parlando?",
+        "meeting.recording": "Registrazione riunione",
+        "editor.redo": "Ripristina (⇧⌘Z)",
+        "prefs.captureDest": "Invia le catture di area a:",
+        "prefs.captureDest.clipboard": "Appunti",
+        "prefs.captureDest.editor": "Editor di annotazioni",
+        "toast.removeLineBreaks": "Rimuovi interruzioni di riga",
     ]
 
     private static let pt: [String: String] = [
@@ -1739,6 +1789,16 @@ enum L10n {
         "prefs.sc.meeting": "Gravar reunião:",
         "voice.busyMeeting.info": "A gravação da reunião está a usar o microfone. Pára-a antes de gravar uma nota de voz.",
         "voice.busyMeeting.title": "Reunião em curso",
+        "meeting.discard.info": "Tudo o que foi gravado será eliminado. Não será criada nenhuma nota.",
+        "meeting.discard.title": "Descartar a gravação da reunião?",
+        "meeting.finishing": "A misturar e transcrever…",
+        "meeting.nosystem": "Ainda não foi detetado áudio da reunião — alguém está a falar?",
+        "meeting.recording": "A gravar reunião",
+        "editor.redo": "Refazer (⇧⌘Z)",
+        "prefs.captureDest": "Enviar capturas de região para:",
+        "prefs.captureDest.clipboard": "Área de transferência",
+        "prefs.captureDest.editor": "Editor de anotações",
+        "toast.removeLineBreaks": "Remover quebras de linha",
     ]
 
     private static let zh: [String: String] = [
@@ -2026,6 +2086,16 @@ enum L10n {
         "prefs.sc.meeting": "录制会议：",
         "voice.busyMeeting.info": "会议录制正在使用麦克风。请先停止会议录制，再录制语音笔记。",
         "voice.busyMeeting.title": "会议录制中",
+        "meeting.discard.info": "迄今录制的内容将被删除，不会创建笔记。",
+        "meeting.discard.title": "要放弃会议录音吗？",
+        "meeting.finishing": "正在混音并转写…",
+        "meeting.nosystem": "尚未检测到会议音频——有人在说话吗？",
+        "meeting.recording": "正在录制会议",
+        "editor.redo": "重做（⇧⌘Z）",
+        "prefs.captureDest": "区域截图发送到：",
+        "prefs.captureDest.clipboard": "剪贴板",
+        "prefs.captureDest.editor": "标注编辑器",
+        "toast.removeLineBreaks": "移除换行符",
     ]
 
     private static let ja: [String: String] = [
@@ -2313,5 +2383,15 @@ enum L10n {
         "prefs.sc.meeting": "会議を録音：",
         "voice.busyMeeting.info": "ミーティング録音がマイクを使用中です。停止してからボイスメモを録音してください。",
         "voice.busyMeeting.title": "ミーティング録音中",
+        "meeting.discard.info": "これまでの録音はすべて削除され、ノートは作成されません。",
+        "meeting.discard.title": "会議の録音を破棄しますか？",
+        "meeting.finishing": "ミックスして文字起こし中…",
+        "meeting.nosystem": "会議の音声がまだ検出されていません — 誰か話していますか？",
+        "meeting.recording": "会議を録音中",
+        "editor.redo": "やり直す (⇧⌘Z)",
+        "prefs.captureDest": "範囲キャプチャの送り先：",
+        "prefs.captureDest.clipboard": "クリップボード",
+        "prefs.captureDest.editor": "注釈エディタ",
+        "toast.removeLineBreaks": "改行を削除",
     ]
 }

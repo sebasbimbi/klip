@@ -19,6 +19,7 @@ final class AnnotationCanvasView: NSView {
     private var movedDuringDrag = false
     /// Full-state undo snapshots: add / move / edit / recolor / resize / delete are all reversible.
     private var undoStack: [[Annotation]] = []
+    private var redoStack: [[Annotation]] = []
     private var preMoveSnapshot: [Annotation]?
     /// Fired when in-place text editing starts (true) / ends (false), so the editor can disable its
     /// ⌘C/⌘Z/⌘S/Esc key equivalents while the user types into the field (otherwise they hijack editing).
@@ -280,6 +281,7 @@ final class AnnotationCanvasView: NSView {
     private func pushUndo(_ snapshot: [Annotation]? = nil) {
         undoStack.append(snapshot ?? annotations)
         if undoStack.count > 50 { undoStack.removeFirst() }   // bound memory
+        redoStack.removeAll()   // any new mutation invalidates the redo history
     }
 
     func undo() {
@@ -294,7 +296,19 @@ final class AnnotationCanvasView: NSView {
         // Restore the last snapshot — reverses ANY operation (add/move/edit/recolor/resize/delete),
         // not just the most-recently-added annotation.
         guard let prev = undoStack.popLast() else { return }
+        redoStack.append(annotations)   // so ⇧⌘Z can bring it back
         annotations = prev
+        selectedTextID = nil
+        onSelectionChange?()
+        needsDisplay = true
+    }
+
+    /// Re-applies the last undone snapshot (⇧⌘Z). Cleared by any new mutation (see pushUndo).
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(annotations)   // direct append: pushUndo would wipe the redo history
+        if undoStack.count > 50 { undoStack.removeFirst() }
+        annotations = next
         selectedTextID = nil
         onSelectionChange?()
         needsDisplay = true

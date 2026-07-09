@@ -129,6 +129,7 @@ final class Settings: ObservableObject {
         static let excluded   = "privacy.excludedBundleIDs"
         static let captureSrc = "captureSource"
         static let cleanCap   = "cleanCapture"
+        static let capDest    = "captureDestination"
         static let detectRem  = "detectRemoteSource"
         static let transModel = "transcriptionModel"
         static let geminiModel = "geminiModel"
@@ -162,6 +163,9 @@ final class Settings: ObservableObject {
     @Published var captureSource: Bool    { didSet { d.set(captureSource, forKey: K.captureSrc) } }
     /// "Always paste clean": store rich copies as clean Markdown (keeps bold/italic + emojis, drops styling).
     @Published var cleanCapture: Bool     { didSet { d.set(cleanCapture, forKey: K.cleanCap) } }
+    /// Where a region capture lands: "editor" (annotate first, default) or "clipboard" (straight to
+    /// history + clipboard, no editor).
+    @Published var captureDestination: String { didSet { d.set(captureDestination, forKey: K.capDest) } }
     @Published var detectRemoteSource: Bool { didSet { d.set(detectRemoteSource, forKey: K.detectRem) } }
     @Published var transcriptionModel: String { didSet { d.set(transcriptionModel, forKey: K.transModel) } }
     /// Google Gemini model for transcription (configurable; previously hard-coded to "gemini-flash-latest").
@@ -222,6 +226,7 @@ final class Settings: ObservableObject {
             K.autoGen: true,
             K.captureSrc: true,
             K.cleanCap: true,
+            K.capDest: "editor",
             K.detectRem: true,
             K.transModel: "gpt-4o-mini-transcribe",
             K.geminiModel: "gemini-flash-latest",
@@ -251,6 +256,7 @@ final class Settings: ObservableObject {
         excludedBundleIDs = d.stringArray(forKey: K.excluded) ?? []
         captureSource = d.object(forKey: K.captureSrc) as? Bool ?? true
         cleanCapture = d.object(forKey: K.cleanCap) as? Bool ?? true
+        captureDestination = d.string(forKey: K.capDest) ?? "editor"
         detectRemoteSource = d.object(forKey: K.detectRem) as? Bool ?? true
         transcriptionModel = d.string(forKey: K.transModel) ?? "gpt-4o-mini-transcribe"
         geminiModel = d.string(forKey: K.geminiModel) ?? "gemini-flash-latest"
