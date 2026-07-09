@@ -5,7 +5,7 @@
 **The clipboard manager for vibe coders — native to Mac.**
 Everything you copy while building with AI — code, errors, screenshots, prompts and keys — one shortcut away.
 
-Text & image history · **native capture + annotation** · **fast OCR capture** · **voice & video → text** (on-device, or OpenAI/Gemini) · **copy as code block / for WhatsApp / for email** · **always-paste-clean** · **encrypted credential manager**. Lives in the menu bar: light, fast and private.
+Text & image history · **native capture + annotation** · **fast OCR capture** · **voice & video → text** · **meeting notes (mic + system audio, no bot)** (on-device, or OpenAI/Gemini) · **copy as code block / for WhatsApp / for email** · **always-paste-clean** · **encrypted credential manager**. Lives in the menu bar: light, fast and private.
 
 🆓 Free & open source (MIT) · 🔒 No telemetry · 🍎 Native Swift (no Electron)
 
@@ -62,6 +62,12 @@ Text & image history · **native capture + annotation** · **fast OCR capture** 
 - **The original audio is kept** with **duration** and a **progress bar**: play it (▶) or reveal it in Finder, and **retry (↻)** if a transcription fails. (Videos aren't stored — only their text.)
 - **Pick the language per upload**, and clear per-file errors: DRM-protected video, no audio track, too large for cloud.
 
+### 🎧 Meeting notes — no bot, no cloud
+- Press **`⌥⇧M`** when you join a virtual meeting (Zoom, Meet, Teams, FaceTime — any app): Klip records **your microphone AND the system audio** (the other participants). **No bot joins the call**; nobody sees a recorder.
+- When you stop (**`⌥⇧M`** again, or automatically after **15 minutes of silence**), both tracks are **mixed locally** and transcribed. With the **on-device engine**, each track is transcribed separately and interleaved chronologically as a **"Me:" / "Them:"** labeled transcript.
+- The note lands in history named **"Meeting — Jul 9, 2:03 PM"** (renamable), with the **mixed audio kept and playable** (▶) and retry (↻) if transcription fails.
+- **Everything stays on your Mac** — unlike cloud meeting tools, the audio is never uploaded anywhere. Uses the Screen Recording permission Klip already has for captures.
+
 ### 🤖 AI: you pick the engine
 - **On-device (default)** — transcribe **fully offline with Whisper** ([WhisperKit](https://github.com/argmaxinc/WhisperKit) on Core ML): **no API key, no audio ever leaves your Mac.** Pick the model (Tiny / Base / Small / Large v3 Turbo); it downloads once on first use, then runs offline.
 - **OpenAI** or **Google Gemini** — optional cloud engines if you'd rather use them; bring your own key. For **Gemini** you can pick the model (`gemini-flash-latest`, `-flash-lite-latest`, `-pro-latest`, `2.5-flash`, `2.5-pro`); for **OpenAI**, `gpt-4o-mini-transcribe` or `whisper-1`.
@@ -107,6 +113,7 @@ Global shortcuts use **⌥⇧ (Option+Shift)** + a letter, grouped by function o
 | `⌥⇧D` | Capture a region and annotate it (**D**raw — Klip Snap) |
 | `⌥⇧F` | **F**ast text capture: snip a region → OCR straight to the clipboard, no editor |
 | `⌥⇧O` | **O**pen the "upload audio/video to transcribe" window |
+| `⌥⇧M` | Record a **m**eeting (mic + system audio) — press again to stop |
 | `↑` / `↓` · `Enter` | Navigate and pick an item |
 | `⌘↩` | Copy the selected item as a code block (``` ```) |
 | `Esc` | Close the panel |
@@ -201,6 +208,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 | `UploadView.swift` | "Upload audio/video to transcribe" window with live per-file results. |
 | `Recorder.swift` / `AudioPlayer.swift` | Recording, background transcription and voice-note playback. |
 | `MediaAudioExtractor.swift` | Extracts a **video's** audio track (AVAssetReader→Writer, 16 kHz mono AAC) for transcription. |
+| `MeetingRecorder.swift` | **Meeting notes**: mic + system audio (ScreenCaptureKit), local mix, Me/Them dual-track transcription. |
 | `OpenAIClient.swift` / `GeminiClient.swift` / `LocalTranscriber.swift` | Transcription via OpenAI, Google Gemini or on-device WhisperKit. |
 | `L10n.swift` | Lightweight localization (8 languages). |
 | `SecretStore.swift` | API keys in local `0600` files (`openai.key`, `gemini.key`). |
@@ -217,7 +225,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 - [ ] Favorites sync · optional sync between Macs.
 - [ ] Developer ID signing + notarization for warning-free distribution.
 
-**Already available:** text+image history · native capture + annotation (Klip Snap) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language, saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
+**Already available:** text+image history · native capture + annotation (Klip Snap) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language · **meeting notes** (mic+system, Me/Them, on-device), saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
 
 ## 🤝 Contributing
 

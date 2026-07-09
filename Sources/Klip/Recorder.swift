@@ -316,6 +316,73 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         transcribeInBackground(id: id, url: transcribeURL, languageOverride: language)
     }
 
+    /// Transcribes the already-stored audio of an already-created item (meeting recordings: the
+    /// item was created via beginVoiceNote — already "Transcribing…" — so no state to flip first).
+    @MainActor
+    func transcribeExisting(itemID: UUID, audioFileName: String) {
+        transcribeInBackground(id: itemID, url: storage.audioURL(for: audioFileName))
+    }
+
+    /// Meeting note transcription. On-device (the default): the mic and system TRACKS are transcribed
+    /// SEPARATELY with segment timestamps and interleaved into a "Me:"/"Them:" labeled transcript
+    /// (Granola-style, all local). Cloud providers transcribe the stored MIXED file instead (no labels —
+    /// same as the retry path). Owns the temp track files: they are deleted when transcription finishes.
+    @MainActor
+    func transcribeMeetingTracks(itemID: UUID, micURL: URL?, systemURL: URL?, mixedFileName: String) {
+        func deleteTemps() {
+            for u in [micURL, systemURL] where u != nil { try? FileManager.default.removeItem(at: u!) }
+        }
+        guard Settings.shared.aiProvider == "local" else {
+            deleteTemps()
+            transcribeExisting(itemID: itemID, audioFileName: mixedFileName)
+            return
+        }
+        transcribingCount += 1
+        let model = Settings.shared.localModel
+        let language = Settings.shared.transcriptionLanguage
+        let vocabulary = Settings.shared.transcriptionVocabulary
+        if !LocalTranscriber.isModelReady(model) { onVoiceNoteDownloadingModel?(itemID) }
+        if !LocalTranscriber.pipelineReady { preparingModel = true }
+        Task { @MainActor in
+            defer {
+                transcribingCount -= 1
+                if transcribingCount == 0 || LocalTranscriber.pipelineReady { preparingModel = false }
+                deleteTemps()
+            }
+            // Each track is best-effort: a dead system capture must not kill the whole meeting note.
+            // If BOTH yield nothing, the note fails (its mixed audio stays playable + retryable).
+            var segments: [(start: TimeInterval, source: Int, text: String)] = []
+            if let micURL, let segs = try? await LocalTranscriber.shared.transcribeSegments(
+                audioURL: micURL, model: model, language: language, vocabulary: vocabulary) {
+                segments += segs.map { ($0.start, 0, $0.text) }
+            }
+            if let systemURL, let segs = try? await LocalTranscriber.shared.transcribeSegments(
+                audioURL: systemURL, model: model, language: language, vocabulary: vocabulary) {
+                segments += segs.map { ($0.start, 1, $0.text) }
+            }
+            let text = Self.mergeMeetingSegments(segments)
+            if text.isEmpty { onVoiceNoteFailed?(itemID) }
+            else { onVoiceNoteTranscribed?(itemID, text) }
+        }
+    }
+
+    /// Interleaves mic (source 0 → "Me") and system (source 1 → "Them") segments chronologically,
+    /// grouping consecutive segments of the same source under one label. Blank line between groups.
+    private static func mergeMeetingSegments(_ segments: [(start: TimeInterval, source: Int, text: String)]) -> String {
+        var groups: [(source: Int, texts: [String])] = []
+        for seg in segments.sorted(by: { $0.start < $1.start }) {
+            // Strip any leaked Whisper timestamp tokens (<|0.00|>) — decoding runs WITH timestamps here.
+            let clean = seg.text.replacingOccurrences(of: "<\\|[^|]*\\|>", with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !clean.isEmpty else { continue }
+            if groups.last?.source == seg.source { groups[groups.count - 1].texts.append(clean) }
+            else { groups.append((seg.source, [clean])) }
+        }
+        return groups.map {
+            L10n.t($0.source == 0 ? "meeting.me" : "meeting.them") + ": " + $0.texts.joined(separator: " ")
+        }.joined(separator: "\n\n")
+    }
+
     /// Retries transcribing the audio of an existing item (a failed note with its audio).
     @MainActor
     func retry(itemID: UUID, audioFileName: String) {

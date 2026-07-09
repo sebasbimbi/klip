@@ -60,18 +60,37 @@ actor LocalTranscriber {
         let previous = serialTail
         let job = Task<String, Error> {
             _ = await previous.value   // wait for any in-flight decode before touching the shared WhisperKit
-            return try await self.performTranscribe(audioURL: audioURL, model: model, language: language, vocabulary: vocabulary)
+            let results = try await self.performTranscribe(audioURL: audioURL, model: model, language: language, vocabulary: vocabulary)
+            return results.map { $0.text }
+                .joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         serialTail = Task { _ = try? await job.value }   // next call chains after this one
         return try await job.value
     }
 
-    private func performTranscribe(audioURL: URL, model: String, language: String?, vocabulary: String) async throws -> String {
+    /// Like `transcribe`, but returns the raw segments with their start timestamps — used by meeting
+    /// notes to interleave the mic and system tracks chronologically ("Me:"/"Them:" labels).
+    func transcribeSegments(audioURL: URL, model: String, language: String?, vocabulary: String) async throws -> [(start: TimeInterval, text: String)] {
+        let previous = serialTail
+        let job = Task<[(start: TimeInterval, text: String)], Error> {
+            _ = await previous.value
+            let results = try await self.performTranscribe(audioURL: audioURL, model: model, language: language,
+                                                           vocabulary: vocabulary, timestamps: true)
+            return results.flatMap { $0.segments }
+                .map { (start: TimeInterval($0.start), text: $0.text) }
+        }
+        serialTail = Task { _ = try? await job.value }
+        return try await job.value
+    }
+
+    private func performTranscribe(audioURL: URL, model: String, language: String?, vocabulary: String,
+                                   timestamps: Bool = false) async throws -> [TranscriptionResult] {
         let wk = try await pipeline(for: model.isEmpty ? Self.defaultModel : model)
         var opts = DecodingOptions()
         opts.task = .transcribe
         opts.skipSpecialTokens = true
-        opts.withoutTimestamps = true
+        opts.withoutTimestamps = !timestamps
         // SPEED: split long audio at silence (energy VAD) and decode chunks in parallel
         // (concurrentWorkerCount defaults to 16). Short clips stay one chunk → no overhead; long uploads
         // transcribe much faster. The model is loaded once and reused (see `pipeline`).
@@ -92,10 +111,7 @@ actor LocalTranscriber {
                 opts.usePrefillPrompt = true
             }
         }
-        let results = try await wk.transcribe(audioPath: audioURL.path, decodeOptions: opts)
-        return results.map { $0.text }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await wk.transcribe(audioPath: audioURL.path, decodeOptions: opts)
     }
 
     /// Remembers a model id that failed to load → the id it fell back to, so we don't re-attempt the

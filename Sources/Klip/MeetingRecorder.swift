@@ -1,0 +1,476 @@
+import Foundation
+import AVFoundation
+import AppKit
+import ScreenCaptureKit
+
+/// Records a meeting: the microphone AND the system audio output (the other participants) at the
+/// same time, mixes both locally into one 16 kHz mono AAC .m4a and hands it to the existing
+/// voice-note pipeline (history item + background transcription — on-device by default).
+/// Manual start/stop; everything stays local. System audio comes from ScreenCaptureKit
+/// (capturesAudio), which requires the Screen Recording permission the app already uses for capture.
+@MainActor
+final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAudioRecorderDelegate {
+    @Published private(set) var isRecording = false
+    @Published private(set) var elapsed: TimeInterval = 0
+
+    /// The mixed audio is already in the store: creates the voice-note item and returns its id
+    /// (wired to manager.beginVoiceNote + rename). (audioFileName, duration) → item id.
+    var onMeetingReady: ((String, Double?) -> UUID?)?
+    /// Kicks off the transcription of the ready note through the existing Recorder path.
+    /// (itemID, mixedAudioFileName, micTempURL, systemTempURL) — the temp track URLs let the local
+    /// provider transcribe each side separately (Me/Them labels); the callee deletes them when done.
+    var onTranscribe: ((UUID, String, URL?, URL?) -> Void)?
+    /// The voice-note recorder owns the mic → refuse to start a meeting while it records.
+    var isMicBusy: (() -> Bool)?
+
+    enum MeetingError: Error, LocalizedError {
+        case startFailed
+        case nothingRecorded
+        case mixFailed
+        case saveFailed
+        var errorDescription: String? {
+            switch self {
+            case .startFailed:      return "Couldn't start the meeting recording."
+            case .nothingRecorded:  return "Nothing was recorded."
+            case .mixFailed:        return "Failed while mixing the meeting audio."
+            case .saveFailed:       return "Couldn't save the meeting audio."
+            }
+        }
+    }
+
+    private var stream: SCStream?
+    private var systemWriter: SystemAudioWriter?
+    private var micRecorder: AVAudioRecorder?
+    private var micStopContinuation: CheckedContinuation<Void, Never>?
+    private var timer: Timer?
+    private var micURL: URL?
+    private var systemURL: URL?
+    /// Pending intent to record (covers the async permission/startup window).
+    private var startRequested = false
+    /// true from when stop is requested until the mix/handoff finishes.
+    private var stopping = false
+    /// Set when the system-audio stream dies mid-recording: the mic keeps going (a meeting note
+    /// with only your side is still useful) and the mix uses whatever system audio was captured.
+    private var systemStreamFailed = false
+    /// "Last time we heard anything" on EITHER source — drives the auto-stop after 15 silent minutes.
+    private let activity = ActivityClock()
+    private static let silenceLevel: Float = 0.10          // same floor as Recorder's silence detection
+    private static let autoStopAfterSilence: TimeInterval = 15 * 60
+    private let storage = Storage.shared
+
+    func start() {
+        guard !isRecording, !startRequested, !stopping else { return }
+        if isMicBusy?() == true {
+            Self.alert(L10n.t("meeting.busy.title"), L10n.t("meeting.busy.info"))
+            return
+        }
+        // Same Screen Recording flow as SnapController (shared askedKey): the FIRST time only the
+        // native system prompt; afterwards our own guide with a shortcut to System Settings.
+        guard ScreenCapturer.hasPermission() else {
+            promptForScreenPermission()
+            return
+        }
+        startRequested = true
+        Task { @MainActor in
+            defer { startRequested = false }
+            guard await requestMicPermission() else {
+                Self.alert(L10n.t("perm.mic.title"), L10n.t("perm.mic.info"))
+                return
+            }
+            do {
+                try await startStreams()
+            } catch {
+                _ = await teardownStreams()
+                cleanupTempFiles()
+                Self.alert(L10n.t("meeting.record"), error.localizedDescription)
+                return
+            }
+            elapsed = 0
+            activity.touch()
+            isRecording = true
+            startTimer()
+        }
+    }
+
+    func stop() async {
+        guard isRecording, !stopping else { return }
+        stopping = true
+        timer?.invalidate(); timer = nil
+        let duration = elapsed
+        let systemOK = await teardownStreams()
+        isRecording = false
+        defer { stopping = false; cleanupTempFiles() }
+
+        var sources: [URL] = []
+        if let micURL { sources.append(micURL) }
+        if systemOK, let systemURL { sources.append(systemURL) }
+        do {
+            let mixed = try await Self.mix(sources: sources)
+            defer { try? FileManager.default.removeItem(at: mixed) }
+            guard let stored = storage.importAudio(from: mixed) else { throw MeetingError.saveFailed }
+            if let id = onMeetingReady?(stored, duration) {
+                // Hand the temp TRACK files to the transcription (the local provider transcribes them
+                // separately for Me/Them labels and deletes them when done). Anything not handed off
+                // (a dead system file, or no note) is removed by cleanupTempFiles in the defer above.
+                let mic = micURL; let sys = systemOK ? systemURL : nil
+                micURL = nil; if systemOK { systemURL = nil }
+                onTranscribe?(id, stored, mic, sys)
+            }
+        } catch {
+            NSLog("Klip: meeting recording failed — %@", String(describing: error))
+            Self.alert(L10n.t("meeting.record"), error.localizedDescription)
+        }
+    }
+
+    // MARK: - Capture (system audio via SCStream + mic via AVAudioRecorder)
+
+    private func startStreams() async throws {
+        systemStreamFailed = false
+
+        // a) SYSTEM AUDIO: SCStream with audio capture on and video made as cheap as possible
+        // (2×2 px, 1 fps, and no video output is ever added — the frames are just dropped).
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+        guard let display = content.displays.first else { throw MeetingError.startFailed }
+        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+        let config = SCStreamConfiguration()
+        config.capturesAudio = true
+        config.excludesCurrentProcessAudio = true   // don't record Klip's own sounds
+        config.sampleRate = 48_000
+        config.channelCount = 2
+        config.width = 2; config.height = 2
+        config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+
+        let sysURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("system-\(UUID().uuidString).m4a")
+        let writer = try SystemAudioWriter(url: sysURL, activity: activity)
+        let stream = SCStream(filter: filter, configuration: config, delegate: self)
+        try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: writer.queue)
+        try await stream.startCapture()
+        self.stream = stream; self.systemWriter = writer; self.systemURL = sysURL
+
+        // b) MIC: same shape as Recorder.start (AAC 16 kHz mono).
+        let micURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mic-\(UUID().uuidString).m4a")
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 16_000,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
+        ]
+        let rec = try AVAudioRecorder(url: micURL, settings: settings)
+        rec.delegate = self
+        rec.isMeteringEnabled = true   // feeds the silence auto-stop (see startTimer)
+        guard rec.prepareToRecord(), rec.record() else { throw MeetingError.startFailed }
+        self.micRecorder = rec; self.micURL = micURL
+    }
+
+    /// Stops mic + system stream and finalizes the system writer. Returns whether the system
+    /// audio file is usable. Safe to call on a partially-started state (start failure path).
+    private func teardownStreams() async -> Bool {
+        if let rec = micRecorder {
+            // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()).
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                micStopContinuation = cont
+                rec.stop()
+            }
+            micRecorder = nil
+        }
+        if let stream {
+            try? await stream.stopCapture()   // throws if the stream already died mid-recording — fine
+            self.stream = nil
+        }
+        let ok = await systemWriter?.finish() ?? false
+        systemWriter = nil
+        return ok
+    }
+
+    private func cleanupTempFiles() {
+        for url in [micURL, systemURL] where url != nil { try? FileManager.default.removeItem(at: url!) }
+        micURL = nil; systemURL = nil
+    }
+
+    private func requestMicPermission() async -> Bool {
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted: return true
+        case .denied:  return false
+        case .undetermined:
+            return await withCheckedContinuation { cont in
+                AVAudioApplication.requestRecordPermission { ok in cont.resume(returning: ok) }
+            }
+        @unknown default: return false
+        }
+    }
+
+    private func promptForScreenPermission() {
+        let askedKey = "klip.askedScreenRecording"   // shared with SnapController so the prompts never overlap
+        if !UserDefaults.standard.bool(forKey: askedKey) {
+            UserDefaults.standard.set(true, forKey: askedKey)
+            ScreenCapturer.requestPermission()
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = L10n.t("perm.screen.title")
+        alert.informativeText = L10n.t("perm.screen.info")
+        alert.addButton(withTitle: L10n.t("perm.screen.open"))
+        alert.addButton(withTitle: L10n.t("common.cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func startTimer() {
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {   // runs on RunLoop.main
+                guard let self, self.isRecording else { return }
+                self.elapsed += 1
+                // Mic activity via metering (Recorder's pattern); the system side is touched by
+                // SystemAudioWriter from its sample callback. Sound on EITHER source resets the clock.
+                if let rec = self.micRecorder {
+                    rec.updateMeters()
+                    if Self.normalized(power: rec.averagePower(forChannel: 0)) >= Self.silenceLevel {
+                        self.activity.touch()
+                    }
+                }
+                // Auto-stop after 15 continuous minutes of silence on BOTH sources (the meeting ended
+                // and the user forgot): finalize normally so nothing recorded is lost.
+                if Date().timeIntervalSince(self.activity.lastActivity) >= Self.autoStopAfterSilence {
+                    Task { @MainActor in await self.stop() }
+                }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    private static func normalized(power db: Float) -> Float {
+        let minDb: Float = -50
+        if db < minDb { return 0 }
+        return min(1, (db - minDb) / -minDb)
+    }
+
+    private static func alert(_ title: String, _ info: String) {
+        let a = NSAlert(); a.messageText = title; a.informativeText = info
+        a.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
+    }
+
+    // MARK: - Delegates
+
+    /// System stream died mid-recording (display sleep, etc.): keep the mic going — your side of
+    /// the meeting is still useful. The partial system file is finalized and mixed in at stop().
+    nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
+        Task { @MainActor in
+            guard self.isRecording else { return }
+            self.systemStreamFailed = true
+            NSLog("Klip: system-audio stream died mid-meeting (mic keeps recording) — %@", String(describing: error))
+        }
+    }
+
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        Task { @MainActor in
+            self.micStopContinuation?.resume()
+            self.micStopContinuation = nil
+        }
+    }
+
+    // MARK: - Mix (mic + system → one 16 kHz mono AAC .m4a)
+
+    /// Overlays the source files with an AVMutableComposition (both inserted at .zero) and renders
+    /// the mix through AVAssetReaderAudioMixOutput → AVAssetWriter, 16 kHz mono AAC — the exact
+    /// shape of the app's own voice notes. Pump copied from MediaAudioExtractor (see there for why
+    /// reader/writer instead of AVAssetExportSession, and for the Flag/PumpBox pattern).
+    private static func mix(sources: [URL]) async throws -> URL {
+        let comp = AVMutableComposition()
+        for url in sources {
+            let asset = AVURLAsset(url: url)
+            guard let track = try? await asset.loadTracks(withMediaType: .audio).first,
+                  let duration = try? await asset.load(.duration), duration > .zero,
+                  let compTrack = comp.addMutableTrack(withMediaType: .audio,
+                                                       preferredTrackID: kCMPersistentTrackID_Invalid)
+            else { continue }   // a dead/empty capture: mix whatever else we have
+            try? compTrack.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: track, at: .zero)
+        }
+        let tracks = comp.tracks(withMediaType: .audio)
+        guard !tracks.isEmpty else { throw MeetingError.nothingRecorded }
+
+        let outURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("meeting-\(UUID().uuidString).m4a")
+        let reader: AVAssetReader
+        let writer: AVAssetWriter
+        do {
+            reader = try AVAssetReader(asset: comp)
+            writer = try AVAssetWriter(outputURL: outURL, fileType: .m4a)
+        } catch { throw MeetingError.mixFailed }
+
+        var monoLayout = AudioChannelLayout(); monoLayout.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
+        let layout = Data(bytes: &monoLayout, count: MemoryLayout<AudioChannelLayout>.size)
+
+        let output = AVAssetReaderAudioMixOutput(audioTracks: tracks, audioSettings: [
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 16_000,
+            AVNumberOfChannelsKey: 1,
+            AVChannelLayoutKey: layout,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false,
+        ])
+        output.alwaysCopiesSampleData = false
+        guard reader.canAdd(output) else { throw MeetingError.mixFailed }
+        reader.add(output)
+
+        let input = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 16_000,
+            AVNumberOfChannelsKey: 1,
+            AVChannelLayoutKey: layout,
+            AVEncoderBitRateKey: 32_000,
+        ])
+        input.expectsMediaDataInRealTime = false
+        guard writer.canAdd(input) else { throw MeetingError.mixFailed }
+        writer.add(input)
+
+        guard reader.startReading() else { throw MeetingError.mixFailed }
+        guard writer.startWriting() else { throw MeetingError.mixFailed }
+        writer.startSession(atSourceTime: .zero)
+
+        let cancelled = Flag()
+        let queue = DispatchQueue(label: "klip.meeting-mix")
+        let box = PumpBox(reader: reader, writer: writer, input: input, output: output)
+
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    box.input.requestMediaDataWhenReady(on: queue) {
+                        while box.input.isReadyForMoreMediaData {
+                            if cancelled.value {
+                                box.reader.cancelReading(); box.input.markAsFinished(); box.writer.cancelWriting()
+                                cont.resume(throwing: CancellationError()); return
+                            }
+                            guard let buf = box.output.copyNextSampleBuffer() else {
+                                box.input.markAsFinished()
+                                if box.reader.status == .failed {
+                                    box.writer.cancelWriting()
+                                    cont.resume(throwing: MeetingError.mixFailed); return
+                                }
+                                box.writer.finishWriting {
+                                    if box.writer.status == .completed { cont.resume() }
+                                    else { cont.resume(throwing: MeetingError.mixFailed) }
+                                }
+                                return
+                            }
+                            if !box.input.append(buf) {
+                                box.reader.cancelReading(); box.writer.cancelWriting()
+                                cont.resume(throwing: MeetingError.mixFailed); return
+                            }
+                        }
+                    }
+                }
+            } onCancel: {
+                cancelled.set()
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: outURL)   // never orphan a partial temp file
+            throw error
+        }
+
+        return outURL
+    }
+
+    /// Tiny lock-protected Bool touched from two threads (cancellation handler + mix pump).
+    private final class Flag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var flag = false
+        var value: Bool { lock.lock(); defer { lock.unlock() }; return flag }
+        func set() { lock.lock(); flag = true; lock.unlock() }
+    }
+
+    /// Box to pass the (non-Sendable) reader/writer objects into the pump's @Sendable closure.
+    /// Safe because all of them are used only on the serial mix queue.
+    private struct PumpBox: @unchecked Sendable {
+        let reader: AVAssetReader
+        let writer: AVAssetWriter
+        let input: AVAssetWriterInput
+        let output: AVAssetReaderAudioMixOutput
+    }
+}
+
+/// Lock-protected "last time we heard anything" timestamp, touched from the main timer (mic
+/// metering) and the SCStream sample queue (system audio). Drives the 15-min silence auto-stop.
+private final class ActivityClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last = Date()
+    func touch() { lock.lock(); last = Date(); lock.unlock() }
+    var lastActivity: Date { lock.lock(); defer { lock.unlock() }; return last }
+}
+
+/// Appends the SCStream's audio sample buffers to an .m4a writer (AAC 48 kHz stereo). Every
+/// access (stream callback + finish) runs on its serial `queue`, so @unchecked Sendable is safe.
+private final class SystemAudioWriter: NSObject, SCStreamOutput, @unchecked Sendable {
+    let queue = DispatchQueue(label: "klip.meeting.system-audio")
+    private let writer: AVAssetWriter
+    private let input: AVAssetWriterInput
+    private let activity: ActivityClock
+    private var sessionStarted = false
+
+    init(url: URL, activity: ActivityClock) throws {
+        self.activity = activity
+        let w = try AVAssetWriter(outputURL: url, fileType: .m4a)
+        let i = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 48_000,
+            AVNumberOfChannelsKey: 2,
+            AVEncoderBitRateKey: 128_000,
+        ])
+        i.expectsMediaDataInRealTime = true
+        guard w.canAdd(i) else { throw MeetingRecorder.MeetingError.startFailed }
+        w.add(i)
+        guard w.startWriting() else { throw MeetingRecorder.MeetingError.startFailed }
+        writer = w; input = i
+        super.init()
+    }
+
+    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard type == .audio, sampleBuffer.isValid, CMSampleBufferDataIsReady(sampleBuffer) else { return }
+        if !sessionStarted {
+            writer.startSession(atSourceTime: sampleBuffer.presentationTimeStamp)
+            sessionStarted = true
+        }
+        if input.isReadyForMoreMediaData { input.append(sampleBuffer) }   // realtime: drop when back-pressured
+        if Self.hasSignal(sampleBuffer) { activity.touch() }   // feeds the silence auto-stop
+    }
+
+    /// Cheap activity check: scans a strided subset of the Float32 PCM samples for anything above
+    /// the noise floor. Layout (interleaved or not) doesn't matter for presence detection.
+    private static func hasSignal(_ sb: CMSampleBuffer) -> Bool {
+        guard let block = sb.dataBuffer, let data = try? block.dataBytes() else { return false }
+        return data.withUnsafeBytes { raw -> Bool in
+            let floats = raw.bindMemory(to: Float32.self)
+            var i = 0
+            while i < floats.count {
+                if abs(floats[i]) > 0.01 { return true }
+                i += 32
+            }
+            return false
+        }
+    }
+
+    /// Finalizes the file. Returns false when nothing usable was captured (no session/failed writer).
+    func finish() async -> Bool {
+        await withCheckedContinuation { cont in
+            queue.async {
+                guard self.sessionStarted, self.writer.status == .writing else {
+                    self.writer.cancelWriting()
+                    cont.resume(returning: false); return
+                }
+                self.input.markAsFinished()
+                self.writer.finishWriting {
+                    cont.resume(returning: self.writer.status == .completed)
+                }
+            }
+        }
+    }
+}

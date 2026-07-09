@@ -293,6 +293,14 @@ enum L10n {
         "toast.copied": "Copiado",
         "toast.textCopied": "Texto copiado",
         "toast.transcriptCopied": "Transcripción copiada",
+        "meeting.busy.info": "Se está grabando una nota de voz. Deténla antes de iniciar la grabación de una reunión.",
+        "meeting.busy.title": "Micrófono en uso",
+        "meeting.me": "Yo",
+        "meeting.name": "Reunión",
+        "meeting.record": "Grabar reunión",
+        "meeting.stop": "Detener grabación de reunión",
+        "meeting.them": "Ellos",
+        "prefs.sc.meeting": "Grabar reunión:",
     ]
 
     private static let en: [String: String] = [
@@ -569,6 +577,14 @@ enum L10n {
         "toast.copied": "Copied",
         "toast.textCopied": "Text copied",
         "toast.transcriptCopied": "Transcript copied",
+        "meeting.busy.info": "A voice note is being recorded. Stop it before starting a meeting recording.",
+        "meeting.busy.title": "Microphone in use",
+        "meeting.me": "Me",
+        "meeting.name": "Meeting",
+        "meeting.record": "Record meeting",
+        "meeting.stop": "Stop meeting recording",
+        "meeting.them": "Them",
+        "prefs.sc.meeting": "Record meeting:",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -848,6 +864,14 @@ enum L10n {
         "toast.copied": "Copié",
         "toast.textCopied": "Texte copié",
         "toast.transcriptCopied": "Transcription copiée",
+        "meeting.busy.info": "Une note vocale est en cours d'enregistrement. Arrêtez-la avant de lancer l'enregistrement d'une réunion.",
+        "meeting.busy.title": "Microphone en cours d'utilisation",
+        "meeting.me": "Moi",
+        "meeting.name": "Réunion",
+        "meeting.record": "Enregistrer la réunion",
+        "meeting.stop": "Arrêter l'enregistrement de la réunion",
+        "meeting.them": "Eux",
+        "prefs.sc.meeting": "Enregistrer la réunion :",
     ]
 
     private static let de: [String: String] = [
@@ -1125,6 +1149,14 @@ enum L10n {
         "toast.copied": "Kopiert",
         "toast.textCopied": "Text kopiert",
         "toast.transcriptCopied": "Transkript kopiert",
+        "meeting.busy.info": "Gerade wird eine Sprachnotiz aufgenommen. Beende sie, bevor du eine Meeting-Aufnahme startest.",
+        "meeting.busy.title": "Mikrofon in Benutzung",
+        "meeting.me": "Ich",
+        "meeting.name": "Meeting",
+        "meeting.record": "Meeting aufnehmen",
+        "meeting.stop": "Meeting-Aufnahme beenden",
+        "meeting.them": "Andere",
+        "prefs.sc.meeting": "Meeting aufnehmen:",
     ]
 
     private static let it: [String: String] = [
@@ -1402,6 +1434,14 @@ enum L10n {
         "toast.copied": "Copiato",
         "toast.textCopied": "Testo copiato",
         "toast.transcriptCopied": "Trascrizione copiata",
+        "meeting.busy.info": "È in corso la registrazione di una nota vocale. Interrompila prima di avviare la registrazione di una riunione.",
+        "meeting.busy.title": "Microfono in uso",
+        "meeting.me": "Io",
+        "meeting.name": "Riunione",
+        "meeting.record": "Registra riunione",
+        "meeting.stop": "Interrompi registrazione riunione",
+        "meeting.them": "Loro",
+        "prefs.sc.meeting": "Registra riunione:",
     ]
 
     private static let pt: [String: String] = [
@@ -1679,6 +1719,14 @@ enum L10n {
         "toast.copied": "Copiado",
         "toast.textCopied": "Texto copiado",
         "toast.transcriptCopied": "Transcrição copiada",
+        "meeting.busy.info": "Está a ser gravada uma nota de voz. Pára-a antes de iniciar a gravação de uma reunião.",
+        "meeting.busy.title": "Microfone em uso",
+        "meeting.me": "Eu",
+        "meeting.name": "Reunião",
+        "meeting.record": "Gravar reunião",
+        "meeting.stop": "Parar gravação da reunião",
+        "meeting.them": "Eles",
+        "prefs.sc.meeting": "Gravar reunião:",
     ]
 
     private static let zh: [String: String] = [
@@ -1956,6 +2004,14 @@ enum L10n {
         "toast.copied": "已复制",
         "toast.textCopied": "文字已复制",
         "toast.transcriptCopied": "转录文本已复制",
+        "meeting.busy.info": "正在录制语音笔记。请先停止，再开始录制会议。",
+        "meeting.busy.title": "麦克风使用中",
+        "meeting.me": "我",
+        "meeting.name": "会议",
+        "meeting.record": "录制会议",
+        "meeting.stop": "停止会议录制",
+        "meeting.them": "对方",
+        "prefs.sc.meeting": "录制会议：",
     ]
 
     private static let ja: [String: String] = [
@@ -2233,5 +2289,13 @@ enum L10n {
         "toast.copied": "コピーしました",
         "toast.textCopied": "テキストをコピーしました",
         "toast.transcriptCopied": "文字起こしをコピーしました",
+        "meeting.busy.info": "ボイスメモを録音中です。会議の録音を始める前に停止してください。",
+        "meeting.busy.title": "マイク使用中",
+        "meeting.me": "自分",
+        "meeting.name": "会議",
+        "meeting.record": "会議を録音",
+        "meeting.stop": "会議の録音を停止",
+        "meeting.them": "相手",
+        "prefs.sc.meeting": "会議を録音：",
     ]
 }

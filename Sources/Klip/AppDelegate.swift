@@ -10,6 +10,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let recentsDF: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale.current; f.dateFormat = "dd MMM HH:mm"; return f
     }()
+    /// Short localized stamp for meeting-note names ("9 Jul 2026, 14:03" style).
+    private static let meetingDF: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale.current; f.dateStyle = .medium; f.timeStyle = .short; return f
+    }()
     private let manager = ClipboardManager()
     private var panelController: PanelController!
     private var snapController: SnapController!
@@ -18,11 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var captureHotKey: HotKey?
     private var uploadHotKey: HotKey?
     private var textCaptureHotKey: HotKey?
+    private var meetingHotKey: HotKey?
     private var lastGoodCombo = Settings.shared.combo
     private var lastGoodVoiceCombo = Settings.shared.voiceCombo
     private var lastGoodCaptureCombo = Settings.shared.captureCombo
     private var lastGoodUploadCombo = Settings.shared.uploadCombo
     private var lastGoodTextCaptureCombo = Settings.shared.textCaptureCombo
+    private var lastGoodMeetingCombo = Settings.shared.meetingCombo
+    private let meetingRecorder = MeetingRecorder()
+    private var meetingItem: NSMenuItem?
     private var prefsController: PreferencesWindowController?
     private var launchItem: NSMenuItem?
     private var cancellables = Set<AnyCancellable>()
@@ -41,6 +49,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         snapController = SnapController(manager: manager)
         snapController.onCaptured = { [weak self] in self?.panelController.show() }
         panelController.onCaptureAnnotate = { [weak self] in self?.snapController.start() }
+        // Meeting recording (mic + system audio → one mixed voice note in the history).
+        meetingRecorder.isMicBusy = { [weak self] in self?.panelController.isVoiceRecording ?? false }
+        meetingRecorder.onMeetingReady = { [weak self] fileName, duration in
+            guard let self else { return nil }
+            let id = self.manager.beginVoiceNote(audioFileName: fileName, duration: duration, allowAutoCopy: false)
+            if let item = self.manager.items.first(where: { $0.id == id }) {
+                self.manager.rename(item, to: "\(L10n.t("meeting.name")) — \(Self.meetingDF.string(from: Date()))")
+            }
+            return id
+        }
+        meetingRecorder.onTranscribe = { [weak self] id, fileName, micURL, systemURL in
+            self?.panelController.transcribeMeetingNote(itemID: id, mixedFileName: fileName,
+                                                        micURL: micURL, systemURL: systemURL)
+        }
+        // Red status-item icon while a meeting records + menu title toggle.
+        meetingRecorder.$isRecording.dropFirst().receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateStatusIcon(); self?.buildMenu() }
+            .store(in: &cancellables)
         manager.start()
         // Zero-real-estate copy confirmation (Shottr-style): flash the menu-bar icon to a checkmark
         // whenever anything lands on the pasteboard through Klip.
@@ -98,11 +124,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .withSymbolConfiguration(cfg)
         iconFlashWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            self?.statusItem.button?.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Klip")?
-                .withSymbolConfiguration(cfg)
+            MainActor.assumeIsolated { self?.updateStatusIcon() }   // restores the meeting-recording icon too
         }
         iconFlashWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
+    }
+
+    /// Base status-item icon: the red record symbol while a meeting records, the clipboard otherwise.
+    private func updateStatusIcon() {
+        guard let button = statusItem.button else { return }
+        let cfg = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+        if meetingRecorder.isRecording {
+            button.image = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "Recording meeting")?
+                .withSymbolConfiguration(cfg)
+            button.contentTintColor = .systemRed
+        } else {
+            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Klip")?
+                .withSymbolConfiguration(cfg)
+            button.contentTintColor = nil
+        }
     }
 
     private func buildMenu() {
@@ -111,6 +151,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      action: #selector(showPanel), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("rec.record"))   \(Settings.shared.voiceCombo.displayString)",
                      action: #selector(startVoice), keyEquivalent: "")
+        let meeting = menu.addItem(withTitle: meetingMenuTitle(),
+                                   action: #selector(toggleMeetingRecording), keyEquivalent: "")
+        meetingItem = meeting
         menu.addItem(withTitle: "\(L10n.t("menu.capture"))   \(Settings.shared.captureCombo.displayString)",
                      action: #selector(startCapture), keyEquivalent: "")
         menu.addItem(withTitle: "\(L10n.t("menu.captureText"))   \(Settings.shared.textCaptureCombo.displayString)",
@@ -167,6 +210,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.snapController.startTextCapture()
         }
     }
+    private func makeMeetingHotKey(_ c: KeyCombo) {
+        meetingHotKey = HotKey(keyCode: c.keyCode, modifiers: c.carbonModifiers, id: 6) { [weak self] in
+            self?.toggleMeetingRecording()
+        }
+    }
 
     private func registerHotKey(_ kind: ShortcutKind, _ c: KeyCombo) {
         switch kind {
@@ -175,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .capture: makeCaptureHotKey(c)
         case .upload: makeUploadHotKey(c)
         case .textCapture: makeTextCaptureHotKey(c)
+        case .meeting: makeMeetingHotKey(c)
         }
     }
     private func hotKeyLive(_ kind: ShortcutKind) -> Bool {
@@ -184,6 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .capture: return captureHotKey != nil
         case .upload: return uploadHotKey != nil
         case .textCapture: return textCaptureHotKey != nil
+        case .meeting: return meetingHotKey != nil
         }
     }
     /// After moving a LIVE shortcut, make sure it actually registered; if the OS rejected the combo (another
@@ -236,6 +286,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 ensureLiveRegistered(.textCapture, avoiding: used) { s.textCaptureCombo = $0; lastGoodTextCaptureCombo = $0 }
             }
         }
+        let used6 = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
+        if used6.contains(s.meetingCombo) {
+            let fixed = free(used6, .defaultMeetingCombo); s.meetingCombo = fixed; lastGoodMeetingCombo = fixed
+            if meetingHotKey != nil {
+                makeMeetingHotKey(fixed)
+                ensureLiveRegistered(.meeting, avoiding: used6) { s.meetingCombo = $0; lastGoodMeetingCombo = $0 }
+            }
+        }
     }
 
     private func setupHotKeys() {
@@ -245,6 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         makeCaptureHotKey(Settings.shared.captureCombo)
         makeUploadHotKey(Settings.shared.uploadCombo)
         makeTextCaptureHotKey(Settings.shared.textCaptureCombo)
+        makeMeetingHotKey(Settings.shared.meetingCombo)
         // If a persisted combination collides with another at startup (HotKey.init returns nil), the
         // shortcut would stay dead for the whole session. Recover with its default shortcut so it isn't lost.
         if hotKey == nil, Settings.shared.combo != .defaultCombo {
@@ -293,6 +352,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if textCaptureHotKey != nil { Settings.shared.textCaptureCombo = s; lastGoodTextCaptureCombo = s; break }
             }
         }
+        // Meeting recording is also reachable from the menu bar, so recover quietly like upload/OCR.
+        if meetingHotKey == nil, Settings.shared.meetingCombo != .defaultMeetingCombo {
+            Settings.shared.meetingCombo = .defaultMeetingCombo; lastGoodMeetingCombo = .defaultMeetingCombo
+            makeMeetingHotKey(.defaultMeetingCombo)
+        }
+        if meetingHotKey == nil {
+            let taken = [Settings.shared.combo, Settings.shared.voiceCombo, Settings.shared.captureCombo,
+                         Settings.shared.uploadCombo, Settings.shared.textCaptureCombo]
+            for s in KeyCombo.suggestions where !taken.contains(s) {
+                makeMeetingHotKey(s)
+                if meetingHotKey != nil { Settings.shared.meetingCombo = s; lastGoodMeetingCombo = s; break }
+            }
+        }
         // If the panel/voice shortcuts are still dead after the default-reset (another app globally owns
         // even the default combo), tell the user instead of leaving a silently-inert shortcut (deferred so it
         // doesn't block launch).
@@ -308,7 +380,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         buildMenu()
     }
 
-    private enum ShortcutKind { case panel, voice, capture, upload, textCapture }
+    private enum ShortcutKind { case panel, voice, capture, upload, textCapture, meeting }
 
     /// Carbon registers each shortcut under a distinct id, so it does NOT reject assigning the SAME combo
     /// to two of our shortcuts — we must catch that ourselves.
@@ -316,11 +388,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let s = Settings.shared
         let others: [KeyCombo]
         switch kind {
-        case .panel:       others = [s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
-        case .voice:       others = [s.combo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
-        case .capture:     others = [s.combo, s.voiceCombo, s.uploadCombo, s.textCaptureCombo]
-        case .upload:      others = [s.combo, s.voiceCombo, s.captureCombo, s.textCaptureCombo]
-        case .textCapture: others = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo]
+        case .panel:       others = [s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo, s.meetingCombo]
+        case .voice:       others = [s.combo, s.captureCombo, s.uploadCombo, s.textCaptureCombo, s.meetingCombo]
+        case .capture:     others = [s.combo, s.voiceCombo, s.uploadCombo, s.textCaptureCombo, s.meetingCombo]
+        case .upload:      others = [s.combo, s.voiceCombo, s.captureCombo, s.textCaptureCombo, s.meetingCombo]
+        case .textCapture: others = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo, s.meetingCombo]
+        case .meeting:     others = [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
         }
         return others.contains(combo)
     }
@@ -390,6 +463,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         buildMenu()
     }
 
+    private func applyMeetingHotKey(_ combo: KeyCombo) {
+        if collidesWithOtherShortcut(combo, .meeting) {
+            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            Settings.shared.meetingCombo = lastGoodMeetingCombo; buildMenu(); return
+        }
+        let ok: Bool
+        if meetingHotKey == nil { makeMeetingHotKey(combo); ok = (meetingHotKey != nil) }
+        else { ok = meetingHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
+        if ok { lastGoodMeetingCombo = combo }
+        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.meetingCombo = lastGoodMeetingCombo }
+        buildMenu()
+    }
+
     private func maybeEnableLoginOnce() {
         let key = "didAutoEnableLogin"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
@@ -404,6 +490,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         if menu === statusItem.menu {   // approval can happen in System Settings while we run → reflect it on open
             launchItem?.state = LoginItem.shared.isEnabledOrPending ? .on : .off
+            meetingItem?.title = meetingMenuTitle()   // refresh the elapsed mm:ss each time the menu opens
             return
         }
         guard menu === recentsMenu else { return }
@@ -451,6 +538,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private func meetingMenuTitle() -> String {
+        meetingRecorder.isRecording
+            ? "\(L10n.t("meeting.stop"))   \(Self.mmss(meetingRecorder.elapsed))"
+            : "\(L10n.t("meeting.record"))   \(Settings.shared.meetingCombo.displayString)"
+    }
+    private static func mmss(_ t: TimeInterval) -> String { String(format: "%d:%02d", Int(t) / 60, Int(t) % 60) }
+
+    @objc private func toggleMeetingRecording() {
+        if meetingRecorder.isRecording { Task { @MainActor in await meetingRecorder.stop() } }
+        else { meetingRecorder.start() }
+    }
+
     @objc private func showPanel() { panelController.show() }
     @objc private func startVoice() { panelController.toggleVoiceRecording() }
     @objc private func startCapture() { snapController.start() }
@@ -466,6 +565,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onCaptureHotKeyChange: { [weak self] combo in self?.applyCaptureHotKey(combo) },
                 onUploadHotKeyChange: { [weak self] combo in self?.applyUploadHotKey(combo) },
                 onTextCaptureHotKeyChange: { [weak self] combo in self?.applyTextCaptureHotKey(combo) },
+                onMeetingHotKeyChange: { [weak self] combo in self?.applyMeetingHotKey(combo) },
                 onMaxItemsChange: { [weak self] in self?.manager.applyMaxItems() })
         }
         prefsController?.show()

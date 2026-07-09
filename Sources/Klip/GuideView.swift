@@ -11,6 +11,7 @@ struct GuideView: View {
         [
             Row(keys: settings.combo.displayString, what: L10n.t("guide.klip.toggle")),
             Row(keys: settings.voiceCombo.displayString, what: L10n.t("guide.klip.voice")),
+            Row(keys: settings.meetingCombo.displayString, what: L10n.t("meeting.record")),
             Row(keys: settings.captureCombo.displayString, what: L10n.t("capture.annotate")),
             Row(keys: settings.textCaptureCombo.displayString, what: L10n.t("menu.captureText")),
             Row(keys: settings.uploadCombo.displayString, what: L10n.t("act.upload")),

@@ -58,6 +58,7 @@ struct PreferencesView: View {
     var onCaptureHotKeyChange: (KeyCombo) -> Void
     var onUploadHotKeyChange: (KeyCombo) -> Void
     var onTextCaptureHotKeyChange: (KeyCombo) -> Void
+    var onMeetingHotKeyChange: (KeyCombo) -> Void
     // Kept for the AppDelegate wiring but intentionally never called: trimming on every
     // Stepper click deleted history (and media) per click. History self-trims on the next
     // capture via trimAndSave, so the new limit applies as new items arrive.
@@ -168,6 +169,8 @@ struct PreferencesView: View {
                     FilteredHotKeyField(combo: $settings.textCaptureCombo, onChange: onTextCaptureHotKeyChange) }
                 HStack { Text(L10n.t("prefs.sc.upload")); Spacer()
                     FilteredHotKeyField(combo: $settings.uploadCombo, onChange: onUploadHotKeyChange) }
+                HStack { Text(L10n.t("prefs.sc.meeting")); Spacer()
+                    FilteredHotKeyField(combo: $settings.meetingCombo, onChange: onMeetingHotKeyChange) }
                 Text(L10n.t("prefs.sc.hint"))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -387,7 +390,7 @@ private struct FilteredHotKeyField: View {
     /// Combos held by the OTHER shortcuts (this field's own value is filtered out).
     private var taken: [KeyCombo] {
         let s = Settings.shared
-        return [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo]
+        return [s.combo, s.voiceCombo, s.captureCombo, s.uploadCombo, s.textCaptureCombo, s.meetingCombo]
             .filter { $0 != combo }
     }
 

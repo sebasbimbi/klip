@@ -9,6 +9,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
                      onCaptureHotKeyChange: @escaping (KeyCombo) -> Void,
                      onUploadHotKeyChange: @escaping (KeyCombo) -> Void,
                      onTextCaptureHotKeyChange: @escaping (KeyCombo) -> Void,
+                     onMeetingHotKeyChange: @escaping (KeyCombo) -> Void,
                      onMaxItemsChange: @escaping () -> Void) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 700),
@@ -22,6 +23,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
                                       onCaptureHotKeyChange: onCaptureHotKeyChange,
                                       onUploadHotKeyChange: onUploadHotKeyChange,
                                       onTextCaptureHotKeyChange: onTextCaptureHotKeyChange,
+                                      onMeetingHotKeyChange: onMeetingHotKeyChange,
                                       onMaxItemsChange: onMaxItemsChange))
         window.center()
         self.init(window: window)

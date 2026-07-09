@@ -19,6 +19,16 @@ final class PanelController: NSObject, NSWindowDelegate {
     private let recorder = Recorder()
     /// True while recording, finishing, or transcribing audio — used to block a destructive import.
     var isBusyWithAudio: Bool { recorder.isRecording || recorder.finishing || recorder.transcribingCount > 0 }
+    /// True only while the voice recorder holds the microphone (a background transcription doesn't) —
+    /// used by MeetingRecorder to refuse to start over an in-progress voice note.
+    var isVoiceRecording: Bool { recorder.isRecording || recorder.finishing }
+
+    /// Forwards a finished meeting recording into the recorder's transcription path (the recorder is
+    /// private to this controller). Local provider: per-track Me/Them transcript; cloud: mixed file.
+    func transcribeMeetingNote(itemID: UUID, mixedFileName: String, micURL: URL?, systemURL: URL?) {
+        recorder.transcribeMeetingTracks(itemID: itemID, micURL: micURL, systemURL: systemURL,
+                                         mixedFileName: mixedFileName)
+    }
     /// True while one of our auxiliary windows is on screen, so the panel's auto-hide on
     /// outside click / resign-key doesn't fire while the user interacts with one of them (Upload/Guide/Welcome/Recording).
     private var auxWindowVisible: Bool {
