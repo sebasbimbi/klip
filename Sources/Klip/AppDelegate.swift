@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Carbon.HIToolbox
 import Combine
 import UniformTypeIdentifiers
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastGoodMeetingCombo = Settings.shared.meetingCombo
     private let meetingRecorder = MeetingRecorder()
     private var meetingItem: NSMenuItem?
+    private var meetingHUD: NSPanel?
     private var prefsController: PreferencesWindowController?
     private var launchItem: NSMenuItem?
     private var cancellables = Set<AnyCancellable>()
@@ -64,10 +66,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.panelController.transcribeMeetingNote(itemID: id, mixedFileName: fileName,
                                                         micURL: micURL, systemURL: systemURL)
         }
-        // Red status-item icon while a meeting records + menu title toggle.
+        // Red status-item icon while a meeting records + menu title toggle + the live HUD.
         meetingRecorder.$isRecording.dropFirst().receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.updateStatusIcon(); self?.buildMenu() }
+            .sink { [weak self] rec in
+                if rec { self?.showMeetingHUD() }
+                self?.updateStatusIcon()
+                self?.buildMenu()
+            }
             .store(in: &cancellables)
+        // The HUD stays up through "Mixing & transcribing…" and closes when the note is handed off.
+        meetingRecorder.$finishing.dropFirst().receive(on: RunLoop.main)
+            .sink { [weak self] finishing in
+                guard let self, !finishing, !self.meetingRecorder.isRecording else { return }
+                self.closeMeetingHUD()
+            }
+            .store(in: &cancellables)
+        MeetingRecorder.sweepOrphanedTempFiles()   // clear unfinalized tracks from a crashed run
         manager.start()
         // Zero-real-estate copy confirmation (Shottr-style): flash the menu-bar icon to a checkmark
         // whenever anything lands on the pasteboard through Klip.
@@ -560,6 +574,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleMeetingRecording() {
         if meetingRecorder.isRecording { Task { @MainActor in await meetingRecorder.stop() } }
         else { meetingRecorder.start() }
+    }
+
+    /// Small floating HUD (top-right of the active screen) with live meters for both sources —
+    /// visible proof the recording is hearing you AND the meeting. Non-activating: doesn't steal
+    /// focus from the call.
+    private func showMeetingHUD() {
+        if meetingHUD == nil {
+            let view = MeetingHUDView(
+                recorder: meetingRecorder,
+                onStop: { [weak self] in
+                    guard let self else { return }
+                    Task { @MainActor in await self.meetingRecorder.stop() }
+                },
+                onDiscard: { [weak self] in
+                    guard let self else { return }
+                    let a = NSAlert()
+                    a.messageText = L10n.t("meeting.discard.title")
+                    a.informativeText = L10n.t("meeting.discard.info")
+                    let d = a.addButton(withTitle: L10n.t("editor.discard.confirm"))
+                    d.hasDestructiveAction = true
+                    a.addButton(withTitle: L10n.t("common.cancel"))
+                    guard a.runModal() == .alertFirstButtonReturn else { return }
+                    Task { @MainActor in
+                        await self.meetingRecorder.discard()
+                        self.closeMeetingHUD()
+                        self.updateStatusIcon(); self.buildMenu()
+                    }
+                })
+            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 264, height: 150),
+                                styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
+                                backing: .buffered, defer: false)
+            panel.titleVisibility = .hidden
+            panel.titlebarAppearsTransparent = true
+            panel.standardWindowButton(.closeButton)?.isHidden = true
+            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            panel.standardWindowButton(.zoomButton)?.isHidden = true
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.isMovableByWindowBackground = true
+            panel.isReleasedWhenClosed = false
+            panel.contentView = NSHostingView(rootView: view)
+            meetingHUD = panel
+        }
+        guard let panel = meetingHUD else { return }
+        // Fixed size: NSHostingView's fittingSize is 0 before its first layout pass, which made the
+        // panel invisible. The SwiftUI content is a fixed 264pt-wide card; height fits all states.
+        panel.setContentSize(NSSize(width: 264, height: 168))
+        if let screen = NSScreen.main {
+            let f = screen.visibleFrame
+            panel.setFrameTopLeftPoint(NSPoint(x: f.maxX - panel.frame.width - 16, y: f.maxY - 12))
+        }
+        panel.orderFrontRegardless()
+    }
+
+    private func closeMeetingHUD() {
+        meetingHUD?.orderOut(nil)
     }
 
     @objc private func showPanel() { panelController.show() }

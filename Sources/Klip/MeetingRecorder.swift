@@ -12,6 +12,11 @@ import ScreenCaptureKit
 final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAudioRecorderDelegate {
     @Published private(set) var isRecording = false
     @Published private(set) var elapsed: TimeInterval = 0
+    /// Live input levels (0…1) for the recording HUD — proof that BOTH sides are being heard.
+    @Published private(set) var micLevel: Float = 0
+    @Published private(set) var systemLevel: Float = 0
+    /// True from stop() until the mix + note handoff completes (the HUD shows "Mixing…").
+    @Published private(set) var finishing = false
 
     /// The mixed audio is already in the store: creates the voice-note item and returns its id
     /// (wired to manager.beginVoiceNote + rename). (audioFileName, duration) → item id.
@@ -101,11 +106,13 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
     func stop() async {
         guard isRecording, !stopping else { return }
         stopping = true
+        finishing = true
         timer?.invalidate(); timer = nil
         let duration = elapsed
         let systemOK = await teardownStreams()
         isRecording = false
-        defer { stopping = false; cleanupTempFiles() }
+        micLevel = 0; systemLevel = 0
+        defer { stopping = false; finishing = false; cleanupTempFiles() }
 
         var sources: [URL] = []
         if let micURL { sources.append(micURL) }
@@ -125,6 +132,29 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
         } catch {
             NSLog("Klip: meeting recording failed — %@", String(describing: error))
             Self.alert(L10n.t("meeting.record"), error.localizedDescription)
+        }
+    }
+
+    /// Throws the recording away: tear everything down and delete the temp tracks — no mix, no note.
+    func discard() async {
+        guard isRecording, !stopping else { return }
+        stopping = true
+        timer?.invalidate(); timer = nil
+        _ = await teardownStreams()
+        isRecording = false
+        micLevel = 0; systemLevel = 0
+        cleanupTempFiles()
+        stopping = false
+    }
+
+    /// Removes leftover temp tracks from a previous run that died mid-recording (crash/kill):
+    /// they are unfinalized (often unplayable) and would otherwise pile up in the temp directory.
+    static func sweepOrphanedTempFiles() {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory
+        guard let names = try? fm.contentsOfDirectory(atPath: tmp.path) else { return }
+        for n in names where (n.hasPrefix("mic-") || n.hasPrefix("system-") || n.hasPrefix("meeting-")) && n.hasSuffix(".m4a") {
+            try? fm.removeItem(at: tmp.appendingPathComponent(n))
         }
     }
 
@@ -181,10 +211,17 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
     private func teardownStreams() async -> Bool {
         if let rec = micRecorder {
             if rec.isRecording {
-                // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()).
+                // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()) — with a
+                // safety resume: if the delegate never fires, a hung wait here would freeze the whole
+                // meeting flow forever (stopping=true blocks every further toggle).
                 await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                     micStopContinuation = cont
                     rec.stop()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                        guard let self else { return }
+                        self.micStopContinuation?.resume()
+                        self.micStopContinuation = nil
+                    }
                 }
             } else {
                 // Already stopped on its own (encode error, device loss): stop() is a no-op and the
@@ -194,12 +231,34 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
             micRecorder = nil
         }
         if let stream {
-            try? await stream.stopCapture()   // throws if the stream already died mid-recording — fine
+            // stopCapture is known to hang when the stream is in a bad state: race it against a
+            // timeout. The writer below finalizes whatever was captured either way.
+            await Self.withTimeout(seconds: 4) { try? await stream.stopCapture() }
             self.stream = nil
         }
-        let ok = await systemWriter?.finish() ?? false
+        var ok = false
+        if let writer = systemWriter {
+            ok = await Self.withTimeout(seconds: 5, fallback: false) { await writer.finish() }
+        }
         systemWriter = nil
         return ok
+    }
+
+    /// Runs `op` but gives up after `seconds` (the orphaned task is abandoned, not cancelled —
+    /// SCStream/AVAssetWriter calls aren't cancellable anyway). Void variant.
+    private static func withTimeout(seconds: Double, _ op: @escaping @Sendable () async -> Void) async {
+        _ = await withTimeout(seconds: seconds, fallback: true) { await op(); return true }
+    }
+
+    private static func withTimeout<T: Sendable>(seconds: Double, fallback: T,
+                                                 _ op: @escaping @Sendable () async -> T) async -> T {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await op() }
+            group.addTask { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)); return nil }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first ?? fallback
+        }
     }
 
     private func cleanupTempFiles() {
@@ -239,18 +298,22 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
     }
 
     private func startTimer() {
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        var tick = 0
+        let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {   // runs on RunLoop.main
                 guard let self, self.isRecording else { return }
-                self.elapsed += 1
-                // Mic activity via metering (Recorder's pattern); the system side is touched by
-                // SystemAudioWriter from its sample callback. Sound on EITHER source resets the clock.
+                // Live levels for the HUD: mic via metering (Recorder's pattern); system via the
+                // peak reported from SystemAudioWriter's sample callback.
                 if let rec = self.micRecorder {
                     rec.updateMeters()
-                    if Self.normalized(power: rec.averagePower(forChannel: 0)) >= Self.silenceLevel {
-                        self.activity.touch()
-                    }
+                    let lvl = Self.normalized(power: rec.averagePower(forChannel: 0))
+                    self.micLevel = lvl
+                    if lvl >= Self.silenceLevel { self.activity.touch() }
                 }
+                self.systemLevel = self.activity.currentLevel
+                tick += 1
+                guard tick % 10 == 0 else { return }
+                self.elapsed += 1
                 // Auto-stop after 15 continuous minutes of silence on BOTH sources (the meeting ended
                 // and the user forgot): finalize normally so nothing recorded is lost.
                 if Date().timeIntervalSince(self.activity.lastActivity) >= Self.autoStopAfterSilence {
@@ -430,8 +493,23 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
 private final class ActivityClock: @unchecked Sendable {
     private let lock = NSLock()
     private var last = Date()
+    private var level: Float = 0
+    private var levelAt = Date.distantPast
     func touch() { lock.lock(); last = Date(); lock.unlock() }
+    /// Records the system side's current peak (for the HUD meter) and, above the noise floor,
+    /// also counts as activity for the silence auto-stop.
+    func report(level newLevel: Float, isActivity: Bool) {
+        lock.lock()
+        level = newLevel; levelAt = Date()
+        if isActivity { last = Date() }
+        lock.unlock()
+    }
     var lastActivity: Date { lock.lock(); defer { lock.unlock() }; return last }
+    /// Latest reported level; decays to 0 when no buffer arrived recently (stream stalled/quiet).
+    var currentLevel: Float {
+        lock.lock(); defer { lock.unlock() }
+        return Date().timeIntervalSince(levelAt) < 0.5 ? level : 0
+    }
 }
 
 /// Appends the SCStream's audio sample buffers to an .m4a writer (AAC 48 kHz stereo). Every
@@ -467,21 +545,24 @@ private final class SystemAudioWriter: NSObject, SCStreamOutput, @unchecked Send
             sessionStarted = true
         }
         if input.isReadyForMoreMediaData { input.append(sampleBuffer) }   // realtime: drop when back-pressured
-        if Self.hasSignal(sampleBuffer) { activity.touch() }   // feeds the silence auto-stop
+        let peak = Self.peak(sampleBuffer)
+        activity.report(level: peak, isActivity: peak > 0.01)   // HUD meter + silence auto-stop
     }
 
-    /// Cheap activity check: scans a strided subset of the Float32 PCM samples for anything above
-    /// the noise floor. Layout (interleaved or not) doesn't matter for presence detection.
-    private static func hasSignal(_ sb: CMSampleBuffer) -> Bool {
-        guard let block = sb.dataBuffer, let data = try? block.dataBytes() else { return false }
-        return data.withUnsafeBytes { raw -> Bool in
+    /// Cheap peak estimate over a strided subset of the Float32 PCM samples. Layout (interleaved
+    /// or not) doesn't matter for a level indicator / presence detection.
+    private static func peak(_ sb: CMSampleBuffer) -> Float {
+        guard let block = sb.dataBuffer, let data = try? block.dataBytes() else { return 0 }
+        return data.withUnsafeBytes { raw -> Float in
             let floats = raw.bindMemory(to: Float32.self)
+            var m: Float = 0
             var i = 0
             while i < floats.count {
-                if abs(floats[i]) > 0.01 { return true }
+                let v = abs(floats[i])
+                if v > m { m = v }
                 i += 32
             }
-            return false
+            return min(1, m * 1.4)   // slight boost so normal speech reads as a healthy bar
         }
     }
 
