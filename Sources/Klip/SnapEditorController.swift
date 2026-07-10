@@ -17,8 +17,10 @@ private final class HoverToolButton: NSButton {
     override func mouseExited(with event: NSEvent) { hovering = false; refreshBackground() }
 
     private func refreshBackground() {
-        let color: NSColor = isSelectedTool ? .controlAccentColor
-            : hovering ? .labelColor.withAlphaComponent(0.08) : .clear
+        // Subtle, Shottr-style states: the active tool gets a soft accent tint (the icon carries
+        // the accent), never a heavy solid fill.
+        let color: NSColor = isSelectedTool ? .controlAccentColor.withAlphaComponent(0.16)
+            : hovering ? .labelColor.withAlphaComponent(0.07) : .clear
         layer?.backgroundColor = color.cgColor
     }
 }
@@ -58,10 +60,10 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let imgSize = canvas.bounds.size
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
         let minBarWidth: CGFloat = 1220  // minimum width so the toolbar doesn't overlap itself (11 tools + info cluster)
-        let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 52
+        let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 46
         let scale = min(1, min(maxW / imgSize.width, maxH / imgSize.height))
         let contentW = max(minBarWidth, imgSize.width * scale)
-        let contentH = imgSize.height * scale + 52   // 52 = toolbar
+        let contentH = imgSize.height * scale + 46   // 46 = toolbar
 
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: contentW, height: contentH),
                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -74,7 +76,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let content = NSView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH))
 
         // Canvas inside a scroll view (in case the capture is large).
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH - 52))
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH - 46))
         scroll.autoresizingMask = [.width, .height]
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
@@ -94,7 +96,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         content.addSubview(scroll)
 
         let toolbar = buildToolbar(width: contentW)
-        toolbar.frame = NSRect(x: 0, y: contentH - 52, width: contentW, height: 52)
+        toolbar.frame = NSRect(x: 0, y: contentH - 46, width: contentW, height: 46)
         toolbar.autoresizingMask = [.width, .minYMargin]
         content.addSubview(toolbar)
 
@@ -109,7 +111,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             win.animator().alphaValue = 1
         }
-        canvas.currentLineWidth = 4   // thicker default stroke (more visible)
+        canvas.currentLineWidth = 3   // default stroke: visible but not heavy
         selectTool(.arrow)
         // When selecting/deselecting a text, reflect its color in the toolbar palette.
         canvas.onSelectionChange = { [weak self] in self?.syncColorSelectionFromCanvas() }
@@ -130,7 +132,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     // MARK: - Toolbar
 
     private func buildToolbar(width: CGFloat) -> NSView {
-        let bar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: width, height: 52))
+        let bar = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: width, height: 46))
         bar.material = .titlebar
         bar.blendingMode = .withinWindow
         bar.state = .active
@@ -176,7 +178,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         addSeparator(to: leading)
 
         // Thickness: only two levels (thin / thick), thicker and more visible than before.
-        let widths = NSSegmentedControl(images: [lineImage(4), lineImage(10)],
+        let widths = NSSegmentedControl(images: [lineImage(3), lineImage(6)],
                                         trackingMode: .selectOne,
                                         target: self, action: #selector(widthChanged(_:)))
         widths.setWidth(40, forSegment: 0); widths.setWidth(40, forSegment: 1)
@@ -263,9 +265,15 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     }
 
     private func makeActionButton(symbol: String, tip: String, action: Selector) -> NSButton {
-        let b = NSButton(title: "", target: self, action: action)
-        b.bezelStyle = .texturedRounded
-        b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
+        let b = HoverToolButton(title: "", target: self, action: action)
+        b.isBordered = false
+        b.wantsLayer = true
+        b.layer?.cornerRadius = 7
+        b.imageScaling = .scaleProportionallyDown
+        let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)?
+            .withSymbolConfiguration(cfg)
+        b.contentTintColor = .secondaryLabelColor
         b.toolTip = tip
         return b
     }
@@ -289,8 +297,8 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         canvas.currentTool = tool
         for (t, b) in toolButtons {
             let on = (t == tool)
-            (b as? HoverToolButton)?.isSelectedTool = on   // accent fill lives in the button
-            b.contentTintColor = on ? .white : .labelColor   // clearly highlights the active tool
+            (b as? HoverToolButton)?.isSelectedTool = on   // soft accent tint lives in the button
+            b.contentTintColor = on ? .controlAccentColor : .secondaryLabelColor
         }
         refreshColorSwatches()                                // the marker shows highlighter tones
         // Only re-apply the DEFAULT color when the PALETTE changes type (normal↔marker). Between normal
@@ -306,7 +314,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     }
 
     @objc private func widthChanged(_ sender: NSSegmentedControl) {
-        canvas.currentLineWidth = sender.selectedSegment == 1 ? 10 : 4   // thick / thin
+        canvas.currentLineWidth = sender.selectedSegment == 1 ? 6 : 3   // thick / thin
     }
 
     // MARK: - Color
@@ -345,7 +353,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             b.image = Self.swatchImage(i < colors.count ? colors[i] : .clear)
             b.layer?.cornerRadius = 12
             let on = (i == colorIndex)
-            b.layer?.borderWidth = on ? 2.5 : 0
+            b.layer?.borderWidth = on ? 1.5 : 0
             b.layer?.borderColor = NSColor.controlAccentColor.cgColor
         }
     }
@@ -358,7 +366,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         b.wantsLayer = true
         b.layer?.cornerRadius = 7
         b.imageScaling = .scaleProportionallyDown
-        let cfg = NSImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
+        let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
         b.image = NSImage(systemSymbolName: tool.symbol, accessibilityDescription: tool.tooltip)?
             .withSymbolConfiguration(cfg)
         b.toolTip = tool.tooltip
