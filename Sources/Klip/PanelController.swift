@@ -72,7 +72,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         recorder.onVoiceNoteTranscribed = { [weak self] id, text in self?.manager.finishVoiceNote(id: id, text: text) }
         recorder.onVoiceNoteDuration = { [weak self] id, dur in self?.manager.setVoiceNoteDuration(id: id, duration: dur) }
         recorder.onVoiceNoteFailed = { [weak self] id in self?.manager.failVoiceNote(id: id) }
-        recorder.onVoiceNoteRetrying = { [weak self] id in self?.manager.markVoiceNoteTranscribing(id: id) }
+        recorder.onVoiceNoteRetrying = { [weak self] id, autoCopy in self?.manager.markVoiceNoteTranscribing(id: id, allowAutoCopy: autoCopy) }
         recorder.onVoiceNoteDownloadingModel = { [weak self] id in self?.manager.markVoiceNoteDownloadingModel(id: id) }
         recorder.onVoiceNoteAudioStored = { [weak self] id, fn in self?.manager.setVoiceNoteAudioFile(id: id, fileName: fn) }
 
@@ -225,6 +225,10 @@ final class PanelController: NSObject, NSWindowDelegate {
     }
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        // The local monitor sees keyDowns for EVERY app window (recording popup, Upload, Guide…).
+        // Only act when the history panel itself is key: otherwise Return would paste a hidden
+        // history item and Esc would shadow the key window's own shortcuts (e.g. the popup's Stop/Discard).
+        guard panel.isKeyWindow else { return event }
         if isRenaming { return event }   // the rename dialog handles its own keys
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
@@ -234,7 +238,8 @@ final class PanelController: NSObject, NSWindowDelegate {
             } else if recorder.state == .recording {
                 // Long recordings are real work: route Esc to the popup's own confirm instead of nuking
                 // >10s of dictation from a different surface (the popup shows the Discard? guard).
-                if MainActor.assumeIsolated({ recorder.duration }) > 10 { return nil }
+                // Pass the event through (not nil) so the popup's .cancelAction can actually receive it.
+                if MainActor.assumeIsolated({ recorder.duration }) > 10 { return event }
                 MainActor.assumeIsolated { recorder.cancel() }   // aborts the recording, doesn't close
             } else if !recorder.isRecording {                    // don't close while transcribing
                 // Layered back-out: exit multi-select first, then clear the search, then close.
@@ -318,7 +323,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             if let af = item.audioFileName { AudioPlayer.shared.toggle(fileName: af) }
             return
         }
-        manager.copyToPasteboard(item)
+        guard manager.copyToPasteboard(item) else { NSSound.beep(); return }   // nothing written (e.g. image file gone): don't paste the stale clipboard
         let target = previousApp
         hide(restoreFocus: false)
         if item.isCredential == true { target?.activate() }   // don't auto-paste secrets: just copy + restore focus
@@ -450,8 +455,11 @@ final class PanelController: NSObject, NSWindowDelegate {
     private func showAlert(_ title: String, _ info: String) {
         let a = NSAlert(); a.messageText = title; a.informativeText = info
         a.addButton(withTitle: "OK")
+        isRenaming = true   // same modal guard as confirmDelete: don't auto-hide the panel (and its batch selection) behind the alert
         NSApp.activate(ignoringOtherApps: true)
         a.runModal()
+        isRenaming = false
+        if panel.isVisible { panel.makeKeyAndOrderFront(nil) }
     }
 
     func assignSelectedToCollection(_ items: [ClipboardItem]) {
@@ -488,8 +496,10 @@ final class PanelController: NSObject, NSWindowDelegate {
                 a.messageText = L10n.t("voice.busyMeeting.title")
                 a.informativeText = L10n.t("voice.busyMeeting.info")
                 a.addButton(withTitle: L10n.t("common.ok"))
+                isRenaming = true   // modal guard: don't auto-hide the panel behind the alert
                 NSApp.activate(ignoringOtherApps: true)
                 a.runModal()
+                isRenaming = false
                 return
             }
             if recordingPanel?.isVisible != true {   // when re-recording with the popup open, keep the original app

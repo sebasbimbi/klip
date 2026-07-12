@@ -296,14 +296,15 @@ final class ClipboardManager: ObservableObject {
     }
 
     /// Marks an item as "Transcribing…" again (retry of a failed note).
-    func markVoiceNoteTranscribing(id: UUID) {
+    func markVoiceNoteTranscribing(id: UUID, allowAutoCopy: Bool = true) {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].text = nil
         items[idx].preview = Self.voiceTranscribing
         items[idx].transcribing = true
         // Re-register the pasteboard guard: otherwise a successful retry would never auto-paste
         // (removeValue would return nil → canPaste=false). Auto-paste on retries was dead.
-        voicePasteGuards[id] = NSPasteboard.general.changeCount
+        // Batch-upload retries pass false — re-arming each row would rewrite the clipboard once per file.
+        if allowAutoCopy { voicePasteGuards[id] = NSPasteboard.general.changeCount }
         storage.saveItems(items)
     }
 
@@ -392,19 +393,24 @@ final class ClipboardManager: ObservableObject {
 
     // MARK: - Actions
 
-    func copyToPasteboard(_ item: ClipboardItem) {
-        defer { NotificationCenter.default.post(name: .klipDidCopy, object: nil) }
+    /// Returns false when nothing was written (missing image file, empty voice note, sealed credential),
+    /// so callers don't auto-paste the STALE previous clipboard after a silent failure. The "copied"
+    /// cue (.klipDidCopy) is only posted on an actual write.
+    @discardableResult
+    func copyToPasteboard(_ item: ClipboardItem) -> Bool {
         let pb = NSPasteboard.general
         switch item.kind {
         case .text:
-            guard let t = item.text, !t.isEmpty else { return }   // voice note without text: don't touch the pasteboard
-            if item.isCredential == true, CredentialCrypto.isSealed(t) { return }   // undecryptable on this Mac: don't copy the raw token
+            guard let t = item.text, !t.isEmpty else { return false }   // voice note without text: don't touch the pasteboard
+            if item.isCredential == true, CredentialCrypto.isSealed(t) { return false }   // undecryptable on this Mac: don't copy the raw token
             pb.clearContents(); pb.setString(t, forType: .string)
         case .image:
-            guard let f = item.imageFileName, let img = storage.loadImage(fileName: f) else { return }
+            guard let f = item.imageFileName, let img = storage.loadImage(fileName: f) else { return false }
             pb.clearContents(); pb.writeObjects([img])
         }
         lastChangeCount = pb.changeCount
+        NotificationCenter.default.post(name: .klipDidCopy, object: nil)
+        return true
     }
 
     func setClipboardText(_ text: String) {

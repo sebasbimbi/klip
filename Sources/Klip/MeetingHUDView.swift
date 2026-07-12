@@ -26,6 +26,14 @@ struct MeetingHUDView: View {
             if compact { pill } else { card }
         }
         .onAppear { pulse = true; lastSystemSignal = Date() }
+        // The hosting view is reused across meetings (the panel is only ordered out), so @State
+        // survives: a new meeting must start expanded with fresh pulse/hint state.
+        .onChange(of: recorder.isRecording) { _, rec in
+            guard rec else { return }
+            pulse = true
+            lastSystemSignal = Date()
+            if compact { setCompact(false) }
+        }
         .onChange(of: recorder.systemLevel) { _, lvl in
             if lvl > 0.06 { lastSystemSignal = Date() }
         }

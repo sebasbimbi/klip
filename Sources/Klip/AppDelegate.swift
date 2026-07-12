@@ -53,7 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panelController.onCaptureAnnotate = { [weak self] in self?.snapController.start() }
         // Meeting recording (mic + system audio → one mixed voice note in the history).
         meetingRecorder.isMicBusy = { [weak self] in self?.panelController.isVoiceRecording ?? false }
-        panelController.isMeetingRecording = { [weak self] in self?.meetingRecorder.isRecording ?? false }
+        // isBusy (recording OR async starting OR stopping) closes the startup window where a voice
+        // recording could grab the mic while the meeting's streams are still coming up.
+        panelController.isMeetingRecording = { [weak self] in self?.meetingRecorder.isBusy ?? false }
         meetingRecorder.onMeetingReady = { [weak self] fileName, duration in
             guard let self else { return nil }
             let id = self.manager.beginVoiceNote(audioFileName: fileName, duration: duration, allowAutoCopy: false)
@@ -114,10 +116,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Quitting mid-meeting would abandon both temp tracks unfinalized (no moov atom → unplayable)
     /// and lose the whole recording: finish the meeting first (mix + store + item), then terminate.
+    /// `finishing` covers the "Mixing & transcribing…" phase, where isRecording is already false.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard meetingRecorder.isRecording else { return .terminateNow }
+        guard meetingRecorder.isRecording || meetingRecorder.finishing else { return .terminateNow }
         Task { @MainActor in
             await meetingRecorder.stop()
+            // A stop already in flight (auto-stop, HUD button) makes the call above a no-op: wait
+            // until the in-flight finalization actually completes before letting the process die.
+            while meetingRecorder.finishing { try? await Task.sleep(nanoseconds: 100_000_000) }
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -280,9 +286,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// A migration (or a manual edit) can leave two of the three shortcuts on the SAME combo. Carbon registers
-    /// each under a distinct id, so BOTH succeed and one keypress fires two actions. Break duplicates before
-    /// registering: keep the panel combo, move voice/capture off any clash to a free suggestion (or default).
+    /// A migration (or a manual edit) can leave two of the shortcuts on the SAME combo. Carbon rejects a
+    /// same-process duplicate registration (eventHotKeyExistsErr), which would leave the later shortcut dead.
+    /// Break duplicates before registering: keep the panel combo, move the others off any clash to a free
+    /// suggestion (or default).
     private func deduplicateShortcuts() {
         let s = Settings.shared
         func free(_ taken: [KeyCombo], _ fallback: KeyCombo) -> KeyCombo {
@@ -399,25 +406,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if meetingHotKey != nil { Settings.shared.meetingCombo = s; lastGoodMeetingCombo = s; break }
             }
         }
-        // If the panel/voice shortcuts are still dead after the default-reset (another app globally owns
-        // even the default combo), tell the user instead of leaving a silently-inert shortcut (deferred so it
+        // The suggestion-recovery loops above can land one shortcut on a sibling's combo (they don't all
+        // exclude every sibling). Run dedup once more — now it re-registers what it moves — so no two
+        // shortcuts share a combo (which would fire two actions on one keypress).
+        deduplicateShortcuts()
+        // Dedup may have just freed a combo a still-dead shortcut lost to a SIBLING earlier (Carbon
+        // rejects a same-process duplicate registration): retry each dead hotkey with its now-deduped
+        // combo before concluding another app owns it.
+        if hotKey == nil { makePanelHotKey(Settings.shared.combo) }
+        if voiceHotKey == nil { makeVoiceHotKey(Settings.shared.voiceCombo) }
+        if captureHotKey == nil { makeCaptureHotKey(Settings.shared.captureCombo) }
+        if uploadHotKey == nil { makeUploadHotKey(Settings.shared.uploadCombo) }
+        if textCaptureHotKey == nil { makeTextCaptureHotKey(Settings.shared.textCaptureCombo) }
+        if meetingHotKey == nil { makeMeetingHotKey(Settings.shared.meetingCombo) }
+        // If the panel/voice shortcuts are STILL dead after all recovery (another app globally owns even
+        // the default combo), tell the user instead of leaving a silently-inert shortcut (deferred so it
         // doesn't block launch).
         if hotKey == nil || voiceHotKey == nil {
             // Here the combo is owned by ANOTHER app, not by a Klip shortcut → dedicated wording.
             Task { @MainActor in NSSound.beep(); self.showAlert(L10n.t("hotkey.dead.title"), L10n.t("hotkey.dead.info")) }
         }
-        // The suggestion-recovery loops above can land one shortcut on a sibling's combo (they don't all
-        // exclude every sibling). Run dedup once more — now it re-registers what it moves — so no two
-        // shortcuts share a combo (which would fire two actions on one keypress).
-        deduplicateShortcuts()
         // Reflect any startup remaps in the menu's shortcut labels.
         buildMenu()
     }
 
     private enum ShortcutKind { case panel, voice, capture, upload, textCapture, meeting }
 
-    /// Carbon registers each shortcut under a distinct id, so it does NOT reject assigning the SAME combo
-    /// to two of our shortcuts — we must catch that ourselves.
+    /// Catch a combo already used by another of OUR shortcuts before touching Carbon: pre-empting the
+    /// registration keeps the sibling's hotkey intact and shows the right "in use" wording.
     private func collidesWithOtherShortcut(_ combo: KeyCombo, _ kind: ShortcutKind) -> Bool {
         let s = Settings.shared
         let others: [KeyCombo]
@@ -650,11 +666,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Fixed size: NSHostingView's fittingSize is 0 before its first layout pass, which made the
         // panel invisible. The SwiftUI content is a fixed 264pt-wide card; height fits all states.
         panel.setContentSize(Self.hudExpandedSize)
-        // Restore the user's dragged position when it still lands on a screen; default: top-right.
-        if let saved = UserDefaults.standard.string(forKey: "meetingHUDOrigin").map(NSPointFromString),
-           NSScreen.screens.contains(where: { $0.visibleFrame.insetBy(dx: -40, dy: -40).contains(saved) }) {
-            panel.setFrameOrigin(saved)
-        } else if let screen = NSScreen.main {
+        // Restore the user's dragged position, clamping the EXPANDED frame fully into the screen it
+        // best lands on (the saved origin can be a compact-pill origin, or reference an unplugged
+        // display, which would otherwise leave the card mostly off-screen); default: top-right.
+        var restored = false
+        if let saved = UserDefaults.standard.string(forKey: "meetingHUDOrigin").map(NSPointFromString) {
+            let frame = NSRect(origin: saved, size: Self.hudExpandedSize)
+            let best = NSScreen.screens.max { a, b in
+                let ia = a.visibleFrame.intersection(frame), ib = b.visibleFrame.intersection(frame)
+                return ia.width * ia.height < ib.width * ib.height
+            }
+            if let v = best?.visibleFrame, !v.intersection(frame).isEmpty {
+                panel.setFrameOrigin(NSPoint(x: min(max(saved.x, v.minX), v.maxX - frame.width),
+                                             y: min(max(saved.y, v.minY), v.maxY - frame.height)))
+                restored = true
+            }
+        }
+        if !restored, let screen = NSScreen.main {
             let f = screen.visibleFrame
             panel.setFrameTopLeftPoint(NSPoint(x: f.maxX - panel.frame.width - 16, y: f.maxY - 12))
         }

@@ -254,6 +254,13 @@ final class AnnotationCanvasView: NSView {
 
     @objc private func textFieldCommitted(_ sender: NSTextField) { commitActiveText() }
 
+    /// True while the in-place field holds real (non-whitespace) uncommitted text — the editor's
+    /// close path treats it as unsaved work (trimmed, matching commitActiveText's semantics).
+    var hasPendingText: Bool {
+        guard let field = activeTextField else { return false }
+        return !field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private func commitActiveText() {
         guard let field = activeTextField else { return }
         let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -263,6 +270,7 @@ final class AnnotationCanvasView: NSView {
         activeTextField = nil
         editingID = nil
         field.removeFromSuperview()
+        window?.makeFirstResponder(self)   // removing the field editor dropped keyboard focus
         onTextEditingChanged?(false)   // restore the toolbar key equivalents
         // Record undo only if this commit actually changes the annotations (new text, or re-edit).
         if !text.isEmpty || id != nil { pushUndo() }
@@ -401,6 +409,7 @@ final class AnnotationCanvasView: NSView {
         // editingID) and reappears once editingID is cleared. The re-edited text is not lost.
         if activeTextField != nil {
             activeTextField?.removeFromSuperview(); activeTextField = nil; editingID = nil
+            window?.makeFirstResponder(self)   // removing the field editor dropped keyboard focus
             onTextEditingChanged?(false)
             needsDisplay = true
             return

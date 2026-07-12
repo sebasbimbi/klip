@@ -21,6 +21,8 @@ struct UploadTranscription: Identifiable, Equatable {
     var errorKey: String? = nil   // L10n key for a SPECIFIC failure (no audio track / DRM / too large); nil → generic
     var audioFileName: String? = nil   // set when the note kept its audio (upload copy or audio-only container) → retryable
     var sourceURL: URL? = nil          // original video URL (videos aren't stored) → a failed row can re-extract from it
+    var language: String? = nil        // per-upload language override at enqueue time → a retry keeps it
+    var allowAutoCopy: Bool = true     // false for batch rows → a retry must not re-arm the clipboard auto-copy
 }
 
 /// Records a voice note to .m4a and transcribes it with OpenAI (not live: the whole note at once).
@@ -54,8 +56,9 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     var onVoiceNoteDuration: ((UUID, Double) -> Void)?
     /// Transcription failed or there was no speech: the item keeps the audio for playback/recovery.
     var onVoiceNoteFailed: ((UUID) -> Void)?
-    /// Retry: marks an existing item as "Transcribing…" again.
-    var onVoiceNoteRetrying: ((UUID) -> Void)?
+    /// Retry: marks an existing item as "Transcribing…" again. The Bool carries the original
+    /// allowAutoCopy decision (false for batch-upload rows: don't re-arm the clipboard per retried file).
+    var onVoiceNoteRetrying: ((UUID, Bool) -> Void)?
     /// First on-device use: the model is downloading, so a distinct state is shown instead of "Transcribing…".
     var onVoiceNoteDownloadingModel: ((UUID) -> Void)?
     /// An upload classified as video turned out to be pure audio (audio-only .mp4, etc.): its audio was stored, so
@@ -205,6 +208,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     private func startMeterTimer() {
+        stopMeterTimer()   // never stack a second timer: a leaked one would double-tick trackSilence
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {   // runs on RunLoop.main; assert it for the compiler
                 guard let self, let rec = self.recorder else { return }
@@ -252,18 +256,26 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         }
         // No forced auto-copy: finishVoiceNote already puts the transcription on the clipboard when it's
         // safe (changeCount guard — doesn't clobber what the user copied in the meantime — and never a secret).
-        for url in urls {
-            // Video: don't copy the (often large) file into the audio store — transcribe straight from the
-            // original (the app is not sandboxed, so the URL stays readable) and let the transcription
-            // bottleneck demux its audio to a temp file. The resulting note is text-only
-            // (no playback/retry), which is honest because we deliberately don't keep the
-            // video. Audio keeps the copy-to-store so it stays playable/retryable in the history.
-            let isVideo = MediaAudioExtractor.isVideo(url)
-            let stored = isVideo ? nil : storage.importAudio(from: url)        // copies to audio/ (nil on failure)
-            let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
-            enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL,
-                                 uploadName: url.lastPathComponent, language: language,
-                                 allowAutoCopy: urls.count == 1)   // a batch would rewrite the clipboard once per file
+        let allowAutoCopy = urls.count == 1   // a batch would rewrite the clipboard once per file
+        Task { @MainActor in
+            for url in urls {
+                // Video: don't copy the (often large) file into the audio store — transcribe straight from the
+                // original (the app is not sandboxed, so the URL stays readable) and let the transcription
+                // bottleneck demux its audio to a temp file. The resulting note is text-only
+                // (no playback/retry), which is honest because we deliberately don't keep the
+                // video. Audio keeps the copy-to-store so it stays playable/retryable in the history.
+                let isVideo = MediaAudioExtractor.isVideo(url)
+                // The store copy is a real byte copy when the source lives on another volume: run it off the
+                // main actor (same reason the duration read is detached) so a bulk drop doesn't freeze the UI.
+                // Sequential awaits keep the enqueue order matching the drop order.
+                let stored = isVideo ? nil : await Task.detached(priority: .userInitiated) {
+                    Storage.shared.importAudio(from: url)                       // copies to audio/ (nil on failure)
+                }.value
+                let transcribeURL = stored.map { storage.audioURL(for: $0) } ?? url
+                enqueueTranscription(audioFileName: stored, transcribeURL: transcribeURL,
+                                     uploadName: url.lastPathComponent, language: language,
+                                     allowAutoCopy: allowAutoCopy)
+            }
         }
     }
 
@@ -304,7 +316,8 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         if let uploadName, let id {   // show this file's progress + result in the Upload window
             // No stored audio means a real video: keep its source URL so a failed row can retry (re-extract).
             uploadResults.insert(UploadTranscription(id: id, name: uploadName, audioFileName: audioFileName,
-                                                     sourceURL: audioFileName == nil ? transcribeURL : nil), at: 0)
+                                                     sourceURL: audioFileName == nil ? transcribeURL : nil,
+                                                     language: language, allowAutoCopy: allowAutoCopy), at: 0)
             // List cap: prefer evicting a COMPLETED/failed entry (never an in-flight one — that
             // would orphan its fillUploadResult). If ALL are still in flight, a hard cap drops the
             // oldest so the list doesn't grow unbounded.
@@ -384,10 +397,12 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     /// Retries transcribing the audio of an existing item (a failed note with its audio).
+    /// The defaults fit the history retry path (global language, auto-copy on); the Upload-window
+    /// retry passes the row's original language override and allowAutoCopy decision through.
     @MainActor
-    func retry(itemID: UUID, audioFileName: String) {
-        onVoiceNoteRetrying?(itemID)
-        transcribeInBackground(id: itemID, url: storage.audioURL(for: audioFileName))
+    func retry(itemID: UUID, audioFileName: String, languageOverride: String? = nil, allowAutoCopy: Bool = true) {
+        onVoiceNoteRetrying?(itemID, allowAutoCopy)
+        transcribeInBackground(id: itemID, url: storage.audioURL(for: audioFileName), languageOverride: languageOverride)
     }
 
     /// Retries a failed Upload-window row in place: stored audio goes through the normal retry path;
@@ -399,11 +414,11 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         let row = uploadResults[i]
         if let af = row.audioFileName, storage.audioExists(fileName: af) {
             uploadResults[i].failed = false; uploadResults[i].errorKey = nil   // row shows the spinner again
-            retry(itemID: row.id, audioFileName: af)
+            retry(itemID: row.id, audioFileName: af, languageOverride: row.language, allowAutoCopy: row.allowAutoCopy)
         } else if let src = row.sourceURL, FileManager.default.fileExists(atPath: src.path) {
             uploadResults[i].failed = false; uploadResults[i].errorKey = nil
-            onVoiceNoteRetrying?(row.id)
-            transcribeInBackground(id: row.id, url: src)   // video: demuxes the audio track again
+            onVoiceNoteRetrying?(row.id, row.allowAutoCopy)
+            transcribeInBackground(id: row.id, url: src, languageOverride: row.language)   // video: demuxes the audio track again
         }
     }
 
@@ -498,6 +513,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
     nonisolated func audioRecorderDidFinishRecording(_ r: AVAudioRecorder, successfully ok: Bool) {
         Task { @MainActor in
+            stopMeterTimer()         // the delegate can fire on its own (encode error/disk full): don't leak the 10 Hz timer
             removeDeviceListener()   // ensures the listener is removed even if the delegate fires on its own
             finishing = false
             recorder = nil

@@ -47,7 +47,9 @@ final class RecorderNSView: NSView {
         let carbon = cocoaToCarbonModifiers(
             event.modifierFlags.intersection(.deviceIndependentFlagsMask))
         let candidate = KeyCombo(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
-        guard candidate.isValid else { NSSound.beep(); return }  // requires a modifier
+        // Requires a non-Shift modifier: a Shift-only combo would register globally and hijack
+        // shifted letters (typing capital E) system-wide.
+        guard candidate.isValid, carbon & ~UInt32(shiftKey) != 0 else { NSSound.beep(); return }
         current = candidate
         recording = false
         onCapture?(candidate)

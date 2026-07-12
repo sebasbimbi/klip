@@ -70,13 +70,15 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let minBarWidth: CGFloat = 1220  // minimum width so the toolbar doesn't overlap itself (11 tools + info cluster)
         let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 46
         let scale = min(1, min(maxW / imgSize.width, maxH / imgSize.height))
-        let contentW = max(minBarWidth, imgSize.width * scale)
+        // Clamp to the screen so the trailing Copy/Save/Close cluster never opens off-screen on
+        // narrow displays (the toolbar's contextual hiding absorbs the narrower bar).
+        let contentW = min(max(minBarWidth, imgSize.width * scale), screen.width)
         let contentH = imgSize.height * scale + 46   // 46 = toolbar
 
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: contentW, height: contentH),
-                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                           styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         win.title = L10n.t("win.editor")
-        win.minSize = NSSize(width: minBarWidth, height: 240)
+        win.minSize = NSSize(width: min(minBarWidth, screen.width), height: 240)
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.center()
@@ -398,6 +400,10 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     }
 
     @objc private func customColorChanged(_ sender: NSColorPanel) {
+        // Each panel gesture (drag or hex/component field edit) starts with a mouse-down or a
+        // key-down: re-arm there so every recolor stays ONE undo step (same as the blur slider).
+        let type = NSApp.currentEvent?.type
+        if type == .leftMouseDown || type == .keyDown { canvas.armColorCoalescing() }
         colorIndex = -1                                        // custom color: no preset marked
         canvas.setColorCoalesced(sender.color)
         refreshColorSwatches()
@@ -595,7 +601,8 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     /// instantly). Esc reaches here via the close button's key equivalent; the title-bar close goes
     /// through windowShouldClose.
     private func confirmDiscardIfNeeded() -> Bool {
-        guard !canvas.annotations.isEmpty else { return true }
+        // Typed-but-uncommitted text is work too: guard it like committed annotations.
+        guard !canvas.annotations.isEmpty || canvas.hasPendingText else { return true }
         let a = NSAlert()
         a.messageText = L10n.t("editor.discard.title")
         a.informativeText = L10n.t("editor.discard.info")

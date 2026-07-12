@@ -124,7 +124,8 @@ struct WelcomeView: View {
          (settings.voiceCombo, "rec.record"),
          (settings.captureCombo, "capture.annotate"),
          (settings.textCaptureCombo, "menu.captureText"),
-         (settings.uploadCombo, "act.upload")]
+         (settings.uploadCombo, "act.upload"),
+         (settings.meetingCombo, "meeting.record")]
             .map { "\($0.displayString)  \(L10n.t($1))" }.joined(separator: "\n")
     }
 

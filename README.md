@@ -46,7 +46,7 @@ Text & image history · **native capture + annotation** · **fast OCR capture** 
 
 ### 📸 Native capture + annotation (Klip Snap)
 - Global shortcut **`⌥⇧D`** → snip a region of the screen (drag a selection over a dimmed *freeze-frame*, with a live dimension badge and correct Retina scale). Uses **ScreenCaptureKit** (not the deprecated API).
-- Built-in **annotation editor**: pencil, line, **arrow**, rectangle, ellipse, highlighter, **editable/movable/resizable text**, color, stroke width and **undo**.
+- Built-in **annotation editor**: **select & move any annotation**, pencil, line, **arrow**, rectangle, ellipse, highlighter, **editable/movable/resizable text**, **blur/pixelate**, **spotlight**, **numbered counter badges**, color, stroke width, **undo/redo** and **pinch zoom** with a live percentage readout.
 - When you're done, the annotated capture lands in **history** (ready for **OCR** and search) and on the clipboard.
 - Also from the 📷 button in the panel or the menu-bar menu.
 - **Fast text capture** (`⌥⇧F`): snip a region and its **text is OCR'd straight to the clipboard** (and history) — skips the editor when you just need the text.
@@ -119,7 +119,7 @@ Global shortcuts use **⌥⇧ (Option+Shift)** + a letter, grouped by function o
 | `Esc` | Close the panel |
 | `⌘⇧⌃4` | *(macOS)* screenshot to clipboard → also lands in Klip |
 
-> All five global shortcuts are **configurable** in Preferences › Shortcuts.
+> All six global shortcuts are **configurable** in Preferences › Shortcuts.
 
 ## 🧰 Requirements
 
@@ -173,7 +173,7 @@ swift run Klip    # run directly
 
 Open **Preferences** (`⌘,` from the Klip menu):
 
-- **Shortcuts** — record the combinations you prefer (history, voice, annotate, fast-OCR, upload). Defaults are `⌥⇧E / R / D / F / O`.
+- **Shortcuts** — record the combinations you prefer (history, voice, annotate, fast-OCR, upload, meeting). Defaults are `⌥⇧E / R / D / F / O / M`.
 - **Voice transcription** — pick the **provider** (on-device, OpenAI or Google Gemini), **model**, language and **context words**.
 - **OpenAI / Google Gemini** — paste the API key for the provider you chose (only that section shows). Stored in a local `0600` file.
 - **History** — maximum number of items.

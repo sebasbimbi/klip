@@ -135,6 +135,9 @@ private final class CaptureOverlayView: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    // Esc mid-drag tears the window down without a mouseUp — stop the ants with the view.
+    deinit { antsTimer?.invalidate() }
+
     override var acceptsFirstResponder: Bool { true }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
 
@@ -159,9 +162,11 @@ private final class CaptureOverlayView: NSView {
     /// The classic animated dashed border. Runs only while a selection exists.
     private func setAnts(running: Bool) {
         if running, antsTimer == nil, !reduceMotion {
-            let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] timer in
                 MainActor.assumeIsolated {
-                    guard let self else { return }
+                    // Esc mid-drag dismisses without mouseUp: self-invalidate once the view is
+                    // gone (same pattern as the flash timer) so the timer can't leak.
+                    guard let self else { timer.invalidate(); return }
                     self.antsPhase += 0.6
                     self.needsDisplay = true
                 }
@@ -317,6 +322,9 @@ private final class CaptureOverlayView: NSView {
         }
         currentRect = NSRect(x: min(start.x, start.x + dx), y: min(start.y, start.y + dy),
                              width: abs(dx), height: abs(dy))
+        // Space-move and multi-monitor drags can push the rect past the screen: clamp it here so
+        // finish() never sizes the NSImage from a rect larger than the pixels it actually crops.
+        currentRect = currentRect.intersection(bounds)
         needsDisplay = true
     }
 

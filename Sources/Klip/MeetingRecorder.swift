@@ -17,6 +17,10 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
     @Published private(set) var systemLevel: Float = 0
     /// True from stop() until the mix + note handoff completes (the HUD shows "Mixing…").
     @Published private(set) var finishing = false
+    /// Busy for the whole span of a meeting — including the async startup window (mic permission,
+    /// SCShareableContent) and the stop/discard teardown. The mic/meeting mutual exclusion keys
+    /// off this instead of isRecording alone (wired in AppDelegate).
+    var isBusy: Bool { isRecording || startRequested || stopping }
 
     /// The mixed audio is already in the store: creates the voice-note item and returns its id
     /// (wired to manager.beginVoiceNote + rename). (audioFileName, duration) → item id.
@@ -47,6 +51,9 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
     private var systemWriter: SystemAudioWriter?
     private var micRecorder: AVAudioRecorder?
     private var micStopContinuation: CheckedContinuation<Void, Never>?
+    /// Bumped per teardown so the 3s watchdog only resumes the continuation it was armed for —
+    /// a stale watchdog must not cut short the NEXT teardown's finalization wait.
+    private var micStopGeneration = 0
     private var timer: Timer?
     private var micURL: URL?
     private var systemURL: URL?
@@ -214,11 +221,13 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
                 // Wait for AVAudioRecorder to finalize the file (delegate fires after stop()) — with a
                 // safety resume: if the delegate never fires, a hung wait here would freeze the whole
                 // meeting flow forever (stopping=true blocks every further toggle).
+                micStopGeneration += 1
+                let generation = micStopGeneration
                 await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                     micStopContinuation = cont
                     rec.stop()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-                        guard let self else { return }
+                        guard let self, self.micStopGeneration == generation else { return }
                         self.micStopContinuation?.resume()
                         self.micStopContinuation = nil
                     }
@@ -352,6 +361,9 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
 
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         Task { @MainActor in
+            // A late callback from an already-torn-down recorder must not resume the next
+            // teardown's continuation.
+            guard recorder === self.micRecorder else { return }
             self.micStopContinuation?.resume()
             self.micStopContinuation = nil
         }
@@ -361,6 +373,7 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
         // The recorder dies without a didFinishRecording: release any waiter so stop() can't hang.
         Task { @MainActor in
             NSLog("Klip: meeting mic encode error — %@", String(describing: error))
+            guard recorder === self.micRecorder else { return }   // stale callback, see above
             self.micStopContinuation?.resume()
             self.micStopContinuation = nil
         }
