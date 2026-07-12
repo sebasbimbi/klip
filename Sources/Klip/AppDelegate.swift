@@ -609,27 +609,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self.closeMeetingHUD()
                         self.updateStatusIcon(); self.buildMenu()
                     }
-                })
+                },
+                onToggleCompact: { [weak self] compact in self?.resizeMeetingHUD(compact: compact) })
+            // Borderless floating pill: translucent HUD material, rounded, draggable anywhere,
+            // and it remembers where you left it (per user request: a real floating popup).
             let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 264, height: 150),
-                                styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
+                                styleMask: [.nonactivatingPanel, .borderless],
                                 backing: .buffered, defer: false)
-            panel.titleVisibility = .hidden
-            panel.titlebarAppearsTransparent = true
-            panel.standardWindowButton(.closeButton)?.isHidden = true
-            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-            panel.standardWindowButton(.zoomButton)?.isHidden = true
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
             panel.level = .floating
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             panel.isMovableByWindowBackground = true
             panel.isReleasedWhenClosed = false
-            panel.contentView = NSHostingView(rootView: view)
+            let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 264, height: 150))
+            fx.material = .hudWindow
+            fx.blendingMode = .behindWindow
+            fx.state = .active
+            fx.wantsLayer = true
+            fx.layer?.cornerRadius = 12
+            fx.layer?.masksToBounds = true
+            fx.autoresizingMask = [.width, .height]
+            let hosting = NSHostingView(rootView: view)
+            hosting.frame = fx.bounds
+            hosting.autoresizingMask = [.width, .height]
+            fx.addSubview(hosting)
+            panel.contentView = fx
+            // Remember wherever the user drags it (restored on the next meeting).
+            NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification,
+                                                   object: panel, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let hud = self.meetingHUD, hud.isVisible, !self.hudResizing else { return }
+                    UserDefaults.standard.set(NSStringFromPoint(hud.frame.origin), forKey: "meetingHUDOrigin")
+                }
+            }
             meetingHUD = panel
         }
         guard let panel = meetingHUD else { return }
         // Fixed size: NSHostingView's fittingSize is 0 before its first layout pass, which made the
         // panel invisible. The SwiftUI content is a fixed 264pt-wide card; height fits all states.
-        panel.setContentSize(NSSize(width: 264, height: 168))
-        if let screen = NSScreen.main {
+        panel.setContentSize(Self.hudExpandedSize)
+        // Restore the user's dragged position when it still lands on a screen; default: top-right.
+        if let saved = UserDefaults.standard.string(forKey: "meetingHUDOrigin").map(NSPointFromString),
+           NSScreen.screens.contains(where: { $0.visibleFrame.insetBy(dx: -40, dy: -40).contains(saved) }) {
+            panel.setFrameOrigin(saved)
+        } else if let screen = NSScreen.main {
             let f = screen.visibleFrame
             panel.setFrameTopLeftPoint(NSPoint(x: f.maxX - panel.frame.width - 16, y: f.maxY - 12))
         }
@@ -648,6 +673,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// True while the HUD's close fade-out runs (still visible but going away).
     private var hudFadingOut = false
+    /// True during a programmatic compact/expand resize (so didMove doesn't save a transient origin).
+    private var hudResizing = false
+    private static let hudExpandedSize = NSSize(width: 264, height: 190)
+    private static let hudCompactSize = NSSize(width: 178, height: 34)
+
+    /// Resizes the HUD between the full card and the compact pill, keeping its TOP-RIGHT corner
+    /// anchored so the collapse feels like the card folding into itself.
+    private func resizeMeetingHUD(compact: Bool) {
+        guard let panel = meetingHUD else { return }
+        let size = compact ? Self.hudCompactSize : Self.hudExpandedSize
+        let topRight = NSPoint(x: panel.frame.maxX, y: panel.frame.maxY)
+        hudResizing = true
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(NSRect(x: topRight.x - size.width, y: topRight.y - size.height,
+                                             width: size.width, height: size.height), display: true)
+        }, completionHandler: { [weak self] in
+            Task { @MainActor in self?.hudResizing = false }
+        })
+    }
     private func closeMeetingHUD() {
         guard let hud = meetingHUD, hud.isVisible, !hudFadingOut else { return }
         hudFadingOut = true
