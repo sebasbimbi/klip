@@ -227,7 +227,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 - [ ] Favorites sync · optional sync between Macs.
 - [ ] Developer ID signing + notarization for warning-free distribution.
 
-**Already available:** text+image history · native capture + annotation (Klip Snap) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language · **meeting notes** (mic+system, Me/Them, on-device), saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
+**Already available:** text+image history · native capture + annotation (Klip Snap: select/move, blur, spotlight, counters, undo/redo, zoom) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language · **meeting notes** (mic+system, Me/Them, on-device), saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
 
 ## 🤝 Contributing
 
