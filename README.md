@@ -9,6 +9,8 @@ Text & image history · **native capture + annotation** · **fast OCR capture** 
 
 🆓 Free & open source (MIT) · 🔒 No telemetry · 🍎 Native Swift (no Electron)
 
+**🌐 [tamibot.github.io/klip](https://tamibot.github.io/klip/)**
+
 <br/>
 
 <img src="docs/klip-preview.gif" alt="Klip in action: snip an area of the screen, have it appear in Klip and pull its text with OCR; and record a voice note that transcribes itself" width="500"/>
