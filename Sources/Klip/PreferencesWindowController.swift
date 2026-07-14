@@ -17,14 +17,13 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered, defer: false)
         window.title = L10n.t("win.prefs")
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(
-            rootView: PreferencesView(onHotKeyChange: onHotKeyChange,
+        Glass.install(PreferencesView(onHotKeyChange: onHotKeyChange,
                                       onVoiceHotKeyChange: onVoiceHotKeyChange,
                                       onCaptureHotKeyChange: onCaptureHotKeyChange,
                                       onUploadHotKeyChange: onUploadHotKeyChange,
                                       onTextCaptureHotKeyChange: onTextCaptureHotKeyChange,
                                       onMeetingHotKeyChange: onMeetingHotKeyChange,
-                                      onMaxItemsChange: onMaxItemsChange))
+                                      onMaxItemsChange: onMaxItemsChange), in: window)
         window.center()
         self.init(window: window)
         window.delegate = self

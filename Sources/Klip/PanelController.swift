@@ -375,22 +375,18 @@ final class PanelController: NSObject, NSWindowDelegate {
         pasteOrRestore(target)
     }
 
-    /// Saves the item's text as a file (.txt/.md) so it can be dragged into an AI tool
-    /// when the chat won't accept pasting it (very large texts/logs).
+    /// Saves the item's text as a .txt straight to ~/Downloads (no save dialog) so it can be
+    /// dragged into an AI tool when the chat won't accept pasting it (very large texts/logs).
     private func saveTextAsFile(_ item: ClipboardItem) {
         guard item.isCredential != true else { return }   // don't write a secret to a plain-text file
         guard let t = item.text, !t.isEmpty else { return }
-        let sp = NSSavePanel()
-        var types: [UTType] = [.plainText]
-        if let md = UTType(filenameExtension: "md") { types.append(md) }
-        sp.allowedContentTypes = types
-        sp.nameFieldStringValue = (item.name?.isEmpty == false ? item.name! : "klip-text") + ".txt"
-        sp.canCreateDirectories = true
-        modalCount += 1   // "a modal panel is open" guard (don't close the panel behind it)
-        NSApp.activate(ignoringOtherApps: true)
-        sp.begin { [weak self] resp in
-            if resp == .OK, let url = sp.url { try? t.data(using: .utf8)?.write(to: url, options: .atomic) }
-            self?.modalCount -= 1
+        let base = item.name?.isEmpty == false ? item.name : nil   // nil → timestamped default
+        guard let data = t.data(using: .utf8),
+              let url = try? Storage.shared.exportToDownloads(data, ext: "txt", base: base)
+        else { NSSound.beep(); return }
+        ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
+                      actionTitle: L10n.t("toast.reveal")) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
         }
     }
 
@@ -399,29 +395,26 @@ final class PanelController: NSObject, NSWindowDelegate {
     func combineSelectedToPDF(_ items: [ClipboardItem]) {
         guard !items.isEmpty, !exportInFlight else { return }   // don't overlap exports
         exportInFlight = true
-        modalCount += 1   // protects the panel through the whole generation + save (closes the race window)
         manager.pauseMonitoring()   // keeps the poll's trim from deleting selected media mid-generation
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Storage.shared.combinedPDF(from: items)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.manager.resumeMonitoring()   // the media reads are done
+                self.exportInFlight = false
                 guard let result else {   // nothing exportable: warn instead of "the button does nothing"
-                    self.modalCount -= 1; self.exportInFlight = false
                     self.showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info"))
                     return
                 }
-                let sp = NSSavePanel()
-                sp.allowedContentTypes = [.pdf]
-                sp.nameFieldStringValue = "klip.pdf"
-                sp.canCreateDirectories = true
-                if result.exported < items.count {
-                    sp.message = String(format: L10n.t("export.partial"), result.exported, items.count)
-                }
-                NSApp.activate(ignoringOtherApps: true)
-                sp.begin { resp in
-                    if resp == .OK, let url = sp.url { try? result.data.write(to: url, options: .atomic) }
-                    self.modalCount -= 1; self.exportInFlight = false
+                guard let url = try? Storage.shared.exportToDownloads(result.data, ext: "pdf")
+                else { NSSound.beep(); return }
+                // Partial export: surface the skipped-items note in the toast instead of the filename.
+                let detail = result.exported < items.count
+                    ? String(format: L10n.t("export.partial"), result.exported, items.count)
+                    : url.lastPathComponent
+                ToastHUD.show(L10n.t("toast.imageSaved"), detail: detail,
+                              actionTitle: L10n.t("toast.reveal")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
             }
         }
@@ -432,26 +425,35 @@ final class PanelController: NSObject, NSWindowDelegate {
         let exportable = Storage.shared.zipExportableCount(items)
         guard exportable > 0 else { showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info")); return }
         exportInFlight = true
-        let sp = NSSavePanel()
-        sp.allowedContentTypes = [.zip]
-        sp.nameFieldStringValue = "klip-selection.zip"
-        sp.canCreateDirectories = true
-        if exportable < items.count {
-            sp.message = String(format: L10n.t("export.partial"), exportable, items.count)
-        }
-        modalCount += 1
-        NSApp.activate(ignoringOtherApps: true)
-        sp.begin { [weak self] resp in
-            guard let self else { return }
-            self.modalCount -= 1
-            guard resp == .OK, let url = sp.url else { self.exportInFlight = false; return }
-            self.manager.pauseMonitoring()   // keeps the poll's trim from deleting selected media mid-copy
-            DispatchQueue.global(qos: .userInitiated).async {
-                let err: Error? = { do { try Storage.shared.exportItemsZip(items, to: url); return nil } catch { return error } }()
-                DispatchQueue.main.async {
-                    self.manager.resumeMonitoring()
-                    self.exportInFlight = false
-                    if let err { self.showAlert(L10n.t("export.fail.title"), err.localizedDescription) }   // don't fail silently
+        manager.pauseMonitoring()   // keeps the poll's trim from deleting selected media mid-copy
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // ditto needs a concrete destination path: build the archive in a temp file, then land
+            // the bytes in ~/Downloads via the collision-safe helper.
+            let outcome: Result<URL, Error> = {
+                let tmp = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("KlipSel-\(UUID().uuidString).zip")
+                defer { try? FileManager.default.removeItem(at: tmp) }
+                do {
+                    try Storage.shared.exportItemsZip(items, to: tmp)
+                    return .success(try Storage.shared.exportToDownloads(Data(contentsOf: tmp), ext: "zip"))
+                } catch { return .failure(error) }
+            }()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.manager.resumeMonitoring()
+                self.exportInFlight = false
+                switch outcome {
+                case .failure(let err):
+                    self.showAlert(L10n.t("export.fail.title"), err.localizedDescription)   // don't fail silently
+                case .success(let url):
+                    // Partial export: surface the skipped-items note in the toast instead of the filename.
+                    let detail = exportable < items.count
+                        ? String(format: L10n.t("export.partial"), exportable, items.count)
+                        : url.lastPathComponent
+                    ToastHUD.show(L10n.t("toast.imageSaved"), detail: detail,
+                                  actionTitle: L10n.t("toast.reveal")) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
                 }
             }
         }
@@ -572,10 +574,10 @@ final class PanelController: NSObject, NSWindowDelegate {
                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
             w.title = L10n.t("win.welcome")
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: WelcomeView(onStart: { [weak self] in
+            Glass.install(WelcomeView(onStart: { [weak self] in
                 Settings.shared.hasSeenWelcome = true
                 self?.welcomeWindow?.orderOut(nil)
-            }))
+            }), in: w)
             w.center()
             welcomeWindow = w
         }
@@ -592,7 +594,7 @@ final class PanelController: NSObject, NSWindowDelegate {
                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
             w.title = L10n.t("win.guide")
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: GuideView())
+            Glass.install(GuideView(), in: w)
             w.center()
             guideWindow = w
         }
@@ -626,7 +628,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             w.title = L10n.t("win.upload")
             w.isReleasedWhenClosed = false
             w.contentMinSize = NSSize(width: 400, height: 360)
-            w.contentView = NSHostingView(rootView: view)
+            Glass.install(view, in: w)
             w.center()
             uploadWindow = w
         }

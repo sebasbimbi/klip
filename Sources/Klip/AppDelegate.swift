@@ -450,79 +450,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func applyCaptureHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .capture) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.captureCombo = lastGoodCaptureCombo; buildMenu(); return
         }
         let ok: Bool
         if captureHotKey == nil { makeCaptureHotKey(combo); ok = (captureHotKey != nil) }   // was dead: re-create
         else { ok = captureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodCaptureCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.captureCombo = lastGoodCaptureCombo }
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.captureCombo = lastGoodCaptureCombo }
         buildMenu()
     }
 
     private func applyHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .panel) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.combo = lastGoodCombo; buildMenu(); return
         }
         let ok: Bool
         if hotKey == nil { makePanelHotKey(combo); ok = (hotKey != nil) }
         else { ok = hotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.combo = lastGoodCombo }   // collision: revert
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.combo = lastGoodCombo }   // collision: revert
         buildMenu()
     }
 
     private func applyVoiceHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .voice) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.voiceCombo = lastGoodVoiceCombo; buildMenu(); return
         }
         let ok: Bool
         if voiceHotKey == nil { makeVoiceHotKey(combo); ok = (voiceHotKey != nil) }
         else { ok = voiceHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodVoiceCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.voiceCombo = lastGoodVoiceCombo }
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.voiceCombo = lastGoodVoiceCombo }
         buildMenu()
     }
 
     private func applyUploadHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .upload) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.uploadCombo = lastGoodUploadCombo; buildMenu(); return
         }
         let ok: Bool
         if uploadHotKey == nil { makeUploadHotKey(combo); ok = (uploadHotKey != nil) }
         else { ok = uploadHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodUploadCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.uploadCombo = lastGoodUploadCombo }
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.uploadCombo = lastGoodUploadCombo }
         buildMenu()
     }
 
     private func applyTextCaptureHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .textCapture) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.textCaptureCombo = lastGoodTextCaptureCombo; buildMenu(); return
         }
         let ok: Bool
         if textCaptureHotKey == nil { makeTextCaptureHotKey(combo); ok = (textCaptureHotKey != nil) }
         else { ok = textCaptureHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodTextCaptureCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.textCaptureCombo = lastGoodTextCaptureCombo }
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.textCaptureCombo = lastGoodTextCaptureCombo }
         buildMenu()
     }
 
     private func applyMeetingHotKey(_ combo: KeyCombo) {
         if collidesWithOtherShortcut(combo, .meeting) {
-            NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse"))
+            NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse"))
             Settings.shared.meetingCombo = lastGoodMeetingCombo; buildMenu(); return
         }
         let ok: Bool
         if meetingHotKey == nil { makeMeetingHotKey(combo); ok = (meetingHotKey != nil) }
         else { ok = meetingHotKey?.reRegister(keyCode: combo.keyCode, modifiers: combo.carbonModifiers) == true }
         if ok { lastGoodMeetingCombo = combo }
-        else { NSSound.beep(); showAlert(L10n.t("act.prefs"), L10n.t("hotkey.inuse")); Settings.shared.meetingCombo = lastGoodMeetingCombo }
+        else { NSSound.beep(); ToastHUD.show(L10n.t("hotkey.inuse")); Settings.shared.meetingCombo = lastGoodMeetingCombo }
         buildMenu()
     }
 
@@ -777,7 +777,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func enableAutoPaste() {
         if Paster.ensureAccessibilityPermission(prompt: true) {
             Settings.shared.autoPaste = true   // make the "enabled" claim true even if the pref was off
-            showAlert(L10n.t("autopaste.enabled.title"), L10n.t("autopaste.enabled.info"))
+            ToastHUD.show(L10n.t("autopaste.enabled.title"))
         } else {
             // Not granted yet: the system dialog opened asynchronously. Tell the user what to do, instead
             // of silently doing nothing (the common case — they clicked this because it wasn't working).
@@ -800,20 +800,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func exportBackup() {
-        let sp = NSSavePanel()
-        sp.allowedContentTypes = [.zip]
-        sp.nameFieldStringValue = "Klip-backup.zip"
-        sp.canCreateDirectories = true
-        NSApp.activate(ignoringOtherApps: true)
-        sp.begin { [weak self] resp in
-            guard resp == .OK, let url = sp.url, let self else { return }
-            self.manager.pauseMonitoring()   // keep the poll from adding/trimming media mid-copy (it would corrupt the zip)
-            DispatchQueue.global(qos: .userInitiated).async {   // ditto + heavy copy: off the main thread
-                do {
-                    try Storage.shared.exportBackup(to: url)
-                    DispatchQueue.main.async { self.manager.resumeMonitoring() }
-                } catch {
-                    DispatchQueue.main.async { self.showAlert(L10n.t("export.fail"), error.localizedDescription); self.manager.resumeMonitoring() }
+        // Direct write to ~/Downloads, no save panel (same convention as exportToDownloads,
+        // including its timestamp pattern and collision-safe naming — exportBackup deletes an
+        // existing dest, so the name must be free).
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+        let base = "Klip backup \(df.string(from: Date()))"
+        let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+        var url = dir.appendingPathComponent("\(base).zip")
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = dir.appendingPathComponent("\(base)-\(n).zip"); n += 1
+        }
+        manager.pauseMonitoring()   // keep the poll from adding/trimming media mid-copy (it would corrupt the zip)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in   // ditto + heavy copy: off the main thread
+            do {
+                try Storage.shared.exportBackup(to: url)
+                DispatchQueue.main.async {
+                    self?.manager.resumeMonitoring()
+                    ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent, actionTitle: L10n.t("toast.reveal")) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.showAlert(L10n.t("export.fail"), error.localizedDescription)
+                    self?.manager.resumeMonitoring()
                 }
             }
         }

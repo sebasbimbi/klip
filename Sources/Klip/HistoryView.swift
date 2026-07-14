@@ -347,6 +347,11 @@ struct HistoryView: View {
                     .font(.system(size: 30)).foregroundStyle(.secondary)
                 Text(filter == .credential ? L10n.t("empty.cred") : L10n.t("empty.noresults"))
                     .foregroundStyle(.secondary)
+                // One-click way out of a "falsely empty" list caused by an active search/filter.
+                if !search.isEmpty || filter != .all || collectionFilter != nil {
+                    Button(L10n.t("empty.clear")) { search = ""; filter = .all; collectionFilter = nil }
+                        .buttonStyle(.link).font(.system(size: 11))
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).padding(40)

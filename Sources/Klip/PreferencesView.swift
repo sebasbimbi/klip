@@ -322,6 +322,7 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)   // let the window's glass material show through
         // Provider-dependent sections (model picker, key sections) fade/slide in place
         // instead of snapping when the segmented picker changes.
         .animation(.easeOut(duration: 0.15), value: settings.aiProvider)

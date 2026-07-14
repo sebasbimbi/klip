@@ -66,7 +66,7 @@ enum L10n {
         "row.whatsapp": "Copiar para WhatsApp",
         "row.email": "Copiar para correo",
         "row.code": "Copiar como bloque de código",
-        "row.savefile": "Guardar como archivo…",
+        "row.savefile": "Guardar en Descargas",
         "row.pin": "Favorito", "row.unpin": "Quitar de favoritos",
         "row.delete": "Eliminar",
         "row.reveal": "Mostrar / ocultar",
@@ -78,7 +78,7 @@ enum L10n {
         "voice.retry": "Reintentar transcripción",
         "date.today": "Hoy",
         "date.yesterday": "Ayer",
-        "menu.export": "Exportar copia de seguridad…",
+        "menu.export": "Exportar copia de seguridad",
         "menu.import": "Importar copia de seguridad…",
         "rename.title": "Ponle un nombre",
         "rename.info": "Un nombre te ayuda a encontrarlo después (puedes buscarlo). Déjalo vacío para quitarlo.",
@@ -336,6 +336,9 @@ enum L10n {
         "row.annotate": "Anotar",
         "toast.imageSaved": "Guardada en Descargas",
         "toast.reveal": "Mostrar en Finder",
+        "capture.failed": "La captura falló",
+        "empty.clear": "Limpiar filtros",
+        "upload.skipped": "%d archivo(s) no compatibles omitidos",
     ]
 
     private static let en: [String: String] = [
@@ -385,7 +388,7 @@ enum L10n {
         "row.whatsapp": "Copy for WhatsApp",
         "row.email": "Copy for email",
         "row.code": "Copy as code block",
-        "row.savefile": "Save as file…",
+        "row.savefile": "Save to Downloads",
         "row.pin": "Favorite", "row.unpin": "Unfavorite",
         "row.delete": "Delete",
         "row.reveal": "Show / hide",
@@ -397,7 +400,7 @@ enum L10n {
         "voice.retry": "Retry transcription",
         "date.today": "Today",
         "date.yesterday": "Yesterday",
-        "menu.export": "Export backup…",
+        "menu.export": "Export backup",
         "menu.import": "Import backup…",
         "rename.title": "Give it a name",
         "rename.info": "A name helps you find it later (it's searchable). Leave empty to remove it.",
@@ -655,6 +658,9 @@ enum L10n {
         "row.annotate": "Annotate",
         "toast.imageSaved": "Saved to Downloads",
         "toast.reveal": "Show in Finder",
+        "capture.failed": "Capture failed",
+        "empty.clear": "Clear filters",
+        "upload.skipped": "%d unsupported file(s) skipped",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -702,7 +708,7 @@ enum L10n {
         "row.ocr": "Extraire le texte (OCR)",
         "row.markdown": "Copier en Markdown",
         "row.code": "Copier comme bloc de code",
-        "row.savefile": "Enregistrer comme fichier…",
+        "row.savefile": "Enregistrer dans Téléchargements",
         "row.pin": "Favori",
         "row.unpin": "Retirer des favoris",
         "row.delete": "Supprimer",
@@ -715,7 +721,7 @@ enum L10n {
         "voice.retry": "Réessayer la transcription",
         "date.today": "Aujourd'hui",
         "date.yesterday": "Hier",
-        "menu.export": "Exporter une sauvegarde…",
+        "menu.export": "Exporter une sauvegarde",
         "menu.import": "Importer une sauvegarde…",
         "rename.title": "Donnez-lui un nom",
         "rename.info": "Un nom vous aide à le retrouver plus tard (il est recherchable). Laissez vide pour le supprimer.",
@@ -977,6 +983,9 @@ enum L10n {
         "row.annotate": "Annoter",
         "toast.imageSaved": "Enregistrée dans Téléchargements",
         "toast.reveal": "Afficher dans le Finder",
+        "capture.failed": "Échec de la capture",
+        "empty.clear": "Effacer les filtres",
+        "upload.skipped": "%d fichier(s) non pris en charge ignorés",
     ]
 
     private static let de: [String: String] = [
@@ -1022,7 +1031,7 @@ enum L10n {
         "row.ocr": "Text extrahieren (OCR)",
         "row.markdown": "Als Markdown kopieren",
         "row.code": "Als Codeblock kopieren",
-        "row.savefile": "Als Datei speichern…",
+        "row.savefile": "In Downloads sichern",
         "row.pin": "Favorit",
         "row.unpin": "Aus Favoriten entfernen",
         "row.delete": "Löschen",
@@ -1035,7 +1044,7 @@ enum L10n {
         "voice.retry": "Transkription wiederholen",
         "date.today": "Heute",
         "date.yesterday": "Gestern",
-        "menu.export": "Backup exportieren…",
+        "menu.export": "Backup exportieren",
         "menu.import": "Backup importieren…",
         "rename.title": "Gib ihm einen Namen",
         "rename.info": "Ein Name hilft dir, ihn später wiederzufinden (er ist durchsuchbar). Leer lassen, um ihn zu entfernen.",
@@ -1297,6 +1306,9 @@ enum L10n {
         "row.annotate": "Beschriften",
         "toast.imageSaved": "In Downloads gesichert",
         "toast.reveal": "Im Finder zeigen",
+        "capture.failed": "Aufnahme fehlgeschlagen",
+        "empty.clear": "Filter zurücksetzen",
+        "upload.skipped": "%d nicht unterstützte Datei(en) übersprungen",
     ]
 
     private static let it: [String: String] = [
@@ -1342,7 +1354,7 @@ enum L10n {
         "row.ocr": "Estrai testo (OCR)",
         "row.markdown": "Copia come Markdown",
         "row.code": "Copia come blocco di codice",
-        "row.savefile": "Salva come file…",
+        "row.savefile": "Salva in Download",
         "row.pin": "Preferito",
         "row.unpin": "Rimuovi dai preferiti",
         "row.delete": "Elimina",
@@ -1355,7 +1367,7 @@ enum L10n {
         "voice.retry": "Riprova trascrizione",
         "date.today": "Oggi",
         "date.yesterday": "Ieri",
-        "menu.export": "Esporta backup…",
+        "menu.export": "Esporta backup",
         "menu.import": "Importa backup…",
         "rename.title": "Assegna un nome",
         "rename.info": "Un nome ti aiuta a ritrovarlo più tardi (è ricercabile). Lascia vuoto per rimuoverlo.",
@@ -1617,6 +1629,9 @@ enum L10n {
         "row.annotate": "Annota",
         "toast.imageSaved": "Salvata in Download",
         "toast.reveal": "Mostra nel Finder",
+        "capture.failed": "Cattura non riuscita",
+        "empty.clear": "Cancella filtri",
+        "upload.skipped": "%d file non supportati ignorati",
     ]
 
     private static let pt: [String: String] = [
@@ -1662,7 +1677,7 @@ enum L10n {
         "row.ocr": "Extrair texto (OCR)",
         "row.markdown": "Copiar como Markdown",
         "row.code": "Copiar como bloco de código",
-        "row.savefile": "Guardar como ficheiro…",
+        "row.savefile": "Salvar em Downloads",
         "row.pin": "Favorito",
         "row.unpin": "Remover dos favoritos",
         "row.delete": "Eliminar",
@@ -1675,7 +1690,7 @@ enum L10n {
         "voice.retry": "Repetir transcrição",
         "date.today": "Hoje",
         "date.yesterday": "Ontem",
-        "menu.export": "Exportar cópia de segurança…",
+        "menu.export": "Exportar cópia de segurança",
         "menu.import": "Importar cópia de segurança…",
         "rename.title": "Dá-lhe um nome",
         "rename.info": "Um nome ajuda-te a encontrá-lo mais tarde (é pesquisável). Deixa vazio para o remover.",
@@ -1937,6 +1952,9 @@ enum L10n {
         "row.annotate": "Anotar",
         "toast.imageSaved": "Salva em Downloads",
         "toast.reveal": "Mostrar no Finder",
+        "capture.failed": "Falha na captura",
+        "empty.clear": "Limpar filtros",
+        "upload.skipped": "%d arquivo(s) não suportados ignorados",
     ]
 
     private static let zh: [String: String] = [
@@ -1982,7 +2000,7 @@ enum L10n {
         "row.ocr": "提取文字（OCR）",
         "row.markdown": "复制为 Markdown",
         "row.code": "复制为代码块",
-        "row.savefile": "另存为文件…",
+        "row.savefile": "保存到“下载”",
         "row.pin": "收藏",
         "row.unpin": "取消收藏",
         "row.delete": "删除",
@@ -1995,7 +2013,7 @@ enum L10n {
         "voice.retry": "重试转写",
         "date.today": "今天",
         "date.yesterday": "昨天",
-        "menu.export": "导出备份…",
+        "menu.export": "导出备份",
         "menu.import": "导入备份…",
         "rename.title": "为它命名",
         "rename.info": "名称有助于你之后找到它（可搜索）。留空即可移除名称。",
@@ -2257,6 +2275,9 @@ enum L10n {
         "row.annotate": "标注",
         "toast.imageSaved": "已保存到“下载”",
         "toast.reveal": "在访达中显示",
+        "capture.failed": "截图失败",
+        "empty.clear": "清除筛选",
+        "upload.skipped": "已跳过 %d 个不支持的文件",
     ]
 
     private static let ja: [String: String] = [
@@ -2302,7 +2323,7 @@ enum L10n {
         "row.ocr": "テキストを抽出 (OCR)",
         "row.markdown": "Markdownとしてコピー",
         "row.code": "コードブロックとしてコピー",
-        "row.savefile": "ファイルとして保存…",
+        "row.savefile": "ダウンロードに保存",
         "row.pin": "お気に入り",
         "row.unpin": "お気に入りを解除",
         "row.delete": "削除",
@@ -2315,7 +2336,7 @@ enum L10n {
         "voice.retry": "文字起こしを再試行",
         "date.today": "今日",
         "date.yesterday": "昨日",
-        "menu.export": "バックアップを書き出す…",
+        "menu.export": "バックアップを書き出す",
         "menu.import": "バックアップを読み込む…",
         "rename.title": "名前を付けてください",
         "rename.info": "名前を付けると後で見つけやすくなります(検索できます)。空のままにすると削除されます。",
@@ -2577,5 +2598,8 @@ enum L10n {
         "row.annotate": "注釈を付ける",
         "toast.imageSaved": "ダウンロードに保存しました",
         "toast.reveal": "Finderに表示",
+        "capture.failed": "キャプチャに失敗しました",
+        "empty.clear": "フィルタをクリア",
+        "upload.skipped": "未対応ファイル%d件をスキップしました",
     ]
 }

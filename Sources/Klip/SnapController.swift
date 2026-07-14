@@ -48,6 +48,7 @@ final class SnapController {
             } catch {
                 self.inProgress = false
                 NSSound.beep()
+                ToastHUD.show(L10n.t("capture.failed"))
             }
         }
     }
@@ -84,11 +85,7 @@ final class SnapController {
             guard let self else { return }
             guard self.manager.addCapturedText(text) else {   // nothing recognized: say so — a bare beep
                 NSSound.beep()                                    // can't be told apart from "the feature broke"
-                let a = NSAlert()
-                a.messageText = L10n.t("snap.notext.title")
-                a.informativeText = L10n.t("snap.notext.info")
-                a.addButton(withTitle: L10n.t("common.ok"))
-                a.runModal()
+                ToastHUD.show(L10n.t("snap.notext.title"), detail: L10n.t("snap.notext.info"))
                 return
             }
             ToastHUD.show(L10n.t("toast.textCopied"), detail: text,

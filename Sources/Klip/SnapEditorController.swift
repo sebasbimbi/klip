@@ -121,8 +121,15 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             win.animator().alphaValue = 1
         }
-        canvas.currentLineWidth = 3   // default stroke: visible but not heavy
-        selectTool(.arrow)
+        // Restore last-used tool state across editor sessions (defaults: 3pt stroke, arrow, swatch 0).
+        let defaults = UserDefaults.standard
+        let storedWidth = defaults.double(forKey: "klip.editor.lineWidth")
+        canvas.currentLineWidth = storedWidth > 0 ? CGFloat(storedWidth) : 3
+        strokeControl?.selectedSegment = canvas.currentLineWidth >= 6 ? 1 : 0
+        colorIndex = max(0, defaults.integer(forKey: "klip.editor.colorIndex"))
+        selectTool(SnapTool(rawValue: defaults.string(forKey: "klip.editor.tool") ?? "") ?? .arrow)
+        canvas.setDefaultColor(palette[min(colorIndex, palette.count - 1)])
+        refreshColorSwatches()
         // When the selection changes, reflect its color in the palette and swap the contextual
         // controls (blur slider / text size) to match what is selected.
         canvas.onSelectionChange = { [weak self] in
@@ -346,10 +353,12 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         }
         lastToolWasMarker = isMarker
         refreshContextualControls()
+        UserDefaults.standard.set(tool.rawValue, forKey: "klip.editor.tool")
     }
 
     @objc private func widthChanged(_ sender: NSSegmentedControl) {
         canvas.currentLineWidth = sender.selectedSegment == 1 ? 6 : 3   // thick / thin
+        UserDefaults.standard.set(Double(canvas.currentLineWidth), forKey: "klip.editor.lineWidth")
     }
 
     @objc private func blurLevelChanged(_ sender: NSSlider) {
@@ -387,6 +396,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         colorIndex = sender.tag
         canvas.setColor(palette[min(colorIndex, palette.count - 1)])
         refreshColorSwatches()
+        UserDefaults.standard.set(colorIndex, forKey: "klip.editor.colorIndex")
     }
 
     @objc private func moreColorTapped() {

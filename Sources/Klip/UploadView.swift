@@ -190,6 +190,13 @@ struct UploadView: View {
             let media = urls.filter { exts.contains($0.pathExtension.lowercased()) || MediaAudioExtractor.isVideo($0) }
             if !media.isEmpty {
                 dropRejected = false
+                if media.count < urls.count {
+                    // Mixed drop: the supported files proceed, but don't silently swallow the rest.
+                    NSSound.beep()
+                    MainActor.assumeIsolated {
+                        ToastHUD.show(String(format: L10n.t("upload.skipped"), urls.count - media.count))
+                    }
+                }
                 onFiles(media, effectiveLanguage)
             } else if !urls.isEmpty {
                 // Everything dropped was unsupported: don't swallow it silently.

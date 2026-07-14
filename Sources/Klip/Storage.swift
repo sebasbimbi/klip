@@ -131,22 +131,31 @@ final class Storage {
     func imageURL(for fileName: String) -> URL { imagesURL.appendingPathComponent(fileName) }
     func loadImage(fileName: String) -> NSImage? { NSImage(contentsOf: imageURL(for: fileName)) }
 
-    /// Writes PNG data straight to ~/Downloads with a timestamped name — no save dialog
-    /// (Shottr-style: saving should never ask for a name). Returns the written URL.
-    func exportPNGToDownloads(_ png: Data) throws -> URL {
+    /// Writes data straight to ~/Downloads with a collision-safe name — no save dialog
+    /// (Shottr-style: saving should never ask for a name). `base` defaults to a timestamped
+    /// "Klip <date> at <time>"; pass a clip's name to keep it. Returns the written URL.
+    func exportToDownloads(_ data: Data, ext: String, base: String? = nil) throws -> URL {
         let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
-        let base = "Klip \(df.string(from: Date()))"
-        var url = dir.appendingPathComponent("\(base).png")
+        let name: String
+        if let base, !base.isEmpty {
+            // Sanitize a user-provided clip name for the filesystem.
+            name = base.replacingOccurrences(of: "[/:\\\\]", with: "-", options: .regularExpression)
+        } else {
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+            name = "Klip \(df.string(from: Date()))"
+        }
+        var url = dir.appendingPathComponent("\(name).\(ext)")
         var n = 2
         while FileManager.default.fileExists(atPath: url.path) {
-            url = dir.appendingPathComponent("\(base)-\(n).png"); n += 1
+            url = dir.appendingPathComponent("\(name)-\(n).\(ext)"); n += 1
         }
-        try png.write(to: url, options: .atomic)
+        try data.write(to: url, options: .atomic)
         return url
     }
+
+    func exportPNGToDownloads(_ png: Data) throws -> URL { try exportToDownloads(png, ext: "png") }
 
     func deleteImage(fileName: String) {
         imageCache.removeObject(forKey: fileName as NSString)
