@@ -67,6 +67,14 @@
   .f p{margin:0;color:var(--muted);font-size:.92rem}
   /* bands */
   .band{background:var(--band);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  /* notes deep-dive */
+  .nrow{display:flex;align-items:center;gap:56px;margin-top:52px}
+  .nrow.rev{flex-direction:row-reverse}
+  .nrow .art{flex:0 0 230px;width:230px}
+  .nrow .art svg{width:100%;height:auto;display:block}
+  .nrow h3{margin:0 0 .35em;font-size:1.2rem;font-weight:700;letter-spacing:-.01em}
+  .nrow p{margin:0;color:var(--muted);font-size:.97rem;max-width:540px}
+  @media (max-width:720px){ .nrow,.nrow.rev{flex-direction:column;gap:16px;margin-top:40px;text-align:center} .nrow .art{flex:none;width:180px} .nrow p{max-width:none} }
   /* tips */
   .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   @media (max-width:760px){ .tips{grid-template-columns:1fr} }
@@ -102,6 +110,7 @@
     <span class="logo"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="klip-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6bf0"/><stop offset="1" stop-color="#4453d6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#klip-tile)"/><rect x="9" y="8" width="14" height="17.5" rx="3" fill="#ffffff"/><rect x="12" y="5.5" width="8" height="5" rx="2" fill="#ffffff"/><rect x="14" y="7" width="4" height="1.8" rx="0.9" fill="#5b6bf0"/><rect x="12" y="15" width="8" height="2" rx="1" fill="#e6e9fb"/><rect x="12" y="19" width="5" height="2" rx="1" fill="#e6e9fb"/></svg> Klip</span>
     <span class="spacer"></span>
     <a href="#section-features" class="hidesm">Features</a>
+    <a href="#section-notes" class="hidesm">Notes</a>
     <a href="#section-tips" class="hidesm">Tips &amp; Tricks</a>
     <a href="#section-faq">FAQ</a>
     <a href="#section-releasenotes" class="hidesm">Release Notes</a>
@@ -634,6 +643,193 @@
   <circle cx="84" cy="13" r="2" fill="#4453d6"/>
 </svg></div><h3>8 languages</h3><p>English, Spanish, French, German, Italian, Portuguese, Chinese and Japanese — OCR reads your system's languages too.</p></div>
     </div>
+  </div>
+</section>
+
+<section id="section-notes">
+  <div class="wrap">
+    <h2>Take notes without typing</h2>
+    <p class="lead">Talk — or drop a recording — and Klip turns it into searchable text in your history.</p>
+      <div class="nrow"><div class="art"><svg viewBox="0 0 130 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="mtg-t1">
+      <rect x="29" y="20" width="26" height="36" rx="3"/>
+    </clipPath>
+    <clipPath id="mtg-t2">
+      <rect x="58" y="20" width="26" height="36" rx="3"/>
+    </clipPath>
+  </defs>
+
+  <!-- background blob -->
+  <path d="M14 48 C12 24 36 10 66 12 C96 14 120 26 118 52 C116 78 94 92 60 90 C30 88 16 72 14 48 Z" fill="#e6e9fb"/>
+
+  <!-- video-call window -->
+  <rect x="28.5" y="19.5" width="63" height="44" rx="5" fill="#dfe3f8"/>
+  <rect x="25" y="16" width="63" height="44" rx="5" fill="#ffffff"/>
+  <!-- left participant tile -->
+  <g clip-path="url(#mtg-t1)">
+    <rect x="29" y="20" width="26" height="36" fill="#5b6bf0"/>
+    <circle cx="42" cy="33.5" r="5.5" fill="#ffffff"/>
+    <rect x="34.5" y="44" width="15" height="16" rx="7" fill="#ffffff"/>
+  </g>
+  <!-- right participant tile with facet slice -->
+  <g clip-path="url(#mtg-t2)">
+    <rect x="58" y="20" width="26" height="36" fill="#5b6bf0"/>
+    <path d="M70 16 L92 16 L92 64 L58 64 Z" fill="#4453d6"/>
+    <circle cx="71" cy="33.5" r="5.5" fill="#ffffff"/>
+    <rect x="63.5" y="44" width="15" height="16" rx="7" fill="#ffffff"/>
+  </g>
+
+  <!-- floating recording pill -->
+  <rect x="24.5" y="58.5" width="40" height="13" rx="6.5" fill="#dfe3f8"/>
+  <rect x="21" y="55" width="40" height="13" rx="6.5" fill="#ffffff" stroke="#5b6bf0" stroke-width="2"/>
+  <circle cx="28.5" cy="61.5" r="3" fill="#5b6bf0"/>
+  <g stroke="#4453d6" stroke-width="2" stroke-linecap="round">
+    <line x1="36.5" y1="59.5" x2="36.5" y2="63.5"/>
+    <line x1="41" y1="57.5" x2="41" y2="65.5"/>
+    <line x1="45.5" y1="59" x2="45.5" y2="64"/>
+    <line x1="50" y1="58" x2="50" y2="65"/>
+    <line x1="54.5" y1="60" x2="54.5" y2="63"/>
+  </g>
+
+  <!-- transcript card -->
+  <rect x="79.5" y="67.5" width="38" height="28" rx="4" fill="#dfe3f8"/>
+  <rect x="76" y="64" width="38" height="28" rx="4" fill="#ffffff"/>
+  <g stroke-width="2.5" stroke-linecap="round">
+    <line x1="81" y1="70" x2="103" y2="70" stroke="#5b6bf0"/>
+    <line x1="87" y1="76" x2="109" y2="76" stroke="#2f3a8f"/>
+    <line x1="81" y1="82" x2="100" y2="82" stroke="#5b6bf0"/>
+    <line x1="87" y1="88" x2="105" y2="88" stroke="#2f3a8f"/>
+  </g>
+
+  <!-- sparkle accents -->
+  <path d="M103 6.5 C103.9 9.6 104.4 10.1 107.5 11 C104.4 11.9 103.9 12.4 103 15.5 C102.1 12.4 101.6 11.9 98.5 11 C101.6 10.1 102.1 9.6 103 6.5 Z" fill="#f5b50a"/>
+  <circle cx="17.5" cy="28" r="1.7" fill="#f5b50a"/>
+</svg></div><div><h3>Meeting notes, no bot</h3><p>Press <kbd>⌥⇧M</kbd> on any call — Zoom, Meet, Teams, FaceTime. Klip records your mic and the system audio; nobody joins the call. Stop with the same shortcut (or let it auto-stop after 15 minutes of silence) and the transcript lands in history with Me / Them labels — audio kept and playable.</p></div></div>
+      <div class="nrow rev"><div class="art"><svg viewBox="0 0 130 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="dct-cardclip">
+      <rect x="86" y="44" width="30" height="36" rx="4"/>
+    </clipPath>
+  </defs>
+
+  <!-- background blob -->
+  <path d="M18 54 C14 32 34 12 64 13 C94 14 118 24 119 48 C120 72 102 89 70 90 C42 91 22 78 18 54 Z" fill="#e6e9fb"/>
+
+  <!-- flat offset shadows -->
+  <g fill="#dfe3f8" transform="translate(3.5,3.5)">
+    <rect x="20" y="38" width="5.5" height="12" rx="2.75"/>
+    <rect x="29" y="32" width="5.5" height="24" rx="2.75"/>
+    <rect x="38" y="26" width="5.5" height="36" rx="2.75"/>
+    <rect x="47" y="30" width="5.5" height="28" rx="2.75"/>
+    <rect x="56" y="35" width="5.5" height="18" rx="2.75"/>
+    <rect x="65" y="39" width="5.5" height="10" rx="2.75"/>
+    <rect x="86" y="44" width="30" height="36" rx="4"/>
+  </g>
+
+  <!-- waveform (focal) -->
+  <rect x="20" y="38" width="5.5" height="12" rx="2.75" fill="#5b6bf0"/>
+  <rect x="29" y="32" width="5.5" height="24" rx="2.75" fill="#5b6bf0"/>
+  <rect x="38" y="26" width="5.5" height="36" rx="2.75" fill="#5b6bf0"/>
+  <rect x="47" y="30" width="5.5" height="28" rx="2.75" fill="#4453d6"/>
+  <rect x="56" y="35" width="5.5" height="18" rx="2.75" fill="#5b6bf0"/>
+  <rect x="65" y="39" width="5.5" height="10" rx="2.75" fill="#5b6bf0"/>
+
+  <!-- flow arrow -->
+  <path d="M72 34 C79 28 86 29 90 36" fill="none" stroke="#2f3a8f" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M85 35 L90 36 L91.5 31" fill="none" stroke="#2f3a8f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- document card -->
+  <rect x="86" y="44" width="30" height="36" rx="4" fill="#5b6bf0"/>
+  <rect x="102" y="44" width="14" height="36" fill="#4453d6" clip-path="url(#dct-cardclip)"/>
+  <rect x="95" y="40.5" width="12" height="6" rx="2.5" fill="#2f3a8f"/>
+  <rect x="91" y="54" width="18" height="3" rx="1.5" fill="#ffffff"/>
+  <rect x="91" y="61" width="13" height="3" rx="1.5" fill="#ffffff"/>
+  <rect x="91" y="68" width="16" height="3" rx="1.5" fill="#ffffff"/>
+
+  <!-- sparkles -->
+  <path d="M30 16 L31.6 20.4 L36 22 L31.6 23.6 L30 28 L28.4 23.6 L24 22 L28.4 20.4 Z" fill="#f5b50a"/>
+  <circle cx="60" cy="72" r="2" fill="#f5b50a"/>
+</svg></div><div><h3>Dictate your prompts</h3><p>Press <kbd>⌥⇧R</kbd>, think out loud, press again. The transcript is on your clipboard, ready to paste into any AI chat — usually faster than typing it.</p></div></div>
+      <div class="nrow"><div class="art"><svg viewBox="0 0 130 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="upl-cardclip">
+      <rect x="50" y="25" width="28" height="38" rx="5"/>
+    </clipPath>
+  </defs>
+
+  <!-- background blob -->
+  <path d="M 20 50 C 18 24, 44 8, 74 12 C 104 16, 122 36, 117 60 C 112 84, 84 96, 54 93 C 27 90, 22 76, 20 50 Z" fill="#e6e9fb"/>
+
+  <!-- drop tray (dashed drop zone) -->
+  <rect x="35.5" y="61.5" width="66" height="28" rx="7" fill="#dfe3f8"/>
+  <rect x="32" y="58" width="66" height="28" rx="7" fill="#f0f2fc" stroke="#5b6bf0" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+
+  <!-- motion dashes -->
+  <line x1="55" y1="11" x2="54" y2="18" stroke="#5b6bf0" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="66" y1="8" x2="65" y2="15" stroke="#5b6bf0" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- file card with play triangle -->
+  <g transform="rotate(-8 64 44)">
+    <rect x="53.5" y="28.5" width="28" height="38" rx="5" fill="#dfe3f8"/>
+    <rect x="50" y="25" width="28" height="38" rx="5" fill="#5b6bf0"/>
+    <rect x="66" y="25" width="12" height="38" clip-path="url(#upl-cardclip)" fill="#4453d6"/>
+    <path d="M 59 36 L 71.5 44 L 59 52 Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+
+  <!-- sparkle accents -->
+  <path d="M 103 24 L 104.8 28.2 L 109 30 L 104.8 31.8 L 103 36 L 101.2 31.8 L 97 30 L 101.2 28.2 Z" fill="#f5b50a"/>
+  <circle cx="27" cy="34" r="2" fill="#f5b50a"/>
+</svg></div><div><h3>Drop in a recording</h3><p>Press <kbd>⌥⇧O</kbd> and drop audio or video — mp4, mov, WhatsApp voice notes (.opus) and more. Klip extracts the audio track and transcribes each file as it finishes, with a per-file language override.</p></div></div>
+      <div class="nrow rev"><div class="art"><svg viewBox="0 0 130 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="dev-facet">
+      <rect x="72" y="0" width="58" height="100"/>
+    </clipPath>
+  </defs>
+
+  <!-- background blob -->
+  <path d="M12,54 C10,32 32,13 62,12 C90,11 112,26 111,50 C110,74 94,89 62,90 C32,91 14,76 12,54 Z" fill="#e6e9fb"/>
+
+  <!-- flat offset shadow -->
+  <g transform="translate(3.5,3.5)" fill="#dfe3f8">
+    <rect x="30" y="20" width="62" height="46" rx="4"/>
+    <rect x="23" y="66" width="76" height="6" rx="3"/>
+  </g>
+
+  <!-- laptop bezel -->
+  <rect x="30" y="20" width="62" height="46" rx="4" fill="#5b6bf0"/>
+  <rect x="30" y="20" width="62" height="46" rx="4" fill="#4453d6" clip-path="url(#dev-facet)"/>
+
+  <!-- screen panel -->
+  <rect x="34" y="24" width="54" height="38" rx="2" fill="#ffffff"/>
+
+  <!-- waveform inside screen -->
+  <g stroke="#5b6bf0" stroke-width="2.5" stroke-linecap="round">
+    <line x1="45" y1="40" x2="45" y2="47"/>
+    <line x1="51" y1="36" x2="51" y2="51"/>
+    <line x1="57" y1="31" x2="57" y2="56" stroke="#2f3a8f"/>
+    <line x1="63" y1="38" x2="63" y2="49"/>
+    <line x1="69" y1="33" x2="69" y2="54" stroke="#2f3a8f"/>
+    <line x1="75" y1="40" x2="75" y2="47"/>
+  </g>
+
+  <!-- laptop base -->
+  <rect x="23" y="66" width="76" height="6" rx="3" fill="#5b6bf0"/>
+  <rect x="23" y="66" width="76" height="6" rx="3" fill="#4453d6" clip-path="url(#dev-facet)"/>
+  <rect x="54" y="66" width="14" height="2.5" rx="1.25" fill="#ffffff"/>
+
+  <!-- padlock badge on screen corner -->
+  <circle cx="94" cy="27" r="11" fill="#ffffff"/>
+  <path d="M90,25.8 v-2.8 a4,4 0 0 1 8,0 v2.8" fill="none" stroke="#4453d6" stroke-width="2.2" stroke-linecap="round"/>
+  <rect x="87.5" y="25.8" width="13" height="9.5" rx="2.2" fill="#5b6bf0"/>
+  <circle cx="94" cy="29.6" r="1.5" fill="#ffffff"/>
+  <rect x="93.25" y="30.2" width="1.5" height="2.8" rx="0.75" fill="#ffffff"/>
+
+  <!-- sparkles -->
+  <path d="M24,18 L25.3,21.2 L28.5,22.5 L25.3,23.8 L24,27 L22.7,23.8 L19.5,22.5 L22.7,21.2 Z" fill="#f5b50a"/>
+  <circle cx="108" cy="80" r="1.8" fill="#f5b50a"/>
+</svg></div><div><h3>On-device by default</h3><p>Transcription runs locally with Whisper: no API key, no upload, works offline. Teach it your context words — app names, jargon — so proper nouns come out right. Prefer OpenAI or Gemini? Bring your own key.</p></div></div>
   </div>
 </section>
 
