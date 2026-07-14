@@ -561,29 +561,26 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         finish(with: image)
     }
 
+    /// Saves straight to ~/Downloads with a timestamped name — no save dialog. The toast's
+    /// "Show in Finder" action covers finding the file afterwards.
     @objc private func saveTapped() {
-        guard let window else { return }
         let image = canvas.flattened()
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = L10n.t("editor.savefilename")
-        // Sheet anchored to the editor window (not floating) so it isn't orphaned if it closes.
-        panel.beginSheetModal(for: window) { [weak self] resp in
-            guard let self else { return }
-            guard resp == .OK, let url = panel.url else { return }   // cancel: the editor stays open
-            guard let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else {
-                self.showError(L10n.t("editor.err.png")); return
+        guard let png = Storage.shared.pngData(from: image) else {
+            showError(L10n.t("editor.err.png")); return
+        }
+        do {
+            let url = try Storage.shared.exportPNGToDownloads(png)
+            MainActor.assumeIsolated {   // @objc button action: always on the main thread
+                ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
+                              actionTitle: L10n.t("toast.reveal")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
             }
-            do {
-                try png.write(to: url)
-                self.finish(with: image)
-            } catch {
-                // Write failure (disk full, read-only path…): warn and do NOT close the editor,
-                // so we don't lose the annotation thinking it was saved.
-                self.showError(String(format: L10n.t("editor.err.save"), error.localizedDescription))
-            }
+            finish(with: image)
+        } catch {
+            // Write failure (disk full, read-only path…): warn and do NOT close the editor,
+            // so we don't lose the annotation thinking it was saved.
+            showError(String(format: L10n.t("editor.err.save"), error.localizedDescription))
         }
     }
 

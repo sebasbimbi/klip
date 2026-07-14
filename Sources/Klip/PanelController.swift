@@ -57,6 +57,8 @@ final class PanelController: NSObject, NSWindowDelegate {
     private let cornerRadius: CGFloat = 12
     private var recordingPanel: NSPanel?
     private var guideWindow: NSWindow?
+    /// Retains the annotation editor opened from a history item (row ✏️ button).
+    private var imageEditor: SnapEditorController?
     private var uploadWindow: NSWindow?
     private var welcomeWindow: NSWindow?
 
@@ -82,6 +84,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             recorder: recorder,
             onPick: { [weak self] item in self?.pick(item) },
             onSaveImage: { [weak self] item in self?.saveImage(item) },
+            onAnnotate: { [weak self] item in self?.annotateImage(item) },
             onCopyMarkdown: { [weak self] item in self?.copyMarkdown(of: item) },
             onCopyAllMarkdown: { [weak self] in self?.copyAllMarkdown() },
             onOpenPreferences: { [weak self] in self?.hide(restoreFocus: false); self?.onOpenPreferences?() },
@@ -179,9 +182,11 @@ final class PanelController: NSObject, NSWindowDelegate {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self, self.fadingOut else { return }   // reopened mid-fade: leave it on screen
-            self.fadingOut = false
-            self.panel.orderOut(nil)
+            MainActor.assumeIsolated {   // AppKit animation completions run on the main thread
+                guard let self, self.fadingOut else { return }   // reopened mid-fade: leave it on screen
+                self.fadingOut = false
+                self.panel.orderOut(nil)
+            }
         })
     }
 
@@ -712,20 +717,32 @@ final class PanelController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Saves straight to ~/Downloads with a timestamped name — no dialog, no typing a name.
+    /// The toast's "Show in Finder" action covers the "where did it go?" case.
     private func saveImage(_ item: ClipboardItem) {
         guard item.kind == .image, let fn = item.imageFileName,
               let img = Storage.shared.loadImage(fileName: fn),
               let png = Storage.shared.pngData(from: img) else { return }
-        let sp = NSSavePanel()
-        sp.allowedContentTypes = [.png]
-        sp.nameFieldStringValue = "klip-capture.png"
-        sp.canCreateDirectories = true
-        modalCount += 1
-        NSApp.activate(ignoringOtherApps: true)
-        sp.begin { [weak self] resp in
-            if resp == .OK, let url = sp.url { try? png.write(to: url, options: .atomic) }
-            self?.modalCount -= 1
+        guard let url = try? Storage.shared.exportPNGToDownloads(png) else { NSSound.beep(); return }
+        ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
+                      actionTitle: L10n.t("toast.reveal")) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
         }
+    }
+
+    /// Opens the ⌥⇧D annotation editor on an image already in history; the annotated
+    /// result lands back in history and on the clipboard (same flow as a fresh capture).
+    private func annotateImage(_ item: ClipboardItem) {
+        guard item.kind == .image, let fn = item.imageFileName,
+              let img = Storage.shared.loadImage(fileName: fn) else { return }
+        hide(restoreFocus: false)
+        let editor = SnapEditorController(image: img) { [weak self] result in
+            self?.imageEditor = nil
+            guard let result else { return }   // nil = closed without saving
+            self?.manager.addAnnotatedScreenshot(result, copyToClipboard: true)
+        }
+        imageEditor = editor
+        editor.present()
     }
 
     // MARK: - NSWindowDelegate (fallback to close when focus is lost)

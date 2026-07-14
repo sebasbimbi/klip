@@ -730,10 +730,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             hud.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self, self.hudFadingOut else { return }   // re-shown mid-fade: leave it up
-            self.hudFadingOut = false
-            hud.orderOut(nil)
-            hud.alphaValue = 1   // ready for the next appearance
+            MainActor.assumeIsolated {   // AppKit animation completions run on the main thread
+                guard let self, self.hudFadingOut else { return }   // re-shown mid-fade: leave it up
+                self.hudFadingOut = false
+                hud.orderOut(nil)
+                hud.alphaValue = 1   // ready for the next appearance
+            }
         })
     }
 

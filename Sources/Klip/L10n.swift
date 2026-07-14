@@ -59,7 +59,7 @@ enum L10n {
         "hint.open": "Abrir Klip",
         "row.openlink": "Abrir enlace",
         "row.copy": "Copiar / pegar",
-        "row.save": "Guardar como archivo",
+        "row.save": "Guardar en Descargas",
         "row.viewbig": "Ver en grande",
         "row.ocr": "Extraer texto (OCR)",
         "row.markdown": "Copiar como Markdown",
@@ -174,7 +174,6 @@ enum L10n {
         "editor.morecolors": "Más colores…",
         "editor.textsmaller": "Texto más chico",
         "editor.textlarger": "Texto más grande",
-        "editor.savefilename": "Captura Klip.png",
         "editor.err.title": "Guardar captura",
         "editor.err.png": "No se pudo generar el PNG de la captura.",
         "editor.err.save": "No se pudo guardar la captura: %@",
@@ -334,6 +333,9 @@ enum L10n {
         "welcome.perms.relaunch": "Se aplica al reabrir Klip",
         "welcome.perms.screen": "Grabación de pantalla — captura, OCR y reuniones",
         "welcome.perms.title": "Configura los permisos ahora",
+        "row.annotate": "Anotar",
+        "toast.imageSaved": "Guardada en Descargas",
+        "toast.reveal": "Mostrar en Finder",
     ]
 
     private static let en: [String: String] = [
@@ -376,7 +378,7 @@ enum L10n {
         "hint.open": "Open Klip",
         "row.openlink": "Open link",
         "row.copy": "Copy / paste",
-        "row.save": "Save as file",
+        "row.save": "Save to Downloads",
         "row.viewbig": "View larger",
         "row.ocr": "Extract text (OCR)",
         "row.markdown": "Copy as Markdown",
@@ -491,7 +493,6 @@ enum L10n {
         "editor.morecolors": "More colors…",
         "editor.textsmaller": "Smaller text",
         "editor.textlarger": "Larger text",
-        "editor.savefilename": "Klip Capture.png",
         "editor.err.title": "Save capture",
         "editor.err.png": "Couldn't generate the PNG of the capture.",
         "editor.err.save": "Couldn't save the capture: %@",
@@ -651,6 +652,9 @@ enum L10n {
         "welcome.perms.relaunch": "Applied after reopening Klip",
         "welcome.perms.screen": "Screen Recording — capture, OCR & meetings",
         "welcome.perms.title": "Set up permissions now",
+        "row.annotate": "Annotate",
+        "toast.imageSaved": "Saved to Downloads",
+        "toast.reveal": "Show in Finder",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -693,7 +697,7 @@ enum L10n {
         "hint.open": "Ouvrir Klip",
         "row.openlink": "Ouvrir le lien",
         "row.copy": "Copier / coller",
-        "row.save": "Enregistrer comme fichier",
+        "row.save": "Enregistrer dans Téléchargements",
         "row.viewbig": "Voir en grand",
         "row.ocr": "Extraire le texte (OCR)",
         "row.markdown": "Copier en Markdown",
@@ -805,7 +809,6 @@ enum L10n {
         "editor.morecolors": "Plus de couleurs…",
         "editor.textsmaller": "Texte plus petit",
         "editor.textlarger": "Texte plus grand",
-        "editor.savefilename": "Capture Klip.png",
         "editor.err.title": "Enregistrer la capture",
         "editor.err.png": "Impossible de générer le PNG de la capture.",
         "editor.err.save": "Impossible d'enregistrer la capture : %@",
@@ -971,6 +974,9 @@ enum L10n {
         "welcome.perms.relaunch": "Appliqué après la réouverture de Klip",
         "welcome.perms.screen": "Enregistrement d'écran — capture, OCR et réunions",
         "welcome.perms.title": "Configurez les autorisations maintenant",
+        "row.annotate": "Annoter",
+        "toast.imageSaved": "Enregistrée dans Téléchargements",
+        "toast.reveal": "Afficher dans le Finder",
     ]
 
     private static let de: [String: String] = [
@@ -1011,7 +1017,7 @@ enum L10n {
         "hint.open": "Klip öffnen",
         "row.openlink": "Link öffnen",
         "row.copy": "Kopieren / einfügen",
-        "row.save": "Als Datei speichern",
+        "row.save": "In Downloads sichern",
         "row.viewbig": "Größer anzeigen",
         "row.ocr": "Text extrahieren (OCR)",
         "row.markdown": "Als Markdown kopieren",
@@ -1123,7 +1129,6 @@ enum L10n {
         "editor.morecolors": "Weitere Farben…",
         "editor.textsmaller": "Kleinerer Text",
         "editor.textlarger": "Größerer Text",
-        "editor.savefilename": "Klip Aufnahme.png",
         "editor.err.title": "Aufnahme speichern",
         "editor.err.png": "Das PNG der Aufnahme konnte nicht erstellt werden.",
         "editor.err.save": "Die Aufnahme konnte nicht gespeichert werden: %@",
@@ -1289,6 +1294,9 @@ enum L10n {
         "welcome.perms.relaunch": "Gilt nach dem Neustart von Klip",
         "welcome.perms.screen": "Bildschirmaufnahme — Aufnahmen, OCR & Meetings",
         "welcome.perms.title": "Berechtigungen jetzt einrichten",
+        "row.annotate": "Beschriften",
+        "toast.imageSaved": "In Downloads gesichert",
+        "toast.reveal": "Im Finder zeigen",
     ]
 
     private static let it: [String: String] = [
@@ -1329,7 +1337,7 @@ enum L10n {
         "hint.open": "Apri Klip",
         "row.openlink": "Apri link",
         "row.copy": "Copia / incolla",
-        "row.save": "Salva come file",
+        "row.save": "Salva in Download",
         "row.viewbig": "Vedi più grande",
         "row.ocr": "Estrai testo (OCR)",
         "row.markdown": "Copia come Markdown",
@@ -1441,7 +1449,6 @@ enum L10n {
         "editor.morecolors": "Altri colori…",
         "editor.textsmaller": "Testo più piccolo",
         "editor.textlarger": "Testo più grande",
-        "editor.savefilename": "Cattura Klip.png",
         "editor.err.title": "Salva cattura",
         "editor.err.png": "Impossibile generare il PNG della cattura.",
         "editor.err.save": "Impossibile salvare la cattura: %@",
@@ -1607,6 +1614,9 @@ enum L10n {
         "welcome.perms.relaunch": "Applicato dopo la riapertura di Klip",
         "welcome.perms.screen": "Registrazione schermo — cattura, OCR e riunioni",
         "welcome.perms.title": "Configura subito i permessi",
+        "row.annotate": "Annota",
+        "toast.imageSaved": "Salvata in Download",
+        "toast.reveal": "Mostra nel Finder",
     ]
 
     private static let pt: [String: String] = [
@@ -1647,7 +1657,7 @@ enum L10n {
         "hint.open": "Abrir Klip",
         "row.openlink": "Abrir ligação",
         "row.copy": "Copiar / colar",
-        "row.save": "Guardar como ficheiro",
+        "row.save": "Salvar em Downloads",
         "row.viewbig": "Ver maior",
         "row.ocr": "Extrair texto (OCR)",
         "row.markdown": "Copiar como Markdown",
@@ -1759,7 +1769,6 @@ enum L10n {
         "editor.morecolors": "Mais cores…",
         "editor.textsmaller": "Texto menor",
         "editor.textlarger": "Texto maior",
-        "editor.savefilename": "Captura Klip.png",
         "editor.err.title": "Guardar captura",
         "editor.err.png": "Não foi possível gerar o PNG da captura.",
         "editor.err.save": "Não foi possível guardar a captura: %@",
@@ -1925,6 +1934,9 @@ enum L10n {
         "welcome.perms.relaunch": "Aplicado após reabrir o Klip",
         "welcome.perms.screen": "Gravação de ecrã — captura, OCR e reuniões",
         "welcome.perms.title": "Configura já as permissões",
+        "row.annotate": "Anotar",
+        "toast.imageSaved": "Salva em Downloads",
+        "toast.reveal": "Mostrar no Finder",
     ]
 
     private static let zh: [String: String] = [
@@ -1965,7 +1977,7 @@ enum L10n {
         "hint.open": "打开 Klip",
         "row.openlink": "打开链接",
         "row.copy": "复制 / 粘贴",
-        "row.save": "另存为文件",
+        "row.save": "保存到“下载”",
         "row.viewbig": "放大查看",
         "row.ocr": "提取文字（OCR）",
         "row.markdown": "复制为 Markdown",
@@ -2077,7 +2089,6 @@ enum L10n {
         "editor.morecolors": "更多颜色…",
         "editor.textsmaller": "缩小文字",
         "editor.textlarger": "放大文字",
-        "editor.savefilename": "Klip 截图.png",
         "editor.err.title": "保存截图",
         "editor.err.png": "无法生成截图的 PNG。",
         "editor.err.save": "无法保存截图：%@",
@@ -2243,6 +2254,9 @@ enum L10n {
         "welcome.perms.relaunch": "重新打开 Klip 后生效",
         "welcome.perms.screen": "屏幕录制——截图、OCR 与会议",
         "welcome.perms.title": "立即设置权限",
+        "row.annotate": "标注",
+        "toast.imageSaved": "已保存到“下载”",
+        "toast.reveal": "在访达中显示",
     ]
 
     private static let ja: [String: String] = [
@@ -2283,7 +2297,7 @@ enum L10n {
         "hint.open": "Klipを開く",
         "row.openlink": "リンクを開く",
         "row.copy": "コピー / ペースト",
-        "row.save": "ファイルとして保存",
+        "row.save": "ダウンロードに保存",
         "row.viewbig": "大きく表示",
         "row.ocr": "テキストを抽出 (OCR)",
         "row.markdown": "Markdownとしてコピー",
@@ -2395,7 +2409,6 @@ enum L10n {
         "editor.morecolors": "その他の色…",
         "editor.textsmaller": "文字を小さく",
         "editor.textlarger": "文字を大きく",
-        "editor.savefilename": "Klip Capture.png",
         "editor.err.title": "キャプチャを保存",
         "editor.err.png": "キャプチャのPNGを生成できませんでした。",
         "editor.err.save": "キャプチャを保存できませんでした: %@",
@@ -2561,5 +2574,8 @@ enum L10n {
         "welcome.perms.relaunch": "Klip の再起動後に適用",
         "welcome.perms.screen": "画面収録 — キャプチャ・OCR・ミーティング",
         "welcome.perms.title": "今すぐ権限を設定",
+        "row.annotate": "注釈を付ける",
+        "toast.imageSaved": "ダウンロードに保存しました",
+        "toast.reveal": "Finderに表示",
     ]
 }

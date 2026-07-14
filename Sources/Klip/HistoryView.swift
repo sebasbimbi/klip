@@ -28,6 +28,7 @@ struct HistoryView: View {
     @ObservedObject var settings = Settings.shared
     var onPick: (ClipboardItem) -> Void
     var onSaveImage: (ClipboardItem) -> Void
+    var onAnnotate: (ClipboardItem) -> Void
     var onCopyMarkdown: (ClipboardItem) -> Void
     var onCopyAllMarkdown: () -> Void
     var onOpenPreferences: () -> Void
@@ -299,7 +300,7 @@ struct HistoryView: View {
                                 isSelected: item.id == selection.selectedID,
                                 resetToken: selection.openToken,
                                 manager: manager,
-                                onPick: onPick, onSaveImage: onSaveImage,
+                                onPick: onPick, onSaveImage: onSaveImage, onAnnotate: onAnnotate,
                                 onCopyMarkdown: onCopyMarkdown, onOCR: { runOCR(item) },
                                 onRename: onRename, onDelete: onDelete,
                                 onRetryTranscription: onRetryTranscription,
@@ -402,6 +403,7 @@ struct ItemRow: View {
     @ObservedObject var manager: ClipboardManager
     var onPick: (ClipboardItem) -> Void
     var onSaveImage: (ClipboardItem) -> Void
+    var onAnnotate: (ClipboardItem) -> Void
     var onCopyMarkdown: (ClipboardItem) -> Void
     var onOCR: () -> Void
     var onRename: (ClipboardItem) -> Void
@@ -606,6 +608,10 @@ struct ItemRow: View {
             } else if isCredential {
                 iconButton(revealed ? "eye.slash" : "eye", L10n.t("row.reveal")) { revealed.toggle() }
                 copyButton
+            } else if item.kind == .image {
+                iconButton("pencil.tip.crop.circle", L10n.t("row.annotate")) { onAnnotate(item) }
+                iconButton("square.and.arrow.down", L10n.t("row.save")) { onSaveImage(item) }
+                copyButton
             } else {
                 copyButton
             }
@@ -628,6 +634,7 @@ struct ItemRow: View {
             if let fn = item.imageFileName {
                 Button { NSWorkspace.shared.open(Storage.shared.imageURL(for: fn)) } label: { Label(L10n.t("row.viewbig"), systemImage: "arrow.up.left.and.arrow.down.right") }
             }
+            Button { onAnnotate(item) } label: { Label(L10n.t("row.annotate"), systemImage: "pencil.tip.crop.circle") }
             Button { onSaveImage(item) } label: { Label(L10n.t("row.save"), systemImage: "square.and.arrow.down") }
             Button { onOCR() } label: { Label(L10n.t("row.ocr"), systemImage: "text.viewfinder") }
         } else if isCredential {

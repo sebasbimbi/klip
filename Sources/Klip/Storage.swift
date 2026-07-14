@@ -130,6 +130,24 @@ final class Storage {
 
     func imageURL(for fileName: String) -> URL { imagesURL.appendingPathComponent(fileName) }
     func loadImage(fileName: String) -> NSImage? { NSImage(contentsOf: imageURL(for: fileName)) }
+
+    /// Writes PNG data straight to ~/Downloads with a timestamped name — no save dialog
+    /// (Shottr-style: saving should never ask for a name). Returns the written URL.
+    func exportPNGToDownloads(_ png: Data) throws -> URL {
+        let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+        let base = "Klip \(df.string(from: Date()))"
+        var url = dir.appendingPathComponent("\(base).png")
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = dir.appendingPathComponent("\(base)-\(n).png"); n += 1
+        }
+        try png.write(to: url, options: .atomic)
+        return url
+    }
+
     func deleteImage(fileName: String) {
         imageCache.removeObject(forKey: fileName as NSString)
         try? FileManager.default.removeItem(at: imageURL(for: fileName))
