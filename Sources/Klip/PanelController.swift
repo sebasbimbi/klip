@@ -126,6 +126,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         fx.state = .active
         fx.wantsLayer = true
         fx.layer?.cornerRadius = cornerRadius
+        fx.layer?.cornerCurve = .continuous
         fx.layer?.masksToBounds = true
         fx.autoresizingMask = [.width, .height]
         self.effectView = fx
@@ -153,6 +154,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         previousApp = NSWorkspace.shared.frontmostApplication
         positionPanel()
 
+        // Fade + a small upward settle (banner-style, same as ToastHUD); slide dropped under Reduce Motion.
+        let target = panel.frame
+        let slide: CGFloat = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 6
+        panel.setFrameOrigin(NSPoint(x: target.origin.x, y: target.origin.y - slide))
         panel.alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
@@ -166,6 +171,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             ctx.duration = 0.13
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 1
+            panel.animator().setFrame(target, display: true)
         }
 
         installMonitors()
@@ -543,7 +549,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]   // also show over full-screen apps
             let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 360, height: 320))
             fx.material = .hudWindow; fx.blendingMode = .behindWindow; fx.state = .active
-            fx.wantsLayer = true; fx.layer?.cornerRadius = 16; fx.layer?.masksToBounds = true
+            fx.wantsLayer = true; fx.layer?.cornerRadius = 16; fx.layer?.cornerCurve = .continuous; fx.layer?.masksToBounds = true
             fx.autoresizingMask = [.width, .height]
             let host = NSHostingView(rootView: view)
             host.frame = fx.bounds; host.autoresizingMask = [.width, .height]; fx.addSubview(host)

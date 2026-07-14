@@ -12,7 +12,6 @@ struct MeetingHUDView: View {
     var onToggleCompact: (Bool) -> Void
 
     @State private var compact = false
-    @State private var pulse = false
     /// Last time the system side showed real signal — drives the "no meeting audio yet" hint.
     @State private var lastSystemSignal = Date()
 
@@ -25,12 +24,11 @@ struct MeetingHUDView: View {
         Group {
             if compact { pill } else { card }
         }
-        .onAppear { pulse = true; lastSystemSignal = Date() }
+        .onAppear { lastSystemSignal = Date() }
         // The hosting view is reused across meetings (the panel is only ordered out), so @State
-        // survives: a new meeting must start expanded with fresh pulse/hint state.
+        // survives: a new meeting must start expanded with fresh hint state.
         .onChange(of: recorder.isRecording) { _, rec in
             guard rec else { return }
-            pulse = true
             lastSystemSignal = Date()
             if compact { setCompact(false) }
         }
@@ -58,6 +56,7 @@ struct MeetingHUDView: View {
         .contentShape(Rectangle())
         .onTapGesture { setCompact(false) }
         .help(L10n.t("meeting.recording"))
+        .transition(.opacity)
     }
 
     private func microMeter(level: Float, tint: Color) -> some View {
@@ -75,7 +74,8 @@ struct MeetingHUDView: View {
     // MARK: - Expanded card
 
     private var card: some View {
-        VStack(spacing: 12) {
+        let noSystem = Date().timeIntervalSince(lastSystemSignal) > 10 && recorder.elapsed > 8
+        return VStack(spacing: 12) {
             if recorder.finishing {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
@@ -104,26 +104,26 @@ struct MeetingHUDView: View {
 
                 // One-line legend: first-time users shouldn't have to guess what the two bars are.
                 Text(L10n.t("meeting.sources.hint"))
-                    .font(.system(size: 9.5)).foregroundStyle(.tertiary)
+                    .font(.system(size: 10)).foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // The system side heard nothing for a while: surface it — this is exactly the doubt
                 // ("is it capturing them at all?") this HUD exists to answer.
-                if Date().timeIntervalSince(lastSystemSignal) > 10, recorder.elapsed > 8 {
+                if noSystem {
                     Label(L10n.t("meeting.nosystem"), systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 11))
                         .foregroundStyle(.orange)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 HStack(spacing: 8) {
                     Button(role: .destructive) { onDiscard() } label: {
-                        Text(L10n.t("editor.discard.confirm")).font(.system(size: 11.5))
+                        Text(L10n.t("editor.discard.confirm")).font(.system(size: 11))
                     }
                     .buttonStyle(.bordered).controlSize(.small)
                     Spacer(minLength: 8)
                     Button { onStop() } label: {
-                        Label(L10n.t("rec.stop"), systemImage: "stop.fill").font(.system(size: 11.5, weight: .semibold))
+                        Label(L10n.t("rec.stop"), systemImage: "stop.fill").font(.system(size: 11, weight: .semibold))
                     }
                     .buttonStyle(.borderedProminent).controlSize(.small)
                     .keyboardShortcut(.defaultAction)
@@ -134,16 +134,24 @@ struct MeetingHUDView: View {
         .frame(width: 264)
         // Cross-fade into the finishing state instead of jumping.
         .animation(.easeOut(duration: 0.13), value: recorder.finishing)
+        // Fade the "no meeting audio" warning in/out instead of popping mid-meeting.
+        .animation(.easeOut(duration: 0.15), value: noSystem)
+        .transition(.opacity)
     }
 
     private var recordDot: some View {
-        Circle().fill(.red).frame(width: 9, height: 9)
-            .opacity(pulse ? 0.35 : 1)
-            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulse)
+        // System pulse: native curve, and it stops under Reduce Motion (a hand-rolled
+        // repeatForever animation wouldn't).
+        Image(systemName: "circle.fill")
+            .font(.system(size: 9))
+            .foregroundStyle(.red)
+            .symbolEffect(.pulse, options: .repeating)
     }
 
     private func setCompact(_ value: Bool) {
-        compact = value
+        // Matches the 0.18s panel resize in AppDelegate.resizeMeetingHUD so the
+        // pill/card cross-fade rides along with the frame animation.
+        withAnimation(.easeOut(duration: 0.18)) { compact = value }
         onToggleCompact(value)
     }
 

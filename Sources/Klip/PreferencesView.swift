@@ -254,7 +254,7 @@ struct PreferencesView: View {
                         .keyboardShortcut(.defaultAction)
                         .disabled(draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button(L10n.t("common.delete"), role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
-                    if apiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
+                    if apiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption).symbolEffect(.bounce, options: .nonRepeating, value: apiKey.savedOK) }
                 }
                 if let err = apiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
             }
@@ -276,9 +276,10 @@ struct PreferencesView: View {
                 }
                 HStack {
                     Button(L10n.t("common.save")) { saveGemini() }
+                        .keyboardShortcut(.defaultAction)
                         .disabled(draftGeminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button(L10n.t("common.delete"), role: .destructive) { geminiKey.delete() }.disabled(!geminiKey.isConfigured)
-                    if geminiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption) }
+                    if geminiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption).symbolEffect(.bounce, options: .nonRepeating, value: geminiKey.savedOK) }
                 }
                 if let err = geminiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
                 Text(L10n.t("prefs.gemini.help"))

@@ -11,8 +11,6 @@ struct RecordingView: View {
 
     /// Armed by the first Cancel/Esc on a long recording: the button reads "Discard?" until it auto-resets.
     @State private var confirmDiscard = false
-    /// Drives the record-dot pulse, same rhythm as MeetingHUDView's.
-    @State private var pulse = false
 
     /// Long recordings (>10 s) need a second Cancel/Esc within ~3 s — one stray Esc shouldn't
     /// destroy minutes of audio. Short recordings keep the instant cancel. The Cancel buttons carry
@@ -61,9 +59,9 @@ struct RecordingView: View {
             } else {
                 VStack(spacing: 14) {
                     HStack(spacing: 8) {
-                        Circle().fill(.red).frame(width: 9, height: 9)
-                            .opacity(pulse ? 0.35 : 1)
-                            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulse)
+                        Image(systemName: "circle.fill").font(.system(size: 9))
+                            .foregroundStyle(.red)
+                            .symbolEffect(.pulse)
                         Text(L10n.t("rec.recording")).font(.system(size: 13, weight: .semibold))
                     }
                     Text(timeString(recorder.duration))
@@ -85,9 +83,6 @@ struct RecordingView: View {
                     }
                 }
                 .padding()
-                // Restart the pulse whenever this branch (re)appears, e.g. back from the silence warning.
-                .onAppear { pulse = true }
-                .onDisappear { pulse = false }
             }
 
         case .missingAPIKey:

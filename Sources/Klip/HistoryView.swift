@@ -45,6 +45,7 @@ struct HistoryView: View {
     var onExportZip: ([ClipboardItem]) -> Void
     var onAssignCollection: ([ClipboardItem]) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var search = ""
     @FocusState private var searchFocused: Bool
     @State private var filter: HistoryFilter = .all
@@ -184,6 +185,7 @@ struct HistoryView: View {
                     Button { onVoiceRecord() } label: {
                         Image(systemName: recorder.state == .recording ? "mic.fill" : "mic")
                             .foregroundStyle(recorder.state == .recording ? .red : .primary)
+                            .symbolEffect(.pulse, isActive: recorder.state == .recording)
                     }
                     .buttonStyle(.borderless).help(L10n.t("rec.record"))
                     Button { onUploadAudio() } label: { Image(systemName: "waveform.badge.plus") }
@@ -203,11 +205,11 @@ struct HistoryView: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField(L10n.t("search"), text: $search)
-                    .textFieldStyle(.plain).font(.system(size: 14)).focused($searchFocused)
+                    .textFieldStyle(.plain).font(.system(size: 13)).focused($searchFocused)
                 if !manager.items.isEmpty {
                     Text(filtered.count == manager.items.count ? "\(manager.items.count)"
                          : "\(filtered.count)/\(manager.items.count)")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Capsule().fill(Color.primary.opacity(0.08)))
                 }
@@ -280,7 +282,7 @@ struct HistoryView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(.ultraThinMaterial)
         .overlay(Divider(), alignment: .top)
-        .transition(.move(edge: .bottom).combined(with: .opacity))   // slides in via the container's animation on `selecting`
+        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))   // slides in via the container's animation on `selecting`
     }
 
     private func batchButton(_ icon: String, _ label: String, _ action: @escaping () -> Void) -> some View {
@@ -344,7 +346,7 @@ struct HistoryView: View {
                     .multilineTextAlignment(.center)
             } else {
                 Image(systemName: filter == .credential ? "key" : "magnifyingglass")
-                    .font(.system(size: 30)).foregroundStyle(.secondary)
+                    .font(.system(size: 30)).symbolRenderingMode(.hierarchical).foregroundStyle(.secondary)
                 Text(filter == .credential ? L10n.t("empty.cred") : L10n.t("empty.noresults"))
                     .foregroundStyle(.secondary)
                 // One-click way out of a "falsely empty" list caused by an active search/filter.
@@ -456,7 +458,7 @@ struct ItemRow: View {
         while idx < text.endIndex, let r = text.range(of: q, options: .caseInsensitive, range: idx..<text.endIndex) {
             result += AttributedString(String(text[idx..<r.lowerBound]))
             var m = AttributedString(String(text[r.lowerBound..<r.upperBound]))
-            m.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.45)
+            m.backgroundColor = NSColor.findHighlightColor.withAlphaComponent(0.45)
             result += m
             idx = r.upperBound
         }
@@ -668,6 +670,7 @@ struct ItemRow: View {
             justCopied = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { justCopied = false }
         }
+        .symbolEffect(.bounce, value: justCopied)
     }
 
     private func iconButton(_ symbol: String, _ help: String, _ action: @escaping () -> Void) -> some View {

@@ -60,6 +60,24 @@ struct KeyCombo: Equatable {
         return s
     }
 
+    /// NSMenuItem key equivalent for this combo — lets the status menu render the shortcut
+    /// right-aligned in system gray like every native menu (instead of embedded in the title).
+    /// Empty for keys with no single-character form (callers fall back to the title suffix).
+    var menuKeyEquivalent: String {
+        if keyCode == UInt32(kVK_Space) { return " " }
+        let name = KeyCombo.keyName(for: keyCode)
+        return name.count == 1 ? name.lowercased() : ""
+    }
+
+    var cocoaModifiers: NSEvent.ModifierFlags {
+        var f: NSEvent.ModifierFlags = []
+        if carbonModifiers & UInt32(controlKey) != 0 { f.insert(.control) }
+        if carbonModifiers & UInt32(optionKey)  != 0 { f.insert(.option) }
+        if carbonModifiers & UInt32(shiftKey)   != 0 { f.insert(.shift) }
+        if carbonModifiers & UInt32(cmdKey)     != 0 { f.insert(.command) }
+        return f
+    }
+
     static func keyName(for keyCode: UInt32) -> String {
         let map: [UInt32: String] = [
             UInt32(kVK_ANSI_A): "A", UInt32(kVK_ANSI_B): "B", UInt32(kVK_ANSI_C): "C",

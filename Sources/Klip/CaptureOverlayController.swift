@@ -95,6 +95,7 @@ final class CaptureOverlayController {
         if image == nil, let win, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             NSAnimationContext.runAnimationGroup({ ctx in
                 ctx.duration = 0.12
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 win.animator().alphaValue = 0
             }, completionHandler: { win.orderOut(nil) })
         } else {
@@ -226,7 +227,7 @@ private final class CaptureOverlayView: NSView {
     private func drawHint() {
         let text = L10n.t("capture.hint")
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 14, weight: .semibold),
+            .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
             .foregroundColor: NSColor.white
         ]
         let size = (text as NSString).size(withAttributes: attrs)

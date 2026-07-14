@@ -76,9 +76,9 @@ struct GuideView: View {
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .frame(width: 90, alignment: .leading)
                         .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.primary.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
                     Text(r.what).font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }

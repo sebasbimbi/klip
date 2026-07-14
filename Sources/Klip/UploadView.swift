@@ -125,8 +125,8 @@ struct UploadView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
-        .transition(.opacity)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
+        .transition(.opacity.combined(with: .offset(y: 6)))
     }
 
     private func copyText(_ text: String) {
@@ -157,8 +157,8 @@ struct UploadView: View {
             Button(L10n.t("upload.choose")) { dropRejected = false; onChoose(effectiveLanguage) }
         }
         .frame(maxWidth: .infinity).frame(height: 150)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(hovering ? 0.12 : 0.05)))
-        .overlay(RoundedRectangle(cornerRadius: 12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(hovering ? 0.12 : 0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
             .foregroundStyle(hovering ? Color.accentColor : Color.secondary.opacity(0.5)))
         // Ease the highlight in/out instead of the instant color swap.

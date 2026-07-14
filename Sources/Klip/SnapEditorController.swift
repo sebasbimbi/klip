@@ -21,6 +21,11 @@ private final class HoverToolButton: NSButton {
         // the accent), never a heavy solid fill.
         let color: NSColor = isSelectedTool ? .controlAccentColor.withAlphaComponent(0.16)
             : hovering ? .labelColor.withAlphaComponent(0.07) : .clear
+        // View-backed layers disable implicit animations, so ease the wash in/out explicitly.
+        let anim = CABasicAnimation(keyPath: "backgroundColor")
+        anim.duration = 0.15
+        anim.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer?.add(anim, forKey: "backgroundColor")
         layer?.backgroundColor = color.cgColor
     }
 }
@@ -111,15 +116,18 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         content.addSubview(toolbar)
 
         win.contentView = content
-        win.alphaValue = 0
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        win.alphaValue = reduceMotion ? 1 : 0
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         win.makeFirstResponder(canvas)
         // Quick fade-in, same curve as the main HUD panel.
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.13
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            win.animator().alphaValue = 1
+        if !reduceMotion {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.13
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                win.animator().alphaValue = 1
+            }
         }
         // Restore last-used tool state across editor sessions (defaults: 3pt stroke, arrow, swatch 0).
         let defaults = UserDefaults.standard
@@ -310,8 +318,10 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         b.isBordered = false
         b.wantsLayer = true
         b.layer?.cornerRadius = 7
+        b.layer?.cornerCurve = .continuous
         b.imageScaling = .scaleProportionallyDown
         let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+            .applying(.preferringHierarchical())
         b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)?
             .withSymbolConfiguration(cfg)
         b.contentTintColor = .secondaryLabelColor
@@ -381,12 +391,25 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         }
         let showBlur = tool == .blur || selected == .blur
         let showText = tool == .text || selected == .text
-        strokeControl?.isHidden = !showStroke
-        strokeSeparator?.isHidden = !showStroke
-        blurSlider?.isHidden = !showBlur
-        blurSeparator?.isHidden = !showBlur
-        textSizeButtons.forEach { $0.isHidden = !showText }
-        textSizeSeparator?.isHidden = !showText
+        let apply = {
+            self.strokeControl?.isHidden = !showStroke
+            self.strokeSeparator?.isHidden = !showStroke
+            self.blurSlider?.isHidden = !showBlur
+            self.blurSeparator?.isHidden = !showBlur
+            self.textSizeButtons.forEach { $0.isHidden = !showText }
+            self.textSizeSeparator?.isHidden = !showText
+        }
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            apply()
+        } else {
+            // NSStackView fades + reflows hidden arranged subviews when animated implicitly.
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.15
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                ctx.allowsImplicitAnimation = true
+                apply()
+            }
+        }
         if showBlur { blurSlider?.doubleValue = Double(canvas.effectiveBlurLevel) }
     }
 
@@ -443,6 +466,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         b.isBordered = false
         b.wantsLayer = true
         b.layer?.cornerRadius = 7
+        b.layer?.cornerCurve = .continuous
         b.imageScaling = .scaleProportionallyDown
         let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
         b.image = NSImage(systemSymbolName: tool.symbol, accessibilityDescription: tool.tooltip)?

@@ -236,7 +236,7 @@ final class AnnotationCanvasView: NSView {
                                               width: 260, height: fieldHeight))
         field.isBordered = true
         field.bezelStyle = .roundedBezel
-        field.backgroundColor = .white.withAlphaComponent(0.92)
+        field.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.92)   // adapts to dark mode
         field.font = font
         field.textColor = color
         field.focusRingType = .none

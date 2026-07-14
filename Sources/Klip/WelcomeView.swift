@@ -87,7 +87,7 @@ struct WelcomeView: View {
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
 
     private func permRow(_ icon: String, _ name: String, granted: Bool,
@@ -143,6 +143,7 @@ struct WelcomeView: View {
         // Staggered fade-in: 0.05s per row, everything settled by ~0.3s.
         .opacity(rowsVisible ? 1 : 0)
         .offset(y: rowsVisible ? 0 : 6)
-        .animation(.easeOut(duration: 0.15).delay(Double(index) * 0.05), value: rowsVisible)
+        .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                   ? nil : .easeOut(duration: 0.15).delay(Double(index) * 0.05), value: rowsVisible)
     }
 }

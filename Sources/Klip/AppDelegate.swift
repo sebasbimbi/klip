@@ -185,21 +185,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Adds an item whose global-shortcut combo renders as a native right-aligned key equivalent
+    /// (system gray, like every macOS menu). Combos with no single-key form fall back to the old
+    /// title suffix so the shortcut stays discoverable.
+    @discardableResult
+    private func addShortcutItem(_ menu: NSMenu, title: String, action: Selector, combo: KeyCombo) -> NSMenuItem {
+        let eq = combo.menuKeyEquivalent
+        let item = menu.addItem(withTitle: eq.isEmpty ? "\(title)   \(combo.displayString)" : title,
+                                action: action, keyEquivalent: eq)
+        if !eq.isEmpty { item.keyEquivalentModifierMask = combo.cocoaModifiers }
+        return item
+    }
+
     private func buildMenu() {
         let menu = NSMenu()
-        menu.addItem(withTitle: "\(L10n.t("menu.show"))   \(Settings.shared.combo.displayString)",
-                     action: #selector(showPanel), keyEquivalent: "")
-        menu.addItem(withTitle: "\(L10n.t("rec.record"))   \(Settings.shared.voiceCombo.displayString)",
-                     action: #selector(startVoice), keyEquivalent: "")
-        let meeting = menu.addItem(withTitle: meetingMenuTitle(),
-                                   action: #selector(toggleMeetingRecording), keyEquivalent: "")
+        addShortcutItem(menu, title: L10n.t("menu.show"), action: #selector(showPanel),
+                        combo: Settings.shared.combo)
+        addShortcutItem(menu, title: L10n.t("rec.record"), action: #selector(startVoice),
+                        combo: Settings.shared.voiceCombo)
+        let meeting = addShortcutItem(menu, title: meetingMenuTitle(),
+                                      action: #selector(toggleMeetingRecording),
+                                      combo: Settings.shared.meetingCombo)
         meetingItem = meeting
-        menu.addItem(withTitle: "\(L10n.t("menu.capture"))   \(Settings.shared.captureCombo.displayString)",
-                     action: #selector(startCapture), keyEquivalent: "")
-        menu.addItem(withTitle: "\(L10n.t("menu.captureText"))   \(Settings.shared.textCaptureCombo.displayString)",
-                     action: #selector(startTextCapture), keyEquivalent: "")
-        menu.addItem(withTitle: "\(L10n.t("act.upload"))   \(Settings.shared.uploadCombo.displayString)",
-                     action: #selector(startUpload), keyEquivalent: "")
+        addShortcutItem(menu, title: L10n.t("menu.capture"), action: #selector(startCapture),
+                        combo: Settings.shared.captureCombo)
+        addShortcutItem(menu, title: L10n.t("menu.captureText"), action: #selector(startTextCapture),
+                        combo: Settings.shared.textCaptureCombo)
+        addShortcutItem(menu, title: L10n.t("act.upload"), action: #selector(startUpload),
+                        combo: Settings.shared.uploadCombo)
         menu.addItem(.separator())
         let recents = NSMenuItem(title: L10n.t("menu.recents"), action: nil, keyEquivalent: "")
         recentsMenu.delegate = self
@@ -553,19 +566,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         for it in items {
-            let icon = it.isVoiceNote == true ? "🎙 " : (it.kind == .image ? "🖼 " : (it.isCredential == true ? "🔑 " : ""))
+            // Native menus use template symbol images, never emoji in titles.
+            let symbol = it.isVoiceNote == true ? "mic.fill" : (it.kind == .image ? "photo" : (it.isCredential == true ? "key.fill" : nil))
             let body: String
             if let nm = it.name, !nm.isEmpty { body = String(nm.prefix(45)) }   // name set by the user
             else if it.isCredential == true { body = CredentialDetector.masked(it.text ?? "") }
             else if it.isVoiceNote == true {
-                // transcribed text (avoids a double 🎙); if there's none yet, use the preview without the emoji.
+                // transcribed text; if there's none yet, use the preview stripped of its 🎙 prefix
+                // (the symbol image already marks it as a voice note).
                 let tx = (it.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 body = tx.isEmpty ? String(it.preview.drop(while: { $0 == "🎙" || $0 == " " }).prefix(45))
                                   : String(tx.prefix(45))
             }
             else { body = String(it.preview.prefix(45)) }
-            let mi = NSMenuItem(title: "\(Self.recentsDF.string(from: it.createdAt))   \(icon)\(body)",
+            let mi = NSMenuItem(title: "\(Self.recentsDF.string(from: it.createdAt))   \(body)",
                                 action: #selector(pasteRecent(_:)), keyEquivalent: "")
+            if let symbol { mi.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
             mi.representedObject = it.id
             mi.target = self
             menu.addItem(mi)
@@ -589,9 +605,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func meetingMenuTitle() -> String {
+        // The shortcut renders as the item's key equivalent (see addShortcutItem); only the live
+        // elapsed time belongs in the title while recording.
         meetingRecorder.isRecording
             ? "\(L10n.t("meeting.stop"))   \(Self.mmss(meetingRecorder.elapsed))"
-            : "\(L10n.t("meeting.record"))   \(Settings.shared.meetingCombo.displayString)"
+            : L10n.t("meeting.record")
     }
     private static func mmss(_ t: TimeInterval) -> String { String(format: "%d:%02d", Int(t) / 60, Int(t) % 60) }
 
@@ -645,6 +663,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             fx.state = .active
             fx.wantsLayer = true
             fx.layer?.cornerRadius = 12
+            fx.layer?.cornerCurve = .continuous
             fx.layer?.masksToBounds = true
             fx.autoresizingMask = [.width, .height]
             let hosting = NSHostingView(rootView: view)
@@ -688,13 +707,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let appearing = !panel.isVisible
         hudFadingOut = false   // cancel a close fade in flight: its completion must not order us out
-        if appearing { panel.alphaValue = 0 }
+        // Slide down from the screen edge + fade on first appearance (same motion as ToastHUD).
+        let target = panel.frame
+        if appearing {
+            panel.alphaValue = 0
+            if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                panel.setFrameOrigin(NSPoint(x: target.origin.x, y: target.origin.y + 8))
+            }
+        }
         panel.orderFrontRegardless()
         if panel.alphaValue < 1 {   // newly appearing OR caught mid fade-out: fade up to full
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.13
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
+                panel.animator().setFrame(target, display: true)
             }
         }
     }

@@ -31,11 +31,20 @@ enum ToastHUD {
         panel?.orderOut(nil)
         actionTarget = nil
 
-        let titleField = NSTextField(labelWithString: "✓ " + title)
+        // Real SF Symbol checkmark (bounced on appear) instead of a text "✓" glyph.
+        let check = NSImageView()
+        check.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+        check.contentTintColor = .labelColor
+        check.symbolConfiguration = .preferringHierarchical()
+        let titleField = NSTextField(labelWithString: title)
         titleField.font = .systemFont(ofSize: 13, weight: .semibold)
         titleField.textColor = .labelColor
+        let titleRow = NSStackView(views: [check, titleField])
+        titleRow.orientation = .horizontal
+        titleRow.spacing = 5
 
-        let stack = NSStackView(views: [titleField])
+        let stack = NSStackView(views: [titleRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 3
@@ -62,6 +71,7 @@ enum ToastHUD {
         fx.state = .active
         fx.wantsLayer = true
         fx.layer?.cornerRadius = 12   // matches the main HUD panel (PanelController)
+        fx.layer?.cornerCurve = .continuous
         fx.layer?.masksToBounds = true
         fx.translatesAutoresizingMaskIntoConstraints = false
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -97,6 +107,9 @@ enum ToastHUD {
         p.alphaValue = 0
         p.orderFrontRegardless()
         panel = p
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            check.addSymbolEffect(.bounce, options: .nonRepeating)
+        }
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.15
@@ -111,7 +124,11 @@ enum ToastHUD {
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 p.animator().alphaValue = 0
                 p.animator().setFrame(p.frame.offsetBy(dx: 0, dy: slide), display: true)
-            }, completionHandler: { p.orderOut(nil); if panel === p { panel = nil } })
+            }, completionHandler: {
+                MainActor.assumeIsolated {   // AppKit animation completions run on the main thread
+                    p.orderOut(nil); if panel === p { panel = nil }
+                }
+            })
         }
         hideWork = work
         // With a button the toast lingers so the user has time to reach it.
