@@ -231,12 +231,13 @@ private final class CaptureOverlayView: NSView {
             .foregroundColor: NSColor.white
         ]
         let size = (text as NSString).size(withAttributes: attrs)
-        let padX: CGFloat = 18, padY: CGFloat = 11
+        let padX: CGFloat = 16, padY: CGFloat = 12
         let pill = NSRect(x: bounds.midX - (size.width + padX * 2) / 2,
                           y: bounds.midY - (size.height + padY * 2) / 2,
                           width: size.width + padX * 2, height: size.height + padY * 2)
         NSColor.black.withAlphaComponent(0.7).setFill()
-        NSBezierPath(roundedRect: pill, xRadius: 11, yRadius: 11).fill()
+        let r = pill.height / 2   // full capsule, matching the app's selected filter chips
+        NSBezierPath(roundedRect: pill, xRadius: r, yRadius: r).fill()
         (text as NSString).draw(at: NSPoint(x: pill.minX + padX, y: pill.minY + padY), withAttributes: attrs)
     }
 
@@ -255,7 +256,7 @@ private final class CaptureOverlayView: NSView {
         badge.origin.x = min(badge.origin.x, bounds.maxX - badge.width - 4)
         badge.origin.y = max(badge.origin.y, bounds.minY + 4)
         NSColor.black.withAlphaComponent(0.7).setFill()
-        NSBezierPath(roundedRect: badge, xRadius: 4, yRadius: 4).fill()
+        NSBezierPath(roundedRect: badge, xRadius: 6, yRadius: 6).fill()
         (label as NSString).draw(at: NSPoint(x: badge.minX + pad, y: badge.minY + pad / 2), withAttributes: attrs)
     }
 
@@ -264,7 +265,7 @@ private final class CaptureOverlayView: NSView {
         let hPx = Int(rect.height * shot.scale)
         let label = "\(wPx) × \(hPx)"
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold),
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
             .foregroundColor: NSColor.white
         ]
         let textSize = (label as NSString).size(withAttributes: attrs)
@@ -276,8 +277,10 @@ private final class CaptureOverlayView: NSView {
         if badge.minY < bounds.minY { badge.origin.y = rect.minY + 6 }
         badge.origin.x = max(bounds.minX, min(badge.origin.x, bounds.maxX - badge.width))
 
-        NSColor.black.withAlphaComponent(0.75).setFill()
-        NSBezierPath(roundedRect: badge, xRadius: 4, yRadius: 4).fill()
+        // Active-selection readout: solid accent fill + white content, tying it to the accent
+        // marching ants (design language rule 1: selection = solid accent).
+        NSColor.controlAccentColor.setFill()
+        NSBezierPath(roundedRect: badge, xRadius: 6, yRadius: 6).fill()
         (label as NSString).draw(at: NSPoint(x: badge.minX + pad, y: badge.minY + pad / 2), withAttributes: attrs)
     }
 

@@ -12,6 +12,8 @@ struct UploadView: View {
     var onOpenPreferences: () -> Void
     var onCopy: (String) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var hovering = false
     /// true after a drop with no accepted file: shows the "unsupported format" caption under the drop zone.
     @State private var dropRejected = false
@@ -25,21 +27,23 @@ struct UploadView: View {
                         "webm", "mpga", "mpeg"]
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             switch recorder.state {
             case .missingAPIKey:
-                Image(systemName: "key.slash").font(.system(size: 34)).foregroundStyle(.orange)
+                Image(systemName: "key.slash").font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 Text(L10n.t("rec.nokey.title")).font(.system(size: 13, weight: .semibold))
                 HStack {
                     Button(L10n.t("common.close")) { onClose() }
                     Button(L10n.t("rec.openprefs")) { onOpenPreferences(); onClose() }.buttonStyle(.borderedProminent)
                 }
             case .error(let m):
-                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 34)).foregroundStyle(.orange)
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 Text(m).font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Button(L10n.t("common.close")) { recorder.reset(); onClose() }
             default:
-                Text(L10n.t("upload.title")).font(.system(size: 13, weight: .semibold))
+                Text(L10n.t("upload.title")).font(.title2.bold())
                 dropZone
                 if dropRejected {
                     Text(L10n.t("upload.unsupported"))
@@ -50,7 +54,7 @@ struct UploadView: View {
                 Text(L10n.t("upload.info"))
                     .font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if recorder.transcribingCount > 0 {
-                    HStack(spacing: 7) {
+                    HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
                         Text(recorder.extractingCount > 0
                              ? L10n.t("upload.extracting")
@@ -58,8 +62,8 @@ struct UploadView: View {
                                ? L10n.t("upload.preparing")
                                : String(format: L10n.t(recorder.transcribingCount == 1 ? "upload.transcribing.one" : "upload.transcribing.many"), recorder.transcribingCount))
                     }
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .font(.system(size: 13, weight: .medium)).monospacedDigit()
+                    .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(Capsule().fill(Color.accentColor.opacity(0.14)))
                 }
                 if !recorder.uploadResults.isEmpty { resultsSection }
@@ -78,7 +82,7 @@ struct UploadView: View {
 
     /// The transcriptions of the just-uploaded files, filled in live as each one finishes.
     private var resultsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(L10n.t("upload.results")).font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
             ScrollView {
@@ -92,9 +96,9 @@ struct UploadView: View {
 
     private func resultRow(_ r: UploadTranscription) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "waveform").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text(r.name).font(.system(size: 11, weight: .medium))
+            HStack(spacing: 8) {
+                Image(systemName: "waveform").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text(r.name).font(.system(size: 13, weight: .semibold))
                     .lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 4)
                 if r.text == nil && !r.failed {
@@ -103,30 +107,31 @@ struct UploadView: View {
                     // Retryable rows: audio kept in the store, or a real video whose source is still readable.
                     if r.audioFileName != nil || r.sourceURL != nil {
                         Button { recorder.retryUpload(r) } label: {
-                            Image(systemName: "arrow.clockwise").font(.system(size: 11))
+                            Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .semibold))
                         }
                         .buttonStyle(.borderless).help(L10n.t("voice.retry"))
                     }
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11))
+                        .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 } else {
                     Button { copyText(r.text ?? "") } label: {
-                        Image(systemName: "doc.on.doc").font(.system(size: 11))
+                        Image(systemName: "doc.on.doc").font(.system(size: 11, weight: .semibold))
                     }
                     .buttonStyle(.borderless).help(L10n.t("row.copy"))
                 }
             }
             if let t = r.text {
-                Text(t).font(.system(size: 12)).textSelection(.enabled)
+                Text(t).font(.system(size: 13)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading).lineLimit(8)
             } else if r.failed {
                 Text(L10n.t(r.errorKey ?? "upload.failed")).font(.system(size: 11)).foregroundStyle(.orange)
                     .transition(.opacity)
             }
         }
-        .padding(8)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.05)))
-        .transition(.opacity.combined(with: .offset(y: 6)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.quaternary))
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
     }
 
     private func copyText(_ text: String) {
@@ -149,15 +154,18 @@ struct UploadView: View {
     }
 
     private var dropZone: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             Image(systemName: "arrow.down.doc.fill").font(.system(size: 38))
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(hovering ? Color.accentColor : .secondary)
-            Text(L10n.t("upload.drop")).font(.system(size: 14, weight: .medium))
+            Text(L10n.t("upload.drop")).font(.system(size: 13, weight: .semibold))
             Text(L10n.t("upload.or")).font(.system(size: 11)).foregroundStyle(.secondary)
             Button(L10n.t("upload.choose")) { dropRejected = false; onChoose(effectiveLanguage) }
+                .buttonStyle(.borderedProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity).frame(height: 150)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(hovering ? 0.12 : 0.05)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(hovering ? AnyShapeStyle(Color.accentColor.opacity(0.08)) : AnyShapeStyle(.quaternary)))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
             .foregroundStyle(hovering ? Color.accentColor : Color.secondary.opacity(0.5)))

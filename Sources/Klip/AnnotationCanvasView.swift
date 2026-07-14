@@ -239,7 +239,7 @@ final class AnnotationCanvasView: NSView {
         field.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.92)   // adapts to dark mode
         field.font = font
         field.textColor = color
-        field.focusRingType = .none
+        field.focusRingType = .default   // the active field carries the accent focus ring (active = accent)
         field.placeholderString = L10n.t("editor.text.placeholder")
         field.stringValue = existing?.text ?? ""
         field.target = self

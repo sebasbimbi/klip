@@ -119,10 +119,13 @@ struct PreferencesView: View {
             if let logo = appLogo {
                 Image(nsImage: logo).resizable().frame(width: 54, height: 54)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Klip").font(.title2).bold()
-                Text("v\(AppInfo.version) · \(L10n.t("app.tagline"))")
-                    .font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                // Title + version read as a single unit, so they stay tight; the links get the 8pt gap.
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Klip").font(.title2.bold())
+                    Text("v\(AppInfo.version) · \(L10n.t("app.tagline"))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 HStack(spacing: 12) {
                     if let u = URL(string: AppInfo.repoURL) {
                         Link(label: "chevron.left.forwardslash.chevron.right", text: "GitHub", url: u)
@@ -138,15 +141,20 @@ struct PreferencesView: View {
         .padding(16)
     }
 
+    /// Grouped-Form section header at the type ramp (13 semibold = `.headline` on macOS).
+    private func sectionHeader(_ key: String) -> Text {
+        Text(L10n.t(key)).font(.headline)
+    }
+
     private var form: some View {
         Form {
-            Section(L10n.t("prefs.lang.section")) {
+            Section(header: sectionHeader("prefs.lang.section")) {
                 Picker(L10n.t("prefs.lang.label"), selection: $settings.uiLanguage) {
                     ForEach(L10n.supported, id: \.code) { Text($0.name).tag($0.code) }
                 }
             }
 
-            Section(L10n.t("prefs.general")) {
+            Section(header: sectionHeader("prefs.general")) {
                 Toggle(L10n.t("prefs.openAtLogin"), isOn: Binding(
                     get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
@@ -172,7 +180,7 @@ struct PreferencesView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section(L10n.t("prefs.shortcuts")) {
+            Section(header: sectionHeader("prefs.shortcuts")) {
                 shortcutRow(L10n.t("prefs.sc.show"), $settings.combo, onHotKeyChange)
                 shortcutRow(L10n.t("prefs.sc.voice"), $settings.voiceCombo, onVoiceHotKeyChange)
                 shortcutRow(L10n.t("prefs.sc.capture"), $settings.captureCombo, onCaptureHotKeyChange)
@@ -183,7 +191,7 @@ struct PreferencesView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section(L10n.t("prefs.voice.section")) {
+            Section(header: sectionHeader("prefs.voice.section")) {
                 Picker(L10n.t("prefs.provider"), selection: $settings.aiProvider) {
                     Text(L10n.t("prefs.provider.local")).tag("local")
                     Text("OpenAI").tag("openai")
@@ -212,8 +220,8 @@ struct PreferencesView: View {
                     Text(L10n.t("lang.auto")).tag("")
                     ForEach(dictationLanguages, id: \.code) { Text($0.name).tag($0.code) }
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.t("prefs.vocab.label")).font(.subheadline.weight(.semibold))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.t("prefs.vocab.label")).font(.headline)
                     // Empty title + labelsHidden: with a non-empty title the grouped Form renders it as a
                     // leading label and squeezes the field into a cramped trailing column.
                     TextField("", text: $settings.transcriptionVocabulary,
@@ -236,7 +244,7 @@ struct PreferencesView: View {
             }
 
             if settings.aiProvider == "openai" {
-            Section(L10n.t("prefs.openai.section")) {
+            Section(header: sectionHeader("prefs.openai.section")) {
                 keyStatus(apiKey)
                 HStack {
                     if showKey {
@@ -247,13 +255,15 @@ struct PreferencesView: View {
                             .onSubmit { saveOpenAI() }
                     }
                     Button { showKey.toggle() } label: { Image(systemName: showKey ? "eye.slash" : "eye") }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.borderless).foregroundStyle(.secondary)
                 }
                 HStack {
                     Button(L10n.t("common.save")) { saveOpenAI() }
                         .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
                         .disabled(draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button(L10n.t("common.delete"), role: .destructive) { apiKey.delete() }.disabled(!apiKey.isConfigured)
+                    Button(L10n.t("common.delete"), role: .destructive) { apiKey.delete() }
+                        .buttonStyle(.bordered).disabled(!apiKey.isConfigured)
                     if apiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption).symbolEffect(.bounce, options: .nonRepeating, value: apiKey.savedOK) }
                 }
                 if let err = apiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
@@ -261,7 +271,7 @@ struct PreferencesView: View {
             }
 
             if settings.aiProvider == "gemini" {
-            Section(L10n.t("prefs.gemini.section")) {
+            Section(header: sectionHeader("prefs.gemini.section")) {
                 keyStatus(geminiKey)
                 HStack {
                     if showGeminiKey {
@@ -272,13 +282,15 @@ struct PreferencesView: View {
                             .onSubmit { saveGemini() }
                     }
                     Button { showGeminiKey.toggle() } label: { Image(systemName: showGeminiKey ? "eye.slash" : "eye") }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.borderless).foregroundStyle(.secondary)
                 }
                 HStack {
                     Button(L10n.t("common.save")) { saveGemini() }
                         .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
                         .disabled(draftGeminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button(L10n.t("common.delete"), role: .destructive) { geminiKey.delete() }.disabled(!geminiKey.isConfigured)
+                    Button(L10n.t("common.delete"), role: .destructive) { geminiKey.delete() }
+                        .buttonStyle(.bordered).disabled(!geminiKey.isConfigured)
                     if geminiKey.savedOK { Label(L10n.t("prefs.saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption).symbolEffect(.bounce, options: .nonRepeating, value: geminiKey.savedOK) }
                 }
                 if let err = geminiKey.errorMessage { Text(err).font(.caption).foregroundStyle(.red) }
@@ -301,25 +313,26 @@ struct PreferencesView: View {
                 }
             }
 
-            Section(L10n.t("prefs.privacy.section")) {
+            Section(header: sectionHeader("prefs.privacy.section")) {
                 Toggle(L10n.t("prefs.privacy.toggle"), isOn: $settings.ignoreSensitive)
                 Text(L10n.t("prefs.privacy.info"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section(L10n.t("prefs.excluded.section")) {
+            Section(header: sectionHeader("prefs.excluded.section")) {
                 if settings.excludedBundleIDs.isEmpty {
                     Text(L10n.t("prefs.excluded.none"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(settings.excludedBundleIDs, id: \.self) { id in
                     HStack {
-                        Text(id).font(.system(size: 12)); Spacer()
+                        Text(id).font(.system(size: 13)); Spacer()
                         Button(role: .destructive) { settings.removeExcludedApp(id) } label: { Image(systemName: "trash") }
                             .buttonStyle(.borderless)
                     }
                 }
                 Button { pickApp() } label: { Label(L10n.t("prefs.excluded.add"), systemImage: "plus") }
+                    .buttonStyle(.bordered)
             }
         }
         .formStyle(.grouped)
@@ -374,7 +387,7 @@ struct PreferencesView: View {
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
             Button(L10n.t("common.delete"), role: .destructive) { model.delete() }
-                .font(.caption)
+                .buttonStyle(.link).font(.caption)
         }
     }
 

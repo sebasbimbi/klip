@@ -41,13 +41,14 @@ struct RecordingView: View {
         case .recording:
             if recorder.silenceWarning {
                 VStack(spacing: 12) {
-                    Image(systemName: "moon.zzz.fill").font(.system(size: 34)).foregroundStyle(.orange)
+                    Image(systemName: "moon.zzz.fill").font(.system(size: 34))
+                        .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                     Text(L10n.t("rec.stillthere")).font(.system(size: 13, weight: .semibold))
                     Text(L10n.t("rec.silence.info"))
                         .font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Button(L10n.t("rec.continue.recording")) { recorder.continueRecording() }
                         .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.borderedProminent).controlSize(.large)
                     HStack(spacing: 12) {
                         Button(confirmDiscard ? L10n.t("rec.discard.confirm") : L10n.t("common.cancel"),
                                action: requestCancel)
@@ -81,13 +82,15 @@ struct RecordingView: View {
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
                     }
+                    .controlSize(.large)
                 }
                 .padding()
             }
 
         case .missingAPIKey:
             VStack(spacing: 12) {
-                Image(systemName: "key.slash").font(.system(size: 34)).foregroundStyle(.orange)
+                Image(systemName: "key.slash").font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 Text(L10n.t("rec.nokey.title")).font(.system(size: 13, weight: .semibold))
                 Text(L10n.t("rec.nokey.info"))
                     .font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -100,7 +103,8 @@ struct RecordingView: View {
 
         case .micDenied:
             VStack(spacing: 12) {
-                Image(systemName: "mic.slash.fill").font(.system(size: 34)).foregroundStyle(.orange)
+                Image(systemName: "mic.slash.fill").font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 Text(L10n.t("perm.mic.title")).font(.system(size: 13, weight: .semibold))
                 Text(L10n.t("perm.mic.info"))
                     .font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -117,7 +121,8 @@ struct RecordingView: View {
 
         case .error(let m):
             VStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 34)).foregroundStyle(.orange)
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 34))
+                    .symbolRenderingMode(.hierarchical).foregroundStyle(.orange)
                 Text(L10n.t("common.error")).font(.system(size: 13, weight: .semibold))
                 Text(m).font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center).lineLimit(3)
                 Button(L10n.t("common.close")) { recorder.reset() }.buttonStyle(.borderedProminent)
@@ -132,7 +137,7 @@ struct RecordingView: View {
     /// so the voice popup and the meeting HUD read as one family.
     private var levelMeter: some View {
         HStack(spacing: 8) {
-            Image(systemName: "mic.fill").font(.system(size: 10)).foregroundStyle(.secondary)
+            Image(systemName: "mic.fill").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 .frame(width: 14)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {

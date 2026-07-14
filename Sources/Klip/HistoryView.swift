@@ -156,25 +156,25 @@ struct HistoryView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             HStack(spacing: 8) {
                 if let logo = Self.appLogo {
                     Image(nsImage: logo).resizable().frame(width: 22, height: 22)
                 }
-                Text("Klip").font(.system(size: 15, weight: .semibold))
+                Text("Klip").font(.title2.bold())
                 Spacer(minLength: 8)
                 if recorder.transcribingCount > 0 {
                     HStack(spacing: 4) {
                         ProgressView().controlSize(.small)
-                        Text("\(recorder.transcribingCount)").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text("\(recorder.transcribingCount)").font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill(Color.primary.opacity(0.08)))   // same pill as the item counter
+                    .background(Capsule().fill(.quaternary))   // same pill as the item counter
                     .help(L10n.t("rec.transcribing"))
                     .padding(.trailing, 2)
                 }
                 // Action icons: uniform size and generous spacing so they don't overlap.
-                HStack(spacing: 15) {
+                HStack(spacing: 16) {
                     Button { toggleSelecting() } label: {
                         Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
                             .foregroundStyle(selecting ? Color.accentColor : .primary)
@@ -211,7 +211,7 @@ struct HistoryView: View {
                          : "\(filtered.count)/\(manager.items.count)")
                         .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                        .background(Capsule().fill(.quaternary))
                 }
             }
         }
@@ -276,13 +276,13 @@ struct HistoryView: View {
 
     private var batchBar: some View {
         HStack(spacing: 8) {
-            Text(String(format: L10n.t("sel.count"), selectedBatch.count)).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+            Text(String(format: L10n.t("sel.count"), selectedBatch.count)).font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundStyle(.secondary)
             Spacer()
             batchButton("doc.richtext", "PDF") { onCombinePDF(batchItems) }
             batchButton("doc.zipper", "ZIP") { onExportZip(batchItems) }
             batchButton("folder.badge.plus", L10n.t("sel.collection")) { onAssignCollection(batchItems) }
             Button(L10n.t("sel.done")) { selecting = false; selectedBatch = [] }
-                .font(.system(size: 12))
+                .buttonStyle(.link).font(.system(size: 13))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(.ultraThinMaterial)
@@ -294,6 +294,7 @@ struct HistoryView: View {
         Button(action: action) {
             HStack(spacing: 4) { Image(systemName: icon); Text(label).font(.system(size: 11)) }
         }
+        .buttonStyle(.bordered)
         .controlSize(.small)
         .disabled(selectedBatch.isEmpty)
     }
@@ -339,10 +340,10 @@ struct HistoryView: View {
                 if let logo = Self.appLogo {
                     Image(nsImage: logo).resizable().frame(width: 46, height: 46).opacity(0.9)
                 }
-                Text(L10n.t("empty.title")).font(.system(size: 15, weight: .semibold))
-                Text(L10n.t("empty.sub")).font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(L10n.t("empty.title")).font(.title3.weight(.semibold))
+                Text(L10n.t("empty.sub")).font(.system(size: 13)).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     kbdHint(settings.combo.displayString, L10n.t("hint.open"))
                     kbdHint(settings.voiceCombo.displayString, L10n.t("rec.record"))
                 }
@@ -378,14 +379,14 @@ struct HistoryView: View {
     private var ocrBox: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(ocrRunning ? L10n.t("rec.transcribing") : L10n.t("ocr.label"))
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+                .font(.system(size: 11)).foregroundStyle(.secondary)
             if !ocrRunning {
                 Text(ocrText.isEmpty ? "—" : ocrText)
-                    .font(.system(size: 12)).textSelection(.enabled)
+                    .font(.system(size: 13)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(10)
+        .padding(12)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.12)))
         .padding(.horizontal, 8).padding(.bottom, 4)
         .transition(.opacity)   // fades in via the list's animation on `ocrResultID`
@@ -496,10 +497,18 @@ struct ItemRow: View {
         }
         .background(RoundedRectangle(cornerRadius: 8)
             .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.20)
-                  : (hovering ? Color.primary.opacity(0.07) : Color.clear)))
+                  : (hovering ? Color.primary.opacity(0.06) : Color.clear)))
         .overlay(RoundedRectangle(cornerRadius: 8)
             .stroke(isSelected && !selecting ? Color.accentColor.opacity(0.6)
                     : (isCredential ? Color.yellow.opacity(0.4) : Color.clear), lineWidth: 1))
+        // Solid-accent left rail on the keyboard-selected row: a clear native indication that keeps the
+        // row's image/swatch/preview readable (a full accent fill would clobber them).
+        .overlay(alignment: .leading) {
+            if isSelected && !selecting {
+                Capsule().fill(Color.accentColor).frame(width: 3, height: 18)
+                    .padding(.leading, 3).allowsHitTesting(false)
+            }
+        }
         .contentShape(Rectangle())
         .contextMenu {
             // Right-click mirrors the hover actions: copy + star, then everything the ⋯ menu offers.
@@ -523,11 +532,11 @@ struct ItemRow: View {
                 ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: img).resizable().aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity).frame(height: 150)
-                        .background(Color.primary.opacity(0.05))
+                        .background(.quaternary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1)))
                     Text({ let p = img.pixelDimensions; return "\(Int(p.width))×\(Int(p.height))" }())
-                        .font(.system(size: 9, design: .monospaced)).foregroundStyle(.secondary)
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                         .padding(.horizontal, 5).padding(.vertical, 2)
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(6)
@@ -535,7 +544,7 @@ struct ItemRow: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 if let nm = customName {
-                    Text(nm).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    Text(nm).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                 }
                 HStack(spacing: 6) {
                     metadata
@@ -548,7 +557,7 @@ struct ItemRow: View {
     }
 
     private var standardRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             thumbnail
             VStack(alignment: .leading, spacing: 3) {
                 if let nm = customName {
@@ -564,13 +573,13 @@ struct ItemRow: View {
             }
             Spacer(minLength: 4)
             if hovering && !selecting { actions }
-            else if isCredential { Image(systemName: "key.fill").foregroundStyle(.yellow).font(.system(size: 10)) }
+            else if isCredential { Image(systemName: "key.fill").foregroundStyle(.yellow).font(.system(size: 11, weight: .semibold)) }
             else if item.pinned { pinDot }
         }
         .padding(8)
     }
 
-    private var pinDot: some View { Image(systemName: "star.fill").foregroundStyle(.orange).font(.system(size: 10)) }
+    private var pinDot: some View { Image(systemName: "star.fill").foregroundStyle(.orange).font(.system(size: 11, weight: .semibold)) }
 
     @ViewBuilder private var thumbnail: some View {
         if isCredential {
@@ -594,13 +603,13 @@ struct ItemRow: View {
         } else {
             Image(systemName: "doc.text").font(.system(size: 18))
                 .frame(width: 46, height: 46).foregroundStyle(.secondary)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+                .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary))
         }
     }
 
     private var metadata: some View {
         HStack(spacing: 6) {
-            Text(Self.timeLabel(item.createdAt)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(Self.timeLabel(item.createdAt)).font(.system(size: 11)).foregroundStyle(.secondary)
             if let af = voiceAudioFile {
                 VoicePlaybackInfo(fileName: af, duration: item.audioDuration)
             }
@@ -763,9 +772,9 @@ struct VoicePlaybackInfo: View {
                 ProgressView(value: total > 0 ? min(1, audio.elapsed / total) : 0)
                     .frame(width: 54).controlSize(.mini)
             }
-            .font(.system(size: 10)).foregroundStyle(.secondary)
+            .font(.system(size: 11)).foregroundStyle(.secondary)
         } else if let d = duration {
-            Text(mmss(d)).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(mmss(d)).font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 }

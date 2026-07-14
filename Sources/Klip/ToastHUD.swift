@@ -35,19 +35,19 @@ enum ToastHUD {
         let check = NSImageView()
         check.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
-        check.contentTintColor = .labelColor
+        check.contentTintColor = .controlAccentColor   // brand accent on the confirm glyph
         check.symbolConfiguration = .preferringHierarchical()
         let titleField = NSTextField(labelWithString: title)
         titleField.font = .systemFont(ofSize: 13, weight: .semibold)
         titleField.textColor = .labelColor
         let titleRow = NSStackView(views: [check, titleField])
         titleRow.orientation = .horizontal
-        titleRow.spacing = 5
+        titleRow.spacing = 6
 
         let stack = NSStackView(views: [titleRow])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 3
+        stack.spacing = 4
         if let detail, !detail.isEmpty {
             let one = detail.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
             let detailField = NSTextField(labelWithString: String(one.prefix(64)) + (one.count > 64 ? "…" : ""))
@@ -59,10 +59,14 @@ enum ToastHUD {
         if let actionTitle, let action {
             let target = ClickTarget { dismissNow(); action() }
             actionTarget = target
+            // Inline text action reads as an accent link (design language): borderless, accent, semibold.
             let button = NSButton(title: actionTitle, target: target, action: #selector(ClickTarget.fire))
-            button.bezelStyle = .inline
+            button.isBordered = false
             button.controlSize = .small
-            button.font = .systemFont(ofSize: 11, weight: .medium)
+            button.attributedTitle = NSAttributedString(string: actionTitle, attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+                .foregroundColor: NSColor.controlAccentColor,
+            ])
             stack.addArrangedSubview(button)
         }
 

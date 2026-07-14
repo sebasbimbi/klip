@@ -79,7 +79,7 @@ struct MeetingHUDView: View {
             if recorder.finishing {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text(L10n.t("meeting.finishing")).font(.system(size: 12, weight: .medium))
+                    Text(L10n.t("meeting.finishing")).font(.system(size: 13, weight: .medium))
                 }
                 .padding(.vertical, 6)
                 .transition(.opacity)
@@ -104,7 +104,7 @@ struct MeetingHUDView: View {
 
                 // One-line legend: first-time users shouldn't have to guess what the two bars are.
                 Text(L10n.t("meeting.sources.hint"))
-                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    .font(.system(size: 11)).foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // The system side heard nothing for a while: surface it — this is exactly the doubt
@@ -112,6 +112,7 @@ struct MeetingHUDView: View {
                 if noSystem {
                     Label(L10n.t("meeting.nosystem"), systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 11))
+                        .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(.orange)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -157,7 +158,7 @@ struct MeetingHUDView: View {
 
     private func meter(label: String, icon: String, level: Float, tint: Color) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 10)).foregroundStyle(.secondary)
+            Image(systemName: icon).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 .frame(width: 14)
             Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .leading).lineLimit(1)

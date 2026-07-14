@@ -17,10 +17,11 @@ private final class HoverToolButton: NSButton {
     override func mouseExited(with event: NSEvent) { hovering = false; refreshBackground() }
 
     private func refreshBackground() {
-        // Subtle, Shottr-style states: the active tool gets a soft accent tint (the icon carries
-        // the accent), never a heavy solid fill.
-        let color: NSColor = isSelectedTool ? .controlAccentColor.withAlphaComponent(0.16)
-            : hovering ? .labelColor.withAlphaComponent(0.07) : .clear
+        // Klip selection language: the active tool is a SOLID accent chip (the controller sets the
+        // glyph white to match), never a faint tint — same as the filter chips. Hover shows a faint
+        // primary wash only on the inactive tools.
+        let color: NSColor = isSelectedTool ? .controlAccentColor
+            : hovering ? .labelColor.withAlphaComponent(0.06) : .clear
         // View-backed layers disable implicit animations, so ease the wash in/out explicitly.
         let anim = CABasicAnimation(keyPath: "backgroundColor")
         anim.duration = 0.15
@@ -287,6 +288,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         addSeparator(to: trailing)
 
         let copy = makeTextButton(title: L10n.t("editor.copy"), tip: L10n.t("editor.copy.tip"), action: #selector(copyTapped))
+        copy.bezelColor = .controlAccentColor   // the window's one prominent primary (accent), Save stays secondary
         copy.keyEquivalent = "c"; copy.keyEquivalentModifierMask = [.command]
         let save = makeTextButton(title: L10n.t("editor.save"), tip: L10n.t("editor.save.tip"), action: #selector(saveTapped))
         save.keyEquivalent = "s"; save.keyEquivalentModifierMask = [.command]
@@ -348,8 +350,8 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         canvas.currentTool = tool
         for (t, b) in toolButtons {
             let on = (t == tool)
-            (b as? HoverToolButton)?.isSelectedTool = on   // soft accent tint lives in the button
-            b.contentTintColor = on ? .controlAccentColor : .secondaryLabelColor
+            (b as? HoverToolButton)?.isSelectedTool = on   // solid accent chip lives in the button
+            b.contentTintColor = on ? .white : .secondaryLabelColor   // white glyph on the accent fill
         }
         refreshColorSwatches()                                // the marker shows highlighter tones
         // Only re-apply the DEFAULT color when the PALETTE changes type (normal↔marker). Between normal

@@ -40,16 +40,14 @@ struct WelcomeView: View {
                 row(2, "keyboard", L10n.t("welcome.shortcuts.title"), shortcutsLine)
                 row(3, "mic", L10n.t("welcome.voice.title"), L10n.t("welcome.voice.body"))
             }
-            .padding(.top, 4)
 
             permissionsSection
-                .padding(.top, 4)
 
             Spacer(minLength: 4)
             Button(L10n.t("welcome.start")) { onStart() }
                 .buttonStyle(.borderedProminent).controlSize(.large)
             Text(L10n.t("welcome.prefsHint"))
-                .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .frame(width: 440, height: 700)
@@ -71,45 +69,62 @@ struct WelcomeView: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            permRow("mic.fill", L10n.t("welcome.perms.mic"), granted: micGranted) {
-                AVAudioApplication.requestRecordPermission { ok in
-                    DispatchQueue.main.async { micGranted = ok }
+            // Grouped inset card: material fill + hairline dividers (native macOS list style).
+            VStack(spacing: 0) {
+                permRow("mic.fill", L10n.t("welcome.perms.mic"), granted: micGranted) {
+                    AVAudioApplication.requestRecordPermission { ok in
+                        DispatchQueue.main.async { micGranted = ok }
+                    }
+                }
+                Divider()
+                permRow("rectangle.dashed.badge.record", L10n.t("welcome.perms.screen"),
+                        granted: screenGranted,
+                        note: screenGranted ? nil : L10n.t("welcome.perms.relaunch")) {
+                    _ = ScreenCapturer.requestPermission()   // macOS applies it after relaunch (see note)
+                    screenGranted = ScreenCapturer.hasPermission()
+                }
+                Divider()
+                permRow("accessibility", L10n.t("welcome.perms.ax"), granted: axGranted) {
+                    axGranted = Paster.ensureAccessibilityPermission(prompt: true)
                 }
             }
-            permRow("rectangle.dashed.badge.record", L10n.t("welcome.perms.screen"),
-                    granted: screenGranted,
-                    note: screenGranted ? nil : L10n.t("welcome.perms.relaunch")) {
-                _ = ScreenCapturer.requestPermission()   // macOS applies it after relaunch (see note)
-                screenGranted = ScreenCapturer.hasPermission()
-            }
-            permRow("accessibility", L10n.t("welcome.perms.ax"), granted: axGranted) {
-                axGranted = Paster.ensureAccessibilityPermission(prompt: true)
-            }
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.quaternary))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
 
     private func permRow(_ icon: String, _ name: String, granted: Bool,
                          note: String? = nil, grant: @escaping () -> Void) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: 13)).foregroundStyle(.tint)
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
                 .frame(width: 22, alignment: .center)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name).font(.system(size: 12, weight: .medium))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.system(size: 13, weight: .semibold))
                 if let note {
-                    Text(note).font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(note).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             if granted {
                 Label(L10n.t("welcome.perms.granted"), systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(.green)
+                    .font(.system(size: 11, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.green)
             } else {
                 Button(L10n.t("welcome.perms.grant"), action: grant)
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private func refreshPermissions() {
@@ -131,11 +146,14 @@ struct WelcomeView: View {
 
     private func row(_ index: Int, _ icon: String, _ title: String, _ body: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon).font(.system(size: 18)).foregroundStyle(.tint)
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
                 .frame(width: 26, alignment: .center)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 13, weight: .semibold))
-                Text(body).font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(body).font(.system(size: 13)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)

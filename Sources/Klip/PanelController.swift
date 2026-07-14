@@ -549,7 +549,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]   // also show over full-screen apps
             let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 360, height: 320))
             fx.material = .hudWindow; fx.blendingMode = .behindWindow; fx.state = .active
-            fx.wantsLayer = true; fx.layer?.cornerRadius = 16; fx.layer?.cornerCurve = .continuous; fx.layer?.masksToBounds = true
+            fx.wantsLayer = true; fx.layer?.cornerRadius = cornerRadius; fx.layer?.cornerCurve = .continuous; fx.layer?.masksToBounds = true   // shared HUD radius
             fx.autoresizingMask = [.width, .height]
             let host = NSHostingView(rootView: view)
             host.frame = fx.bounds; host.autoresizingMask = [.width, .height]; fx.addSubview(host)

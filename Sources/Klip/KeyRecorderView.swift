@@ -60,15 +60,17 @@ final class RecorderNSView: NSView {
     }
 
     override func draw(_ rect: NSRect) {
-        let bg = recording ? NSColor.controlAccentColor.withAlphaComponent(0.18)
+        // Armed = the same selection language as the filter chips: a SOLID accent fill with
+        // white, semibold content. Idle = a faint neutral pill.
+        let bg = recording ? NSColor.controlAccentColor
                            : NSColor.unemphasizedSelectedContentBackgroundColor.withAlphaComponent(0.5)
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6)
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
         bg.setFill(); path.fill()
 
         let label = recording ? L10n.t("hotkey.record.prompt") : current.displayString
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.labelColor
+            .font: NSFont.systemFont(ofSize: 13, weight: recording ? .semibold : .medium),
+            .foregroundColor: recording ? NSColor.white : NSColor.labelColor
         ]
         let size = (label as NSString).size(withAttributes: attrs)
         let point = NSPoint(x: (bounds.width - size.width) / 2,

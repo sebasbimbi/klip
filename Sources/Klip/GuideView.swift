@@ -41,8 +41,8 @@ struct GuideView: View {
                 section(L10n.t("guide.section.mac"), icon: "camera.viewfinder", macShortcuts,
                         footer: L10n.t("guide.mac.footer"))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Label(L10n.t("guide.howto.title"), systemImage: "lightbulb").font(.headline)
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionHeader(L10n.t("guide.howto.title"), icon: "lightbulb")
                     bullet(L10n.t("guide.howto.copy"))
                     bullet(String(format: L10n.t("guide.howto.paste"), settings.combo.displayString))
                     bullet(L10n.t("guide.howto.creds"))
@@ -59,16 +59,28 @@ struct GuideView: View {
             if let logo = HistoryView.appLogo {
                 Image(nsImage: logo).resizable().frame(width: 48, height: 48)
             }
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.t("win.guide")).font(.title2).bold()
-                Text("v\(AppInfo.version)").font(.caption).foregroundStyle(.secondary)
+                Text("v\(AppInfo.version)")
+                    .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
             }
+        }
+    }
+
+    // Section header: accent SF Symbol + primary title on the shared type ramp.
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
+                .font(.system(size: 13, weight: .semibold))
+            Text(title).font(.system(size: 13, weight: .semibold))
         }
     }
 
     private func section(_ title: String, icon: String, _ rows: [Row], footer: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: icon).font(.headline)
+            sectionHeader(title, icon: icon)
             ForEach(rows) { r in
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     // kbd-style chip: fixed width keeps the two columns aligned.
@@ -76,18 +88,20 @@ struct GuideView: View {
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .frame(width: 90, alignment: .leading)
                         .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.primary.opacity(0.06)))
-                        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary))
+                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
                     Text(r.what).font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            if let footer { Text(footer).font(.caption).foregroundStyle(.secondary) }
+            if let footer {
+                Text(footer).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
         }
     }
 
     private func bullet(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
+        HStack(alignment: .top, spacing: 8) {
             Text("•").foregroundStyle(.secondary)
             Text(text).font(.system(size: 13))
         }
