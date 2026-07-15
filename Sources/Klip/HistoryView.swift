@@ -330,9 +330,8 @@ struct HistoryView: View {
                     }
                 }
                 .padding(.horizontal, 6).padding(.vertical, 4)
-                // Keyed on ids (not items) so new/removed clips fade+move, but in-place content
-                // updates (e.g. a transcription finishing) don't trigger a layout animation.
-                .animation(.easeOut(duration: 0.2), value: filtered.map(\.id))
+                // No list layout animation: a new clip must appear in place, never slide the rows
+                // (text must not move — the user copies constantly). Only the OCR box fades.
                 .animation(.easeOut(duration: 0.13), value: ocrResultID)
             }
             .onChange(of: selection.selectedID) { _, newID in

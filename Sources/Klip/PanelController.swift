@@ -121,13 +121,18 @@ final class PanelController: NSObject, NSWindowDelegate {
         panel.delegate = self
 
         let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 480, height: 640))
-        fx.material = .menu
+        // .sidebar is the most translucent adaptive material — real glass (desktop/content bleeds
+        // through the blur), unlike the near-opaque .menu. Reads as Apple glass in light and dark.
+        fx.material = .sidebar
         fx.blendingMode = .behindWindow
         fx.state = .active
         fx.wantsLayer = true
         fx.layer?.cornerRadius = cornerRadius
         fx.layer?.cornerCurve = .continuous
         fx.layer?.masksToBounds = true
+        // Bright hairline edge — light catching the glass rim (the depth cue Apple panels have).
+        fx.layer?.borderWidth = 0.5
+        fx.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
         fx.autoresizingMask = [.width, .height]
         self.effectView = fx
 
