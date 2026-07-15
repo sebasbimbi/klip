@@ -518,12 +518,11 @@ struct ItemRow: View {
                 if item.kind == .image { imageCard } else { standardRow }
             }
         }
-        // Single, clean native selection (macOS source-list style): one rounded accent-tint fill —
-        // no border, no separate left rail. The type glyph already signals credentials, so no yellow
-        // outline either. Hover is a faint neutral wash.
+        // Single, clean selection: one rounded accent-tint fill — no border, no rail. Tuned for the
+        // panel's dark glass (the accent and hover washes need a touch more weight to read on it).
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.16)
-                  : (hovering ? Color.primary.opacity(0.05) : Color.clear)))
+            .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.32)
+                  : (hovering ? Color.white.opacity(0.08) : Color.clear)))
         .contentShape(Rectangle())
         .contextMenu {
             // Right-click mirrors the hover actions: copy + star, then everything the ⋯ menu offers.

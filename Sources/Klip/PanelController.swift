@@ -118,12 +118,16 @@ final class PanelController: NSObject, NSWindowDelegate {
         // full-screen app (e.g. an IDE) has focus triggers the action but the panel opens in another Space —
         // it looks like "nothing happened". fullScreenAuxiliary lets it overlay the full-screen Space.
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        // Command-palette look (Raycast/Spotlight-dark): the panel is always dark-frosted glass,
+        // regardless of the system light/dark setting. Forcing the appearance flips the hosted
+        // SwiftUI content to light-on-dark (labels, secondary text) so it stays legible on the glass.
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.delegate = self
 
         let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 480, height: 640))
-        // .sidebar is the most translucent adaptive material — real glass (desktop/content bleeds
-        // through the blur), unlike the near-opaque .menu. Reads as Apple glass in light and dark.
-        fx.material = .sidebar
+        // .hudWindow under the forced dark appearance = the dark frosted glass of a command palette
+        // (Spotlight/Raycast): strong blur, content bleeds through, unmistakably glass on any backdrop.
+        fx.material = .hudWindow
         fx.blendingMode = .behindWindow
         fx.state = .active
         fx.wantsLayer = true
