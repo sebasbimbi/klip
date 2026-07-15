@@ -302,8 +302,17 @@ struct HistoryView: View {
     private var list: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(filtered) { item in
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(filtered.enumerated()), id: \.element.id) { idx, item in
+                        // Date section header (Notes/Photos-style) whenever the day changes. Uses the
+                        // flat `filtered` order, so keyboard nav over `filtered` is unaffected.
+                        if idx == 0 || !ItemRow.sameDay(filtered[idx - 1].createdAt, item.createdAt) {
+                            Text(ItemRow.daySection(item.createdAt))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .padding(.top, idx == 0 ? 2 : 12).padding(.bottom, 4).padding(.leading, 12)
+                        }
                         ItemRow(item: item,
                                 isSelected: item.id == selection.selectedID,
                                 resetToken: selection.openToken,
@@ -320,7 +329,7 @@ struct HistoryView: View {
                         if ocrResultID == item.id { ocrBox }
                     }
                 }
-                .padding(6)
+                .padding(.horizontal, 6).padding(.vertical, 4)
                 // Keyed on ids (not items) so new/removed clips fade+move, but in-place content
                 // updates (e.g. a transcription finishing) don't trigger a layout animation.
                 .animation(.easeOut(duration: 0.2), value: filtered.map(\.id))
@@ -549,17 +558,24 @@ struct ItemRow: View {
     }
 
     private var standardRow: some View {
-        HStack(spacing: 11) {
-            thumbnail
+        HStack(alignment: .top, spacing: 10) {
+            // A color clip leads with a real swatch; a not-yet-transcribed voice note leads with its
+            // play button. Every other type is text-forward — the type is an inline glyph in the title.
+            if let c = swatchColor {
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(nsColor: c))
+                    .frame(width: 22, height: 22)
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color.primary.opacity(0.12)))
+                    .padding(.top, 1)
+            } else if item.isVoiceNote == true, !hasText, let af = voiceAudioFile {
+                VoicePlayButton(fileName: af, large: false).padding(.top, 1)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 if let nm = customName {
                     Text(Self.highlight(nm, searchTerm)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                    Text(Self.highlight(displayedPreview, searchTerm))
-                        .lineLimit(1).font(.system(size: 11, design: isCredential ? .monospaced : .default))
-                        .foregroundStyle(.secondary)
+                    titleText.font(.system(size: 11, design: isCredential ? .monospaced : .default))
+                        .foregroundStyle(.secondary).lineLimit(1)
                 } else {
-                    Text(Self.highlight(displayedPreview, searchTerm))
-                        .lineLimit(2).font(.system(size: 13, design: isCredential ? .monospaced : .default))
+                    titleText.font(.system(size: 13, design: isCredential ? .monospaced : .default)).lineLimit(2)
                 }
                 metadata
             }
@@ -567,46 +583,30 @@ struct ItemRow: View {
             if hovering && !selecting { actions }
             else if item.pinned { pinDot }
         }
-        .padding(.vertical, 7).padding(.horizontal, 10)
+        .padding(.vertical, 7).padding(.horizontal, 12)
     }
 
     private var pinDot: some View { Image(systemName: "star.fill").foregroundStyle(.orange).font(.system(size: 11, weight: .semibold)) }
 
-    // Compact 32pt type glyphs (macOS list style) with a subtle tinted tile — light, not the old
-    // heavy 46pt gray boxes. Continuous corners throughout.
-    @ViewBuilder private var thumbnail: some View {
-        if isCredential {
-            Image(systemName: "key.fill").font(.system(size: 15))
-                .frame(width: 32, height: 32).foregroundStyle(.orange)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.orange.opacity(0.15)))
-        } else if item.isVoiceNote == true {
-            // No text (transcribing/failed) + audio: ▶ button, consistent with the row tap (plays).
-            // With text: static icon (the row tap pastes the text; playback lives in the actions).
-            if !hasText, let af = voiceAudioFile {
-                VoicePlayButton(fileName: af, large: true)
-            } else {
-                Image(systemName: "waveform").font(.system(size: 16))
-                    .frame(width: 32, height: 32).foregroundStyle(.purple)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.purple.opacity(0.12)))
-            }
-        } else if let c = swatchColor {
-            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(nsColor: c))
-                .frame(width: 32, height: 32)
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.primary.opacity(0.12)))
-        } else if item.linkURL != nil {
-            Image(systemName: "link").font(.system(size: 15, weight: .semibold))
-                .frame(width: 32, height: 32).foregroundStyle(Color.accentColor)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.accentColor.opacity(0.13)))
-        } else {
-            Image(systemName: "doc.text").font(.system(size: 15))
-                .frame(width: 32, height: 32).foregroundStyle(.secondary)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.06)))
+    /// Text-forward title: the preview text, with a small inline SF Symbol marking non-text types
+    /// (link ↗ in accent, credential 🔑 in orange, transcribed voice ∿ in purple). Plain text — the
+    /// common case — gets no glyph so the content leads, macOS-list style.
+    private var titleText: Text {
+        let body = Text(Self.highlight(displayedPreview, searchTerm))
+        if item.linkURL != nil {
+            return Text(Image(systemName: "arrow.up.right")).foregroundColor(.accentColor)
+                 + Text("  ") + Text(displayedPreview).foregroundColor(.accentColor)
+        } else if isCredential {
+            return Text(Image(systemName: "key.fill")).foregroundColor(.orange) + Text("  ") + body
+        } else if item.isVoiceNote == true && hasText {
+            return Text(Image(systemName: "waveform")).foregroundColor(.purple) + Text("  ") + body
         }
+        return body
     }
 
     private var metadata: some View {
         HStack(spacing: 6) {
-            Text(Self.timeLabel(item.createdAt)).font(.system(size: 11)).foregroundStyle(.secondary)
+            Text(Self.timeShort(item.createdAt)).font(.system(size: 11)).foregroundStyle(.secondary)
             if let af = voiceAudioFile {
                 VoicePlaybackInfo(fileName: af, duration: item.audioDuration)
             }
@@ -706,6 +706,27 @@ struct ItemRow: View {
                      : (sameYear ? "EEEE dd 'de' MMMM" : "EEEE dd 'de' MMMM yyyy")
         return "\(df(fmt, en).string(from: date)) · \(time)"
     }
+
+    /// Just the time ("20:46" / "8:46 PM") — the day now lives in the list's section header.
+    static func timeShort(_ date: Date) -> String {
+        let en = Settings.shared.uiLanguage == "en"
+        return df(en ? "h:mm a" : "HH:mm", en).string(from: date)
+    }
+
+    /// Day-level section title for the grouped list: "Hoy" / "Ayer" / weekday / date (no time).
+    static func daySection(_ date: Date) -> String {
+        let cal = Calendar.current
+        let en = Settings.shared.uiLanguage == "en"
+        if cal.isDateInToday(date)     { return L10n.t("date.today") }
+        if cal.isDateInYesterday(date) { return L10n.t("date.yesterday") }
+        let sameYear = cal.component(.year, from: date) == cal.component(.year, from: Date())
+        let fmt = en ? (sameYear ? "EEEE, MMM d" : "MMM d, yyyy")
+                     : (sameYear ? "EEEE d 'de' MMMM" : "d 'de' MMMM yyyy")
+        return df(fmt, en).string(from: date)
+    }
+
+    /// Two dates fall in the same calendar day (drives section breaks).
+    static func sameDay(_ a: Date, _ b: Date) -> Bool { Calendar.current.isDate(a, inSameDayAs: b) }
 
     /// DateFormatters cached by (language, format, time zone) — avoids recreating them on every render, while
     /// still reflecting a system time-zone change mid-session (the TZ in the key busts a stale formatter).
