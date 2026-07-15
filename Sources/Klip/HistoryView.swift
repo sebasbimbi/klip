@@ -334,9 +334,12 @@ struct HistoryView: View {
                 // (text must not move — the user copies constantly). Only the OCR box fades.
                 .animation(.easeOut(duration: 0.13), value: ocrResultID)
             }
+            .scrollContentBackground(.hidden)   // let the window's glass material show through the list
             .onChange(of: selection.selectedID) { _, newID in
                 guard let newID else { return }
-                withAnimation(.easeInOut(duration: 0.12)) { proxy.scrollTo(newID, anchor: .center) }
+                // Instant, un-animated scroll: keep the selected row visible without ever sliding
+                // the text (a new clip changes the selection constantly — animation = moving text).
+                proxy.scrollTo(newID, anchor: .center)
             }
         }
     }
