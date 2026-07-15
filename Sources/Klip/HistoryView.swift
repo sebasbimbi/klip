@@ -109,11 +109,13 @@ struct HistoryView: View {
             if filtered.isEmpty { emptyState } else { list }
             if selecting { batchBar }
         }
-        // Gentle fades for list<->empty swap and the batch bar slide; scoped by value so nothing else animates.
-        .animation(.easeOut(duration: 0.13), value: filtered.isEmpty)
-        .animation(.easeOut(duration: 0.15), value: selecting)
+        // No container animations at all: an ambient animation transaction here can bleed into the
+        // list (e.g. the scroll on a new clip), which reads as the text sliding. The user wants zero
+        // text movement, so the batch bar / empty-state just swap instantly.
         .frame(minWidth: 420, minHeight: 460)
-        .background(Color.clear)
+        // Command-palette legibility: a dark scrim over the HUD glass so white text always reads,
+        // even when bright/colorful content shows through the blur (the Raycast/Spotlight approach).
+        .background(Color.black.opacity(0.32))
         .onAppear { syncVisible(); searchFocused = true }
         .onChange(of: search) { _, newValue in selection.searchHasText = !newValue.isEmpty; syncVisible() }
         .onChange(of: filter) { _, _ in syncVisible() }
@@ -337,9 +339,10 @@ struct HistoryView: View {
             .scrollContentBackground(.hidden)   // let the window's glass material show through the list
             .onChange(of: selection.selectedID) { _, newID in
                 guard let newID else { return }
-                // Instant, un-animated scroll: keep the selected row visible without ever sliding
-                // the text (a new clip changes the selection constantly — animation = moving text).
-                proxy.scrollTo(newID, anchor: .center)
+                // Hard-disable animation on the scroll: a new clip changes the selection constantly,
+                // and any ambient animation transaction would make the whole list (text) slide.
+                var tx = Transaction(); tx.disablesAnimations = true
+                withTransaction(tx) { proxy.scrollTo(newID, anchor: .center) }
             }
         }
     }
