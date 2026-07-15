@@ -658,7 +658,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.isMovableByWindowBackground = true
             panel.isReleasedWhenClosed = false
             let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 264, height: 150))
-            fx.material = .popover
+            fx.material = .underWindowBackground
             fx.blendingMode = .behindWindow
             fx.state = .active
             fx.wantsLayer = true

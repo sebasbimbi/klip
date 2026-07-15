@@ -71,7 +71,7 @@ enum ToastHUD {
         }
 
         let fx = NSVisualEffectView()
-        fx.material = .popover
+        fx.material = .underWindowBackground
         fx.state = .active
         fx.wantsLayer = true
         fx.layer?.cornerRadius = 12   // matches the main HUD panel (PanelController)
