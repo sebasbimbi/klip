@@ -302,7 +302,7 @@ struct HistoryView: View {
     private var list: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 3) {
+                LazyVStack(spacing: 2) {
                     ForEach(filtered) { item in
                         ItemRow(item: item,
                                 isSelected: item.id == selection.selectedID,
@@ -320,7 +320,7 @@ struct HistoryView: View {
                         if ocrResultID == item.id { ocrBox }
                     }
                 }
-                .padding(8)
+                .padding(6)
                 // Keyed on ids (not items) so new/removed clips fade+move, but in-place content
                 // updates (e.g. a transcription finishing) don't trigger a layout animation.
                 .animation(.easeOut(duration: 0.2), value: filtered.map(\.id))
@@ -495,20 +495,12 @@ struct ItemRow: View {
                 if item.kind == .image { imageCard } else { standardRow }
             }
         }
-        .background(RoundedRectangle(cornerRadius: 8)
-            .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.20)
-                  : (hovering ? Color.primary.opacity(0.06) : Color.clear)))
-        .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke(isSelected && !selecting ? Color.accentColor.opacity(0.6)
-                    : (isCredential ? Color.yellow.opacity(0.4) : Color.clear), lineWidth: 1))
-        // Solid-accent left rail on the keyboard-selected row: a clear native indication that keeps the
-        // row's image/swatch/preview readable (a full accent fill would clobber them).
-        .overlay(alignment: .leading) {
-            if isSelected && !selecting {
-                Capsule().fill(Color.accentColor).frame(width: 3, height: 18)
-                    .padding(.leading, 3).allowsHitTesting(false)
-            }
-        }
+        // Single, clean native selection (macOS source-list style): one rounded accent-tint fill —
+        // no border, no separate left rail. The type glyph already signals credentials, so no yellow
+        // outline either. Hover is a faint neutral wash.
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill((selecting && isChecked) || (!selecting && isSelected) ? Color.accentColor.opacity(0.16)
+                  : (hovering ? Color.primary.opacity(0.05) : Color.clear)))
         .contentShape(Rectangle())
         .contextMenu {
             // Right-click mirrors the hover actions: copy + star, then everything the ⋯ menu offers.
@@ -553,13 +545,13 @@ struct ItemRow: View {
                 }
             }
         }
-        .padding(8)
+        .padding(.vertical, 7).padding(.horizontal, 10)
     }
 
     private var standardRow: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 11) {
             thumbnail
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 if let nm = customName {
                     Text(Self.highlight(nm, searchTerm)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     Text(Self.highlight(displayedPreview, searchTerm))
@@ -573,37 +565,42 @@ struct ItemRow: View {
             }
             Spacer(minLength: 4)
             if hovering && !selecting { actions }
-            else if isCredential { Image(systemName: "key.fill").foregroundStyle(.yellow).font(.system(size: 11, weight: .semibold)) }
             else if item.pinned { pinDot }
         }
-        .padding(8)
+        .padding(.vertical, 7).padding(.horizontal, 10)
     }
 
     private var pinDot: some View { Image(systemName: "star.fill").foregroundStyle(.orange).font(.system(size: 11, weight: .semibold)) }
 
+    // Compact 32pt type glyphs (macOS list style) with a subtle tinted tile — light, not the old
+    // heavy 46pt gray boxes. Continuous corners throughout.
     @ViewBuilder private var thumbnail: some View {
         if isCredential {
-            Image(systemName: "key.fill").font(.system(size: 18))
-                .frame(width: 46, height: 46).foregroundStyle(.yellow)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.yellow.opacity(0.14)))
+            Image(systemName: "key.fill").font(.system(size: 15))
+                .frame(width: 32, height: 32).foregroundStyle(.orange)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.orange.opacity(0.15)))
         } else if item.isVoiceNote == true {
             // No text (transcribing/failed) + audio: ▶ button, consistent with the row tap (plays).
             // With text: static icon (the row tap pastes the text; playback lives in the actions).
             if !hasText, let af = voiceAudioFile {
                 VoicePlayButton(fileName: af, large: true)
             } else {
-                Image(systemName: "waveform").font(.system(size: 20))
-                    .frame(width: 46, height: 46).foregroundStyle(.purple)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.purple.opacity(0.12)))
+                Image(systemName: "waveform").font(.system(size: 16))
+                    .frame(width: 32, height: 32).foregroundStyle(.purple)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.purple.opacity(0.12)))
             }
         } else if let c = swatchColor {
-            RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: c))
-                .frame(width: 46, height: 46)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.15)))
+            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(nsColor: c))
+                .frame(width: 32, height: 32)
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.primary.opacity(0.12)))
+        } else if item.linkURL != nil {
+            Image(systemName: "link").font(.system(size: 15, weight: .semibold))
+                .frame(width: 32, height: 32).foregroundStyle(Color.accentColor)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.accentColor.opacity(0.13)))
         } else {
-            Image(systemName: "doc.text").font(.system(size: 18))
-                .frame(width: 46, height: 46).foregroundStyle(.secondary)
-                .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary))
+            Image(systemName: "doc.text").font(.system(size: 15))
+                .frame(width: 32, height: 32).foregroundStyle(.secondary)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.06)))
         }
     }
 
