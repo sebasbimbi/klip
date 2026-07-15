@@ -27,7 +27,8 @@ struct RecordingView: View {
 
     var body: some View {
         VStack(spacing: 16) { content }
-            .frame(width: 360, height: 320)
+            .frame(width: 320)   // fixed width; height sizes to content (no dead white space)
+            .fixedSize(horizontal: false, vertical: true)
             // Cross-fade between states (recording ↔ silence warning ↔ errors) instead of jumping.
             .animation(.easeOut(duration: 0.13), value: recorder.state)
             .animation(.easeOut(duration: 0.13), value: recorder.silenceWarning)

@@ -541,19 +541,22 @@ final class PanelController: NSObject, NSWindowDelegate {
                     NSApp.activate(ignoringOtherApps: true)
                 }
             )
-            let p = KeyablePanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 320),
+            let p = KeyablePanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 210),
                                  styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = true
             p.level = .floating; p.isReleasedWhenClosed = false
             p.isMovableByWindowBackground = true   // draggable from the background (borderless panel with no title bar)
             p.hidesOnDeactivate = false   // don't hide when focus returns to the user's app
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]   // also show over full-screen apps
-            let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 360, height: 320))
-            fx.material = .popover; fx.blendingMode = .behindWindow; fx.state = .active
+            let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 320, height: 210))
+            // .menu = the translucent glass of a macOS navigation menu (what the user asked for).
+            fx.material = .menu; fx.blendingMode = .behindWindow; fx.state = .active
             fx.wantsLayer = true; fx.layer?.cornerRadius = cornerRadius; fx.layer?.cornerCurve = .continuous; fx.layer?.masksToBounds = true   // shared glass radius
             fx.autoresizingMask = [.width, .height]
             let host = NSHostingView(rootView: view)
-            host.frame = fx.bounds; host.autoresizingMask = [.width, .height]; fx.addSubview(host)
+            host.frame = fx.bounds; host.autoresizingMask = [.width, .height]
+            host.sizingOptions = [.preferredContentSize]   // the window follows the content's height → no dead space
+            fx.addSubview(host)
             p.contentView = fx
             recordingPanel = p
             // Position ONLY on creation: if the user dragged the popup, we don't put it back in the center

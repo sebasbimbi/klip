@@ -543,7 +543,7 @@ struct ItemRow: View {
             moreMenu
         }
         // Animated so the hover highlight and the inline actions fade instead of popping in.
-        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
+        .onHover { h in hovering = h }   // instant — no animated "text settling" as the row's actions appear
         .onTapGesture { if selecting { onToggleCheck() } else { onPick(item) } }
         .onChange(of: resetToken) { _, _ in revealed = false }   // re-mask when reopening the panel
         .onChange(of: hovering) { _, h in if !h { revealed = false } }   // re-mask once the pointer leaves the row (covers search/filter/scroll)
