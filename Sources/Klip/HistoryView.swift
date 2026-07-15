@@ -492,7 +492,19 @@ struct ItemRow: View {
             if CredentialCrypto.isSealed(t) { return item.preview.isEmpty ? CredentialDetector.maskedPlaceholder : item.preview }
             return revealed ? t : CredentialDetector.masked(t)
         }
-        return item.preview.isEmpty ? L10n.t("item.empty") : item.preview
+        return item.preview.isEmpty ? L10n.t("item.empty") : Self.cleanPreview(item.preview)
+    }
+
+    /// Strips Markdown emphasis syntax from the PREVIEW so "**DealLost**" reads as "DealLost".
+    /// Only paired markers are removed — lone underscores stay so identifiers like GN_MASIVO_X
+    /// are never mangled. Display-only; the stored text and search are untouched.
+    static func cleanPreview(_ s: String) -> String {
+        var t = s
+        for p in [#"\*\*(.+?)\*\*"#, #"__(.+?)__"#, #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)"#, "`(.+?)`"] {
+            t = t.replacingOccurrences(of: p, with: "$1", options: .regularExpression)
+        }
+        t = t.replacingOccurrences(of: #"^\s{0,3}#{1,6}\s+"#, with: "", options: .regularExpression)
+        return t
     }
 
     var body: some View {
