@@ -50,10 +50,16 @@ enum GlassMask {
 /// Adapts to the effective appearance (light/dark) and goes fully opaque under Reduce
 /// Transparency / Increase Contrast, mirroring the system materials' fallback.
 final class GlassPanelView: NSView {
+    /// Decoration that must never intercept clicks: the sheen and rim sit ABOVE the hosted content,
+    /// so without this they'd swallow every press (a dead Cancel button).
+    private final class PassthroughView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
     private let fx = NSVisualEffectView()
-    private let tintView = NSView()
+    private let tintView = PassthroughView()
     private let sheen = CAGradientLayer()
-    private let rimView = NSView()
+    private let rimView = PassthroughView()
     private let rimOuter = CALayer()
     private let rimInner = CALayer()
     private let radius: CGFloat
@@ -111,11 +117,20 @@ final class GlassPanelView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     /// Installs the hosted content between the tint and the rim.
+    ///
+    /// The content is clipped to the panel's rounded shape: an NSHostingView is a plain rectangle,
+    /// so without this its square backing shows past the glass corners as a white box. Clipping the
+    /// CONTENT is safe — unlike clipping the effect view, which would break behind-window blending.
     func setContent(_ view: NSView) {
         content?.removeFromSuperview()
         content = view
         view.frame = bounds
         view.autoresizingMask = [.width, .height]
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.clear.cgColor
+        view.layer?.cornerRadius = radius
+        view.layer?.cornerCurve = .continuous
+        view.layer?.masksToBounds = true
         addSubview(view, positioned: .below, relativeTo: rimView)
     }
 
