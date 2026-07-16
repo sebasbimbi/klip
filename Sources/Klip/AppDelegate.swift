@@ -658,13 +658,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.isMovableByWindowBackground = true
             panel.isReleasedWhenClosed = false
             let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 264, height: 150))
-            fx.material = .underWindowBackground
+            fx.material = .menu
             fx.blendingMode = .behindWindow
             fx.state = .active
-            fx.wantsLayer = true
-            fx.layer?.cornerRadius = 12
-            fx.layer?.cornerCurve = .continuous
-            fx.layer?.masksToBounds = true
+            fx.isEmphasized = false
+            // Corners via maskImage — layer.cornerRadius would kill the behind-window blur (GlassMask).
+            fx.maskImage = GlassMask.rounded(12)
             fx.autoresizingMask = [.width, .height]
             let hosting = NSHostingView(rootView: view)
             hosting.frame = fx.bounds

@@ -113,15 +113,9 @@ struct HistoryView: View {
         // list (e.g. the scroll on a new clip), which reads as the text sliding. The user wants zero
         // text movement, so the batch bar / empty-state just swap instantly.
         .frame(minWidth: 420, minHeight: 460)
-        // Glossy light glass (Dock-like): a faint overall brightening + a white top sheen over the
-        // frosted material, so it reads as bright luminous glass. Dark text stays fully legible.
-        .background {
-            ZStack(alignment: .top) {
-                Color.white.opacity(0.10)
-                LinearGradient(colors: [Color.white.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 90)
-            }
-        }
+        // MUST stay truly clear: any fill here stacks ON TOP of the window's vibrancy and collapses
+        // the glass to a flat box (NSVisualEffectView doesn't affect content drawn over it).
+        .background(Color.clear)
         .onAppear { syncVisible(); searchFocused = true }
         .onChange(of: search) { _, newValue in selection.searchHasText = !newValue.isEmpty; syncVisible() }
         .onChange(of: filter) { _, _ in syncVisible() }

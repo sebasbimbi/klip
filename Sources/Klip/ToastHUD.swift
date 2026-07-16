@@ -71,12 +71,12 @@ enum ToastHUD {
         }
 
         let fx = NSVisualEffectView()
-        fx.material = .underWindowBackground
+        fx.material = .menu
+        fx.blendingMode = .behindWindow
         fx.state = .active
-        fx.wantsLayer = true
-        fx.layer?.cornerRadius = 12   // matches the main HUD panel (PanelController)
-        fx.layer?.cornerCurve = .continuous
-        fx.layer?.masksToBounds = true
+        fx.isEmphasized = false
+        // Corners via maskImage — layer.cornerRadius would kill the behind-window blur (see GlassMask).
+        fx.maskImage = GlassMask.rounded(12)   // matches the main panel radius
         fx.translatesAutoresizingMaskIntoConstraints = false
         stack.translatesAutoresizingMaskIntoConstraints = false
         fx.addSubview(stack)

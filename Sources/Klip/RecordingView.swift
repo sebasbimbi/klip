@@ -29,14 +29,6 @@ struct RecordingView: View {
         VStack(spacing: 16) { content }
             .frame(width: 320)   // fixed width; height sizes to content (no dead white space)
             .fixedSize(horizontal: false, vertical: true)
-            // Same glossy-glass brightening as the main panel, so the popup reads as luminous glass.
-            .background {
-                ZStack(alignment: .top) {
-                    Color.white.opacity(0.10)
-                    LinearGradient(colors: [Color.white.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 70)
-                }
-            }
             // Cross-fade between states (recording ↔ silence warning ↔ errors) instead of jumping.
             .animation(.easeOut(duration: 0.13), value: recorder.state)
             .animation(.easeOut(duration: 0.13), value: recorder.silenceWarning)

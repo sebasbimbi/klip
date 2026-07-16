@@ -14,6 +14,29 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// Shared helpers for real behind-window vibrancy ("glass").
+@MainActor
+enum GlassMask {
+    /// Rounded-corner mask for an NSVisualEffectView.
+    ///
+    /// CRITICAL: never round a visual-effect view with `wantsLayer` + `layer.cornerRadius` +
+    /// `masksToBounds`. `.behindWindow` blending works by the window server compositing the material
+    /// through the view's `maskImage`; forcing the view into its own clipped backing layer composites
+    /// it off-screen instead and collapses the glass to flat opaque gray — regardless of the material.
+    /// A resizable rounded-rect `maskImage` gives the same corners while keeping the blur alive.
+    static func rounded(_ radius: CGFloat) -> NSImage {
+        let d = radius * 2 + 1
+        let img = NSImage(size: NSSize(width: d, height: d), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        img.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        img.resizingMode = .stretch
+        return img
+    }
+}
+
 /// Native macOS "glass" chrome for auxiliary windows (Welcome, Guide, Upload, Preferences):
 /// a behind-window translucent material running edge to edge under a transparent titlebar,
 /// so they match the history panel / HUD look instead of a flat opaque window.

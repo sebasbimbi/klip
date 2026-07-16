@@ -121,19 +121,13 @@ final class PanelController: NSObject, NSWindowDelegate {
         panel.delegate = self
 
         let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 480, height: 640))
-        // Bright, light, glossy frosted glass — like the macOS Dock. .underWindowBackground is the most
-        // translucent light material, so the backdrop (wallpaper/content) genuinely bleeds through the
-        // blur. Legible dark text sits on top (aided by the gloss/brightening layer in HistoryView).
-        fx.material = .underWindowBackground
+        // Real behind-window glass, like a macOS menu / the Dock: the backdrop bleeds through the blur.
+        fx.material = .menu
         fx.blendingMode = .behindWindow
         fx.state = .active
-        fx.wantsLayer = true
-        fx.layer?.cornerRadius = cornerRadius
-        fx.layer?.cornerCurve = .continuous
-        fx.layer?.masksToBounds = true
-        // Bright glossy rim — light catching the top edge of the glass (Dock/Apple panel depth cue).
-        fx.layer?.borderWidth = 0.5
-        fx.layer?.borderColor = NSColor.white.withAlphaComponent(0.5).cgColor
+        fx.isEmphasized = false
+        // Corners via maskImage — NOT layer.cornerRadius (see GlassMask: the layer route kills the blur).
+        fx.maskImage = GlassMask.rounded(cornerRadius)
         fx.autoresizingMask = [.width, .height]
         self.effectView = fx
 
@@ -550,10 +544,9 @@ final class PanelController: NSObject, NSWindowDelegate {
             p.hidesOnDeactivate = false   // don't hide when focus returns to the user's app
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]   // also show over full-screen apps
             let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 320, height: 210))
-            // Most translucent light glass, matching the main panel, so the popup reads as real glass.
-            fx.material = .underWindowBackground; fx.blendingMode = .behindWindow; fx.state = .active
-            fx.wantsLayer = true; fx.layer?.cornerRadius = cornerRadius; fx.layer?.cornerCurve = .continuous; fx.layer?.masksToBounds = true   // shared glass radius
-            fx.layer?.borderWidth = 0.5; fx.layer?.borderColor = NSColor.white.withAlphaComponent(0.5).cgColor   // glossy rim
+            // Same real behind-window glass as the panel (corners via maskImage — see GlassMask).
+            fx.material = .menu; fx.blendingMode = .behindWindow; fx.state = .active; fx.isEmphasized = false
+            fx.maskImage = GlassMask.rounded(cornerRadius)
             fx.autoresizingMask = [.width, .height]
             let host = NSHostingView(rootView: view)
             host.frame = fx.bounds; host.autoresizingMask = [.width, .height]
