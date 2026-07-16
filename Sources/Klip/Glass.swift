@@ -141,21 +141,21 @@ final class GlassPanelView: NSView {
         }
 
         fx.isHidden = false
+        // NO extra tint: the system material already applies Apple's full recipe (floor + darken
+        // ceiling + saturation) internally. Measured in the glass lab: raw .popover+mask converges
+        // to the same value as a REAL Finder menu over the same backdrop (Δ≈-9 vs +15, both toward
+        // ~188); adding the CoreUI tint on top double-applies it and lands ~20 too dark.
+        tintView.layer?.compositingFilter = nil
+        tintView.layer?.backgroundColor = NSColor.clear.cgColor
         rimOuter.borderWidth = 0.5
         if dark {
-            // panelDark: lighten toward 0.086 — the floor that keeps the panel from reading as a hole.
-            tintView.layer?.backgroundColor = NSColor(white: 0.08627, alpha: 0.5).cgColor
-            tintView.layer?.compositingFilter = "lightenBlendMode"
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.8).cgColor
             rimInner.isHidden = false
             rimInner.borderColor = NSColor(white: 1, alpha: 0.2).cgColor
         } else {
-            // panelLight: darken toward 0.9333 — the ceiling that stops blow-out over bright content.
-            tintView.layer?.backgroundColor = NSColor(white: 0.9333, alpha: 0.5).cgColor
-            tintView.layer?.compositingFilter = "darkenBlendMode"
-            rimOuter.borderColor = NSColor(white: 1, alpha: 0.5).cgColor
+            rimOuter.borderColor = NSColor(white: 0, alpha: 0.10).cgColor   // faint contour so the edge reads over white content
             rimInner.isHidden = false
-            rimInner.borderColor = NSColor(white: 1, alpha: 0.25).cgColor
+            rimInner.borderColor = NSColor(white: 1, alpha: 0.5).cgColor    // specular inner edge (light catching the glass)
         }
     }
 }
