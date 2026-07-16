@@ -52,6 +52,7 @@ enum GlassMask {
 final class GlassPanelView: NSView {
     private let fx = NSVisualEffectView()
     private let tintView = NSView()
+    private let sheen = CAGradientLayer()
     private let rimView = NSView()
     private let rimOuter = CALayer()
     private let rimInner = CALayer()
@@ -76,6 +77,17 @@ final class GlassPanelView: NSView {
         tintView.autoresizingMask = [.width, .height]
         tintView.layer?.cornerRadius = radius
         tintView.layer?.cornerCurve = .continuous
+        // Specular sheen — the "mirror" band: a soft diagonal highlight from the top-left, like
+        // light reflecting off the glass (Liquid Glass's Highlight layer). This is what makes the
+        // surface read as glass even over plain white content, where blur alone shows nothing.
+        // Directional and edge-weighted — NOT a flat white veil (which would just raise the floor).
+        sheen.type = .axial
+        sheen.startPoint = CGPoint(x: 0, y: 1)      // top-left (macOS layer coords: y-up)
+        sheen.endPoint = CGPoint(x: 0.65, y: 0.1)   // fades out ~2/3 across, light at ≈ -60°
+        sheen.cornerRadius = radius
+        sheen.cornerCurve = .continuous
+        sheen.masksToBounds = true
+        tintView.layer?.addSublayer(sheen)
         addSubview(tintView)
 
         rimView.wantsLayer = true
@@ -115,6 +127,7 @@ final class GlassPanelView: NSView {
         rimOuter.cornerRadius = radius
         rimInner.frame = rimView.bounds.insetBy(dx: 0.5, dy: 0.5)
         rimInner.cornerRadius = max(0, radius - 0.5)
+        sheen.frame = tintView.bounds
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -132,6 +145,7 @@ final class GlassPanelView: NSView {
         if reduce {
             // System materials go fully opaque here; so do we (the accessibility floor).
             fx.isHidden = true
+            sheen.isHidden = true
             tintView.layer?.compositingFilter = nil
             tintView.layer?.backgroundColor = NSColor(white: dark ? 0.12 : 0.8784, alpha: 1).cgColor
             rimOuter.borderColor = NSColor(white: dark ? 1 : 0, alpha: 1).cgColor
@@ -147,12 +161,21 @@ final class GlassPanelView: NSView {
         // ~188); adding the CoreUI tint on top double-applies it and lands ~20 too dark.
         tintView.layer?.compositingFilter = nil
         tintView.layer?.backgroundColor = NSColor.clear.cgColor
+        sheen.isHidden = false
         rimOuter.borderWidth = 0.5
         if dark {
+            sheen.colors = [NSColor(white: 1, alpha: 0.10).cgColor,
+                            NSColor(white: 1, alpha: 0.03).cgColor,
+                            NSColor.clear.cgColor]
+            sheen.locations = [0, 0.3, 0.6]
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.8).cgColor
             rimInner.isHidden = false
             rimInner.borderColor = NSColor(white: 1, alpha: 0.2).cgColor
         } else {
+            sheen.colors = [NSColor(white: 1, alpha: 0.28).cgColor,
+                            NSColor(white: 1, alpha: 0.08).cgColor,
+                            NSColor.clear.cgColor]
+            sheen.locations = [0, 0.3, 0.6]
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.10).cgColor   // faint contour so the edge reads over white content
             rimInner.isHidden = false
             rimInner.borderColor = NSColor(white: 1, alpha: 0.5).cgColor    // specular inner edge (light catching the glass)

@@ -397,7 +397,9 @@ final class PanelController: NSObject, NSWindowDelegate {
                     self.showAlert(L10n.t("export.empty.title"), L10n.t("export.empty.info"))
                     return
                 }
-                guard let url = try? Storage.shared.exportToDownloads(result.data, ext: "pdf")
+                // Fast numeric name (user request): "Klip-483920.pdf" — no dialog, nothing to type.
+                guard let url = try? Storage.shared.exportToDownloads(result.data, ext: "pdf",
+                                                                      base: "Klip-\(Int(Date().timeIntervalSince1970) % 1_000_000)")
                 else { NSSound.beep(); return }
                 // Partial export: surface the skipped-items note in the toast instead of the filename.
                 let detail = result.exported < items.count
@@ -426,7 +428,8 @@ final class PanelController: NSObject, NSWindowDelegate {
                 defer { try? FileManager.default.removeItem(at: tmp) }
                 do {
                     try Storage.shared.exportItemsZip(items, to: tmp)
-                    return .success(try Storage.shared.exportToDownloads(Data(contentsOf: tmp), ext: "zip"))
+                    return .success(try Storage.shared.exportToDownloads(Data(contentsOf: tmp), ext: "zip",
+                                                                         base: "Klip-\(Int(Date().timeIntervalSince1970) % 1_000_000)"))
                 } catch { return .failure(error) }
             }()
             DispatchQueue.main.async {
