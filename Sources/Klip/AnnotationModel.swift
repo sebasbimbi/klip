@@ -15,7 +15,7 @@ enum SnapTool: String, CaseIterable {
         case .ellipse:   return "circle"
         case .marker:    return "highlighter"
         case .text:      return "textformat"
-        case .blur:      return "drop"                  // Shottr's blur metaphor; "mosaic" reads as a table
+        case .blur:      return "checkerboard.rectangle"   // reads as "pixelate" (a droplet read as nothing)                  // Shottr's blur metaphor; "mosaic" reads as a table
         case .spotlight: return "flashlight.on.fill"    // "camera.metering.spot" is cryptic
         case .counter:   return "1.circle"              // shows an actual number, like the badges it stamps
         }

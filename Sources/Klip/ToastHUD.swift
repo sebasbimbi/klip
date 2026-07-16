@@ -70,24 +70,21 @@ enum ToastHUD {
             stack.addArrangedSubview(button)
         }
 
-        let fx = NSVisualEffectView()
-        fx.material = .menu
-        fx.blendingMode = .behindWindow
-        fx.state = .active
-        fx.isEmphasized = false
-        // Corners via maskImage — layer.cornerRadius would kill the behind-window blur (see GlassMask).
-        fx.maskImage = GlassMask.rounded(12)   // matches the main panel radius
-        fx.translatesAutoresizingMaskIntoConstraints = false
+        // Apple's panel recipe (backdrop + ceiling tint + rim), shared with the main panel.
+        let fx = GlassPanelView(frame: .zero, radius: 12)
+        let contentBox = NSView()
+        contentBox.translatesAutoresizingMaskIntoConstraints = false
         stack.translatesAutoresizingMaskIntoConstraints = false
-        fx.addSubview(stack)
+        contentBox.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: fx.leadingAnchor, constant: 14),
-            stack.trailingAnchor.constraint(equalTo: fx.trailingAnchor, constant: -14),
-            stack.topAnchor.constraint(equalTo: fx.topAnchor, constant: 9),
-            stack.bottomAnchor.constraint(equalTo: fx.bottomAnchor, constant: -9),
+            stack.leadingAnchor.constraint(equalTo: contentBox.leadingAnchor, constant: 14),
+            stack.trailingAnchor.constraint(equalTo: contentBox.trailingAnchor, constant: -14),
+            stack.topAnchor.constraint(equalTo: contentBox.topAnchor, constant: 9),
+            stack.bottomAnchor.constraint(equalTo: contentBox.bottomAnchor, constant: -9),
         ])
+        fx.setContent(contentBox)
 
-        let size = fx.fittingSize
+        let size = contentBox.fittingSize
         let width = min(max(size.width, 160), 380)
         // Top-right of the screen the mouse is on (where the user is looking after a capture/copy).
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main

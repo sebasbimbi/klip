@@ -13,7 +13,6 @@ final class KeyablePanel: NSPanel {
 @MainActor
 final class PanelController: NSObject, NSWindowDelegate {
     private var panel: KeyablePanel!
-    private var effectView: NSVisualEffectView!
     private let manager: ClipboardManager
     private let selection = SelectionModel()
     private let recorder = Recorder()
@@ -120,23 +119,13 @@ final class PanelController: NSObject, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         panel.delegate = self
 
-        let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 480, height: 640))
-        // Real behind-window glass, like a macOS menu / the Dock: the backdrop bleeds through the blur.
-        fx.material = .menu
-        fx.blendingMode = .behindWindow
-        fx.state = .active
-        fx.isEmphasized = false
-        // Corners via maskImage — NOT layer.cornerRadius (see GlassMask: the layer route kills the blur).
-        fx.maskImage = GlassMask.rounded(cornerRadius)
-        fx.autoresizingMask = [.width, .height]
-        self.effectView = fx
-
+        // Apple's panel recipe: backdrop material + luminance-ceiling tint + concentric rim.
+        let glass = GlassPanelView(frame: NSRect(x: 0, y: 0, width: 480, height: 640),
+                                   radius: cornerRadius)
         let hosting = NSHostingView(rootView: root)
-        hosting.frame = fx.bounds
-        hosting.autoresizingMask = [.width, .height]
-        fx.addSubview(hosting)
+        glass.setContent(hosting)
 
-        panel.contentView = fx
+        panel.contentView = glass
         self.panel = panel
     }
 
@@ -543,16 +532,13 @@ final class PanelController: NSObject, NSWindowDelegate {
             p.isMovableByWindowBackground = true   // draggable from the background (borderless panel with no title bar)
             p.hidesOnDeactivate = false   // don't hide when focus returns to the user's app
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]   // also show over full-screen apps
-            let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 320, height: 210))
-            // Same real behind-window glass as the panel (corners via maskImage — see GlassMask).
-            fx.material = .menu; fx.blendingMode = .behindWindow; fx.state = .active; fx.isEmphasized = false
-            fx.maskImage = GlassMask.rounded(cornerRadius)
-            fx.autoresizingMask = [.width, .height]
+            // Same Apple panel recipe as the main panel (backdrop + ceiling tint + rim).
+            let glass = GlassPanelView(frame: NSRect(x: 0, y: 0, width: 320, height: 210),
+                                       radius: cornerRadius)
             let host = NSHostingView(rootView: view)
-            host.frame = fx.bounds; host.autoresizingMask = [.width, .height]
             host.sizingOptions = [.preferredContentSize]   // the window follows the content's height → no dead space
-            fx.addSubview(host)
-            p.contentView = fx
+            glass.setContent(host)
+            p.contentView = glass
             recordingPanel = p
             // Position ONLY on creation: if the user dragged the popup, we don't put it back in the center
             // every time they record again.

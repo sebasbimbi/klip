@@ -657,18 +657,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             panel.isMovableByWindowBackground = true
             panel.isReleasedWhenClosed = false
-            let fx = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 264, height: 150))
-            fx.material = .menu
-            fx.blendingMode = .behindWindow
-            fx.state = .active
-            fx.isEmphasized = false
-            // Corners via maskImage — layer.cornerRadius would kill the behind-window blur (GlassMask).
-            fx.maskImage = GlassMask.rounded(12)
-            fx.autoresizingMask = [.width, .height]
-            let hosting = NSHostingView(rootView: view)
-            hosting.frame = fx.bounds
-            hosting.autoresizingMask = [.width, .height]
-            fx.addSubview(hosting)
+            // Apple's panel recipe (backdrop + ceiling tint + rim), shared with the main panel.
+            let fx = GlassPanelView(frame: NSRect(x: 0, y: 0, width: 264, height: 150), radius: 12)
+            fx.setContent(NSHostingView(rootView: view))
             panel.contentView = fx
             // Remember wherever the user drags it (restored on the next meeting).
             NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification,

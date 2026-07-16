@@ -37,6 +37,129 @@ enum GlassMask {
     }
 }
 
+/// A floating glass surface implementing Apple's real material recipe (references/apple-glass):
+///
+///   backdrop  — NSVisualEffectView (.popover, .behindWindow, .active) rounded via maskImage
+///   tint      — the luminance CEILING: near-white grey composited with darkenBlendMode in light
+///               (min(backdrop, tint) clamps highlights), near-black with lightenBlendMode in dark.
+///               Apple's light materials always darken, never whiten — a white wash has no ceiling
+///               and blows out over bright content.
+///   content   — hosted above the tint (fills + vibrancy only; never a second effect view)
+///   rim       — where glass is actually defined: concentric strokes, light-catching edge.
+///
+/// Adapts to the effective appearance (light/dark) and goes fully opaque under Reduce
+/// Transparency / Increase Contrast, mirroring the system materials' fallback.
+final class GlassPanelView: NSView {
+    private let fx = NSVisualEffectView()
+    private let tintView = NSView()
+    private let rimView = NSView()
+    private let rimOuter = CALayer()
+    private let rimInner = CALayer()
+    private let radius: CGFloat
+    private weak var content: NSView?
+
+    init(frame: NSRect, radius: CGFloat, material: NSVisualEffectView.Material = .popover) {
+        self.radius = radius
+        super.init(frame: frame)
+
+        fx.material = material
+        fx.blendingMode = .behindWindow
+        fx.state = .active
+        fx.isEmphasized = false
+        fx.maskImage = GlassMask.rounded(radius)
+        fx.frame = bounds
+        fx.autoresizingMask = [.width, .height]
+        addSubview(fx)
+
+        tintView.wantsLayer = true
+        tintView.frame = bounds
+        tintView.autoresizingMask = [.width, .height]
+        tintView.layer?.cornerRadius = radius
+        tintView.layer?.cornerCurve = .continuous
+        addSubview(tintView)
+
+        rimView.wantsLayer = true
+        rimView.frame = bounds
+        rimView.autoresizingMask = [.width, .height]
+        rimOuter.borderWidth = 0.5
+        rimInner.borderWidth = 1
+        rimOuter.cornerCurve = .continuous
+        rimInner.cornerCurve = .continuous
+        rimView.layer?.addSublayer(rimOuter)
+        rimView.layer?.addSublayer(rimInner)
+        addSubview(rimView)
+
+        applyRecipe()
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(accessibilityChanged),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: NSWorkspace.shared)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// Installs the hosted content between the tint and the rim.
+    func setContent(_ view: NSView) {
+        content?.removeFromSuperview()
+        content = view
+        view.frame = bounds
+        view.autoresizingMask = [.width, .height]
+        addSubview(view, positioned: .below, relativeTo: rimView)
+    }
+
+    override func layout() {
+        super.layout()
+        // Concentric rim: outer contour hugs the panel edge at r + its own width; inner specular
+        // stroke sits just inside at r (inner_radius = outer_radius − stroke, Apple's concentricity).
+        rimOuter.frame = rimView.bounds
+        rimOuter.cornerRadius = radius
+        rimInner.frame = rimView.bounds.insetBy(dx: 0.5, dy: 0.5)
+        rimInner.cornerRadius = max(0, radius - 0.5)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyRecipe()
+    }
+    @objc private func accessibilityChanged() { applyRecipe() }
+
+    /// The measured CoreUI panel recipe (see references/apple-glass/DESIGN-BRIEF.md §3.2).
+    private func applyRecipe() {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+            || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+
+        if reduce {
+            // System materials go fully opaque here; so do we (the accessibility floor).
+            fx.isHidden = true
+            tintView.layer?.compositingFilter = nil
+            tintView.layer?.backgroundColor = NSColor(white: dark ? 0.12 : 0.8784, alpha: 1).cgColor
+            rimOuter.borderColor = NSColor(white: dark ? 1 : 0, alpha: 1).cgColor
+            rimOuter.borderWidth = 1
+            rimInner.isHidden = true
+            return
+        }
+
+        fx.isHidden = false
+        rimOuter.borderWidth = 0.5
+        if dark {
+            // panelDark: lighten toward 0.086 — the floor that keeps the panel from reading as a hole.
+            tintView.layer?.backgroundColor = NSColor(white: 0.08627, alpha: 0.5).cgColor
+            tintView.layer?.compositingFilter = "lightenBlendMode"
+            rimOuter.borderColor = NSColor(white: 0, alpha: 0.8).cgColor
+            rimInner.isHidden = false
+            rimInner.borderColor = NSColor(white: 1, alpha: 0.2).cgColor
+        } else {
+            // panelLight: darken toward 0.9333 — the ceiling that stops blow-out over bright content.
+            tintView.layer?.backgroundColor = NSColor(white: 0.9333, alpha: 0.5).cgColor
+            tintView.layer?.compositingFilter = "darkenBlendMode"
+            rimOuter.borderColor = NSColor(white: 1, alpha: 0.5).cgColor
+            rimInner.isHidden = false
+            rimInner.borderColor = NSColor(white: 1, alpha: 0.25).cgColor
+        }
+    }
+}
+
 /// Native macOS "glass" chrome for auxiliary windows (Welcome, Guide, Upload, Preferences):
 /// a behind-window translucent material running edge to edge under a transparent titlebar,
 /// so they match the history panel / HUD look instead of a flat opaque window.
