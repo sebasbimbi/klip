@@ -1,0 +1,7 @@
+# Third-party / Apple copyrighted reference images: study locally, never publish.
+*.png
+*.jpg
+*.jpeg
+*.webp
+!.gitignore
+!SOURCES.md

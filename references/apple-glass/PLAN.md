@@ -1,83 +1,73 @@
-# Action plan — getting Klip's glass right
+# Action plan — Klip's glass (rewritten after the deep research)
 
-Written after gathering real references (see `README.md`). **No code changes proposed for
-execution yet — this is the plan to agree on first.**
+The earlier version of this plan framed the decision as "honest vibrancy vs a tinted fake".
+**The research killed that framing.** Apple's own materials *are* tinted — the tint is not a
+cheat, it's the mechanism. So there is no purist/pragmatist fork. There's just the recipe.
 
-## The core decision
+Read `DESIGN-BRIEF.md` first. This is the execution order.
 
-The measurements say the Dock is *a darkened, desaturated blur of whatever is behind it*. It
-looks glassy because what's behind it is a wallpaper. Klip floats over near-white app windows,
-so true vibrancy there renders light grey — correctly.
+## What was actually wrong (all of it, in order)
 
-So there are two mutually exclusive targets, and we must pick one:
+1. **`layer.cornerRadius` + `masksToBounds` on the effect view** broke `.behindWindow` blending →
+   every material rendered flat grey. Fixed (`GlassMask.rounded`), never visually confirmed.
+2. **The white "gloss" overlay was backwards.** A white wash only raises the luminance floor. It
+   has **no ceiling**, so over bright content the panel blows out toward white. Apple does the
+   opposite: a near-white tint with **`darkenBlendMode`** = `min(backdrop, tint)`, which *lowers
+   the ceiling* and leaves darks untouched. Light materials darken; dark materials lighten. No
+   exceptions in anything Apple ships.
+3. **No rim.** Apple's glass is defined at the **edge**, not the middle. Two concentric strokes,
+   not one border. This is the single highest-leverage missing piece.
+4. **Chasing materials.** Semantic choice only; the material was never the problem.
 
-**A. True Apple glass (honest vibrancy).**
-Klip reflects whatever is behind it: colourful over the wallpaper, light grey over a white
-editor — exactly like a real macOS menu behaves. Pro: genuinely native, zero fakery.
-Con: over your usual (white) apps it will keep looking light grey, which is what you've been
-rejecting for the last several rounds.
+## The recipe to implement (macOS 14, public API only)
 
-**B. Dock-like at all times (tinted glass).**
-Impose the Dock's actual recipe — blur the backdrop, then *darken + desaturate* it toward a
-fixed mid-tone — so it reads as glass over any background, white apps included. This is what
-the Dock's private material effectively does. Pro: consistent, always visibly glass.
-Con: not a stock material; we're approximating a private CoreUI recipe by hand.
+Numbers from the reverse-engineered CoreUI `panelLight` recipe (see brief §3.2):
 
-**My recommendation: B**, because it's what you've actually been asking for every time
-("gloss like the Dock", "I still don't see the glass"), and the measurements show the Dock is
-tinted rather than neutral. A is the purist answer that keeps producing the result you dislike.
+| Layer | Value |
+|---|---|
+| Backdrop | `NSVisualEffectView`, `.popover`, `.behindWindow`, `.active`, `maskImage` corners |
+| Background fill | grey `0.9647` @ α`0.45` — normal composite (raises the floor) |
+| **Tint** | grey `0.9333` @ α`0.50`, `compositingFilter = "darkenBlendMode"` (**lowers the ceiling** — this is the glass) |
+| Rim outer | 0.5pt contour, white α`0.5`, radius `r + borderWidth` |
+| Rim inner | 1pt specular edge, radius `r` |
+| Corners | `cornerCurve = .continuous`, both strokes concentric |
+| Labels | `labelColor` / `secondaryLabelColor` only — never `systemGray*` |
+| Rows | fills + vibrancy. **Never a second effect view** (no glass-on-glass) |
+| Row radius | `panelRadius − padding` (concentric) |
+| a11y | `reduceTransparency`/`increaseContrast` → go fully opaque (light `0.8784`/`0.8235` @ α1.0), rim to 1pt α1.0 |
 
-## Steps once a direction is chosen
+## Order of work
 
-### Step 0 — Verify the blending fix actually landed (blocking)
-The `maskImage` fix (Finding 3) removed the bug that flattened *every* material, but we've never
-confirmed it visually. Before tuning anything: open the panel **over the desktop wallpaper**
-(not over an app) and check whether it now carries the wallpaper's colour.
-- If yes → blending works; proceed to tune.
-- If no → something still covers the vibrancy; hunt that before touching materials again.
+0. **Confirm the blending fix landed.** Panel over the desktop wallpaper — does it carry the
+   wallpaper's colour? If no, nothing below matters; hunt the blocker first.
+1. **Add the darken tint layer.** The one change that turns "grey box" into glass.
+2. **Build the two-stroke concentric rim.** Where the glass actually lives.
+3. **Verify by measurement, not opinion** (see below).
+4. Concentric row radii; scroll-edge gradient instead of dividers.
+5. Accessibility fallback (opaque) — not optional.
+6. Later: availability-gate `.glassEffect()` for macOS 26.
 
-This must be checked first because every tuning decision below is meaningless if blending is
-still broken.
+## Verification loop (the thing that was missing all along)
 
-### If direction A (true vibrancy)
-1. Keep `.menu` (or `.underWindowBackground` for a thinner look), `.behindWindow`, `.active`,
-   `isEmphasized = false`, `maskImage` corners, `Color.clear` roots.
-2. Accept and document the behaviour; stop chasing it over white apps.
-3. Done — it's already implemented.
+`screencapture` works from the shell, so the loop is now objective:
 
-### If direction B (Dock-like tinted glass) — recommended
-1. Keep the real vibrancy underneath (blur + backdrop colour).
-2. Add a controlled tint layer over it approximating the Dock's measured recipe:
-   target luminosity ≈ 145 and low saturation, i.e. a dark, slightly desaturating overlay
-   rather than the white "gloss" I wrongly added before.
-3. Add the top rim (measured lighter than the body: ~165 vs ~145) — 0.5pt light hairline along
-   the top edge only, via the mask/border, not `layer.cornerRadius`.
-4. Flip content to light-on-dark, since the surface becomes mid-dark (this is the part you
-   rejected earlier as "too dark" — but that attempt was *without* working blending and with a
-   flat 32% black scrim, which is not the same thing as a tinted blur).
-5. Tune the tint against real captures: screenshot the panel over the wallpaper, sample it, and
-   compare its numbers to the Dock's (145 / 9% sat) until they match.
+1. Panel over the **desktop wallpaper only** (never over work windows — see README's process lesson).
+2. Capture → sample panel vs surrounding wallpaper.
+3. Target, from Apple's own Tahoe Control Center measured in `web/SOURCES.md`:
+   **luminance ≈ flat vs backdrop, saturation HIGHER than backdrop** (they measured 136 vs 138 lum,
+   55.8% vs 42.1% sat).
+4. If the panel is *brighter* than the backdrop → the tint is wrong (white wash again).
+5. Iterate on numbers, not vibes.
 
-### Step N — Verification loop (new capability)
-`screencapture` works from the shell, which means I can finally **see** Klip's panel and measure
-it — the thing that was missing for the last dozen rounds. The loop becomes:
-capture → sample pixels → compare to the Dock's numbers → adjust → repeat.
-Constraint: only capture with the panel over the **desktop wallpaper**, never over your work
-windows (see the process lesson in `README.md`).
+## Judge with the brief's checklist
 
-## What I need from you
+`DESIGN-BRIEF.md` §5 has 13 tells for real glass vs fake glassmorphism. The three that carry it:
+darken tint (#3), two-stroke concentric rim (#4), opaque a11y fallback (#10).
 
-1. **Direction A or B?** (I recommend B.)
-2. For the verification loop: is it OK for me to capture the panel **when it's over the desktop
-   wallpaper only**? That keeps your work windows out of every screenshot.
+## Still open for you
 
-## Open questions / risks
-
-- Direction B means the panel goes mid-dark. You rejected "too dark" once already — but that was
-  a flat black scrim with broken blending. A tinted *blur* reads differently. If B still feels
-  too dark once measured against the Dock, the fallback is to lighten the tint and accept a
-  softer effect.
-- The Dock's exact material is private (Finding 4). B is an approximation by construction.
-- macOS 26 (Tahoe) ships `NSGlassEffectView` / `.glassEffect()` — the real Liquid Glass API with
-  proper corner radius and content hosting. Klip targets macOS 14, so it's unavailable, but it's
-  the eventual clean path and worth an availability-gated branch later.
+- The panel will end up **slightly darker than the backdrop, not brighter**. That's what Apple does
+  and what makes it read as glass. Earlier you rejected "too dark" — but that was a flat 32% black
+  scrim with broken blending, which is a different thing from a `min()` ceiling on a live blur.
+- OK for me to capture the panel **only when it's over the desktop wallpaper**, for the measurement
+  loop?
