@@ -16,7 +16,3 @@
 .agents/
 .claude/skills/
 skills-lock.json
-
-# Third-party reference images (Apple and others): studied, never republished
-references/apple-glass/web/*.png
-references/apple-glass/web/*.jpg

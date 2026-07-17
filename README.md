@@ -199,12 +199,12 @@ Open **Preferences** (`⌘,` from the Klip menu):
 | `ClipboardManager.swift` | Clipboard monitoring, history, source, privacy, collections. |
 | `ClipboardItem.swift` / `Storage.swift` | Model and persistence (JSON + images + audio + PDF/ZIP). |
 | `PanelController.swift` / `HistoryView.swift` | HUD panel and the UI (SwiftUI), multi-select and export. |
-| `SnapController.swift` / `ScreenCapturer.swift` | Native capture flow (ScreenCaptureKit). |
+| `Glass.swift` | Behind-window vibrancy — real macOS glass for every floating surface (panel, popover, aux windows). The *why* is in [DESIGN.md](DESIGN.md). |
+| `SnapController.swift` / `ScreenCapturer.swift` | Native capture flow (ScreenCaptureKit), incl. **fast OCR-to-clipboard** mode (`⌥⇧F`). |
 | `CaptureOverlayController.swift` | Region-selection overlay (freeze-frame + badge). |
 | `SnapEditorController.swift` / `AnnotationCanvasView.swift` / `AnnotationModel.swift` | Annotation editor and annotation model. |
 | `HotKey.swift` / `Settings.swift` | Shortcuts (Carbon) and preferences (UserDefaults). |
 | `OCR.swift` | Text extraction with Vision (on-device). |
-| `SnapController.swift` | Capture flow incl. **fast OCR-to-clipboard** mode (`⌥⇧F`). |
 | `CredentialCrypto.swift` / `CredentialDetector.swift` | Credential detection + **AES-256-GCM encryption at rest** (Keychain key). |
 | `RichText.swift` | Rich clipboard text → clean Markdown (keeps bold/italic + emojis) for *always-paste-clean*. |
 | `UploadView.swift` | "Upload audio/video to transcribe" window with live per-file results. |
@@ -231,7 +231,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 
 ## 🤝 Contributing
 
-Contributions are welcome! Open an *issue* or a *pull request*. The project builds with just the Command Line Tools (no Xcode), so it's easy to get started. Code and comments are in English to keep the project approachable for everyone.
+Contributions are welcome! Open an *issue* or a *pull request*. The project builds with just the Command Line Tools (no Xcode), so it's easy to get started. Code and comments are in English to keep the project approachable for everyone. Run the tests with `./test.sh`; if you touch any panel or window material, read [DESIGN.md](DESIGN.md) first — the glass is easy to break in ways that fail silently.
 
 ## 👤 Author
 

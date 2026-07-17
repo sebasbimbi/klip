@@ -1,6 +1,8 @@
-# Apple Glass — Design Brief for a macOS 14 Floating Panel
+# Klip — Design Notes: the glass
 
-Audience: whoever implements Klip's panel surface. Target floor macOS 14 (no Liquid Glass API). Goal: understand the design language well enough to fake it honestly.
+Why Klip's floating surfaces look the way they do, and how to keep them right. Target floor macOS 14
+(no Liquid Glass API). The operational recipe lives in `Sources/Klip/Glass.swift`; this is the *why*
+behind it. Read this before touching any panel, popover, or window material.
 
 ---
 
