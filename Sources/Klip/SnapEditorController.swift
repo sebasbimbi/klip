@@ -67,6 +67,12 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     private weak var blurSeparator: NSView?
     private var textSizeButtons: [NSButton] = []
     private weak var textSizeSeparator: NSView?
+    /// Trailing readout (pixel size + zoom + the separator before them). Pure information, no action —
+    /// so it's the first thing dropped when the window is narrow, and it never counts toward the
+    /// window's minimum width.
+    private var infoViews: [NSView] = []
+    /// Toolbar width (measured, not guessed) below which `infoViews` hide.
+    private var infoHideWidth: CGFloat = 0
     /// REAL pixel size of the capture for the toolbar readout (canvas points × backing scale would lie
     /// on retina — reuses the same pixelDimensions logic as the history dimension badge).
     private let imagePixelSize: NSSize
@@ -85,6 +91,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         // ACTUALLY needs, instead of the old hard-coded 1220 — a conservative guess that made a small
         // capture open in a huge window padded with dead checkerboard. +24 for breathing room.
         let toolbar = buildToolbar(width: 2000)
+        // Two measurements: with the readout (the width at which it can stay) and without it (the
+        // REAL floor — every remaining control is an action, so nothing else may be dropped).
+        infoHideWidth = toolbar.fittingSize.width + 24
+        setInfoHidden(true)
+        toolbar.layoutSubtreeIfNeeded()   // settle the stack's collapse before re-measuring
         let minBarWidth = min(toolbar.fittingSize.width + 24, screen.width)
         let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 46
         let scale = min(1, min(maxW / imgSize.width, maxH / imgSize.height))
@@ -92,6 +103,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         // narrow displays (the toolbar's contextual hiding absorbs the narrower bar).
         let contentW = min(max(minBarWidth, imgSize.width * scale), screen.width)
         let contentH = imgSize.height * scale + 46   // 46 = toolbar
+        setInfoHidden(contentW < infoHideWidth)
 
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: contentW, height: contentH),
                            styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -117,6 +129,9 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         scroll.maxMagnification = 4
         if scale < 1 { scroll.magnify(toFit: canvas.frame) }
         self.scrollView = scroll
+        // The toolbar is built before this point (it has to be measured to size the window), so the
+        // updateZoomLabel() inside buildToolbar ran while scrollView was still nil and bailed out.
+        updateZoomLabel()
         // Live zoom readout: pinch magnification ends → refresh the toolbar's percentage label.
         NotificationCenter.default.addObserver(self, selector: #selector(liveMagnifyEnded),
                                                name: NSScrollView.didEndLiveMagnifyNotification,
@@ -295,15 +310,18 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         zoom.contentTintColor = .secondaryLabelColor
         zoom.toolTip = L10n.t("editor.zoom.reset")
         zoomButton = zoom
-        updateZoomLabel()   // reflect the initial magnify(toFit:) done in present()
+        updateZoomLabel()   // no-op on the first build (scrollView is still nil); present() calls it again
         trailing.addArrangedSubview(zoom)
 
-        addSeparator(to: trailing)
+        let infoSeparator = addSeparator(to: trailing)
+        infoViews = [sizeLabel, zoom, infoSeparator]
 
-        let copy = makeTextButton(title: L10n.t("editor.copy"), tip: L10n.t("editor.copy.tip"), action: #selector(copyTapped))
+        let copy = makeCompactButton(symbol: "doc.on.doc", title: L10n.t("editor.copy"),
+                                     tip: L10n.t("editor.copy.tip"), action: #selector(copyTapped))
         copy.bezelColor = .controlAccentColor   // the window's one prominent primary (accent), Save stays secondary
         copy.keyEquivalent = "c"; copy.keyEquivalentModifierMask = [.command]
-        let save = makeTextButton(title: L10n.t("editor.save"), tip: L10n.t("editor.save.tip"), action: #selector(saveTapped))
+        let save = makeCompactButton(symbol: "square.and.arrow.down", title: L10n.t("editor.save"),
+                                     tip: L10n.t("editor.save.tip"), action: #selector(saveTapped))
         save.keyEquivalent = "s"; save.keyEquivalentModifierMask = [.command]
         let close = makeActionButton(symbol: "xmark", tip: L10n.t("editor.close"), action: #selector(closeTapped))
         close.keyEquivalent = "\u{1b}"   // Esc
@@ -344,12 +362,32 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         return b
     }
 
-    private func makeTextButton(title: String, tip: String, action: Selector) -> NSButton {
-        let b = NSButton(title: title, target: self, action: action)
+    /// Bezeled trailing action, icon-only. The two titles ("Copy and close" / "Save") were the widest
+    /// thing in the toolbar and set the window's floor; the glyph keeps the prominent accent bezel
+    /// while the tooltip keeps the action named and reachable.
+    private func makeCompactButton(symbol: String, title: String, tip: String, action: Selector) -> NSButton {
+        let b = NSButton(title: "", target: self, action: action)
         b.bezelStyle = .rounded
+        b.imageScaling = .scaleProportionallyDown
+        // accessibilityDescription is what VoiceOver reads for an icon-only button — keep it the title.
+        b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
+        // `tip` is already "<title> (<shortcut>)" in every locale — prefixing `title` would print the
+        // name twice ("Copy & close\nCopy & close (⌘C)"). The tip alone names the action AND its key.
         b.toolTip = tip
         b.keyEquivalent = ""
         return b
+    }
+
+    /// Hides/shows the pixel-size + zoom readout (see `infoViews`).
+    private func setInfoHidden(_ hidden: Bool) {
+        for v in infoViews where v.isHidden != hidden { v.isHidden = hidden }
+    }
+
+    /// The readout comes back as soon as the window is wide enough to hold it.
+    func windowDidResize(_ notification: Notification) {
+        guard let w = window?.contentView else { return }
+        setInfoHidden(w.frame.width < infoHideWidth)
     }
 
     // MARK: - Toolbar actions

@@ -142,12 +142,21 @@ private final class CaptureOverlayView: NSView {
     override var acceptsFirstResponder: Bool { true }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
 
+    /// Our own mouse-moved area, tracked so we can replace ONLY it on relayout.
+    private var mouseArea: NSTrackingArea?
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: bounds,
-                                       options: [.mouseMoved, .activeAlways, .mouseEnteredAndExited],
-                                       owner: self, userInfo: nil))
+        // Remove only OUR area. `trackingAreas.forEach(removeTrackingArea)` also destroys the
+        // tracking area AppKit installs for `toolTip` (same bug that ate the Snap toolbar's help
+        // text). The overlay has no tooltips today, so nothing is broken right now — but the
+        // blanket sweep is what makes adding one later fail silently.
+        if let a = mouseArea { removeTrackingArea(a); mouseArea = nil }
+        let a = NSTrackingArea(rect: bounds,
+                               options: [.mouseMoved, .activeAlways, .mouseEnteredAndExited],
+                               owner: self, userInfo: nil)
+        addTrackingArea(a)
+        mouseArea = a
     }
 
     override func mouseMoved(with event: NSEvent) {

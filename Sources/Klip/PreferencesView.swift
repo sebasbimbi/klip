@@ -331,8 +331,29 @@ struct PreferencesView: View {
                             .buttonStyle(.borderless)
                     }
                 }
-                Button { pickApp() } label: { Label(L10n.t("prefs.excluded.add"), systemImage: "plus") }
-                    .buttonStyle(.bordered)
+                Menu {
+                    ForEach(excludableRunningApps, id: \.processIdentifier) { app in
+                        Button {
+                            if let id = app.bundleIdentifier { settings.addExcludedApp(id) }
+                        } label: {
+                            Label {
+                                Text(app.localizedName ?? app.bundleIdentifier ?? "")
+                            } icon: {
+                                // App icons ship at 512pt; menu items don't downscale them for us.
+                                Image(nsImage: app.icon ?? NSImage())
+                                    .resizable().frame(width: 16, height: 16)
+                            }
+                        }
+                    }
+                    Divider()
+                    // Fallback for anything not running right now.
+                    Button(L10n.t("prefs.excluded.choose")) { pickApp() }
+                } label: {
+                    Label(L10n.t("prefs.excluded.add"), systemImage: "plus")
+                }
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .fixedSize()   // otherwise the grouped Form stretches it to the full row width
             }
         }
         .formStyle(.grouped)
@@ -416,6 +437,18 @@ struct PreferencesView: View {
             loginError = err.localizedDescription
             launchAtLogin = LoginItem.shared.isEnabledOrPending
         }
+    }
+
+    /// Running apps worth excluding: Dock-visible ones, minus Klip itself and those
+    /// already excluded. Read on menu open, so the list is always current.
+    private var excludableRunningApps: [NSRunningApplication] {
+        let own = Bundle.main.bundleIdentifier
+        return NSWorkspace.shared.runningApplications
+            .filter {
+                guard $0.activationPolicy == .regular, let id = $0.bundleIdentifier else { return false }
+                return id != own && !settings.excludedBundleIDs.contains(id)
+            }
+            .sorted { ($0.localizedName ?? "").localizedStandardCompare($1.localizedName ?? "") == .orderedAscending }
     }
 
     private func pickApp() {

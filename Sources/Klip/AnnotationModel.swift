@@ -8,8 +8,12 @@ enum SnapTool: String, CaseIterable {
     var symbol: String {
         switch self {
         case .select:    return "cursorarrow"
-        case .pencil:    return "pencil"                // "pencil.tip" reads as a nib, not a pencil
-        case .line:      return "line.diagonal"
+        // "pencil" is a bare diagonal pencil body — at 15pt, next to "line.diagonal", both read as
+        // one diagonal stroke (same collision already solved for the highlighter). "scribble.variable"
+        // is a nib trailing a wavy stroke: it SHOWS freehand, which is exactly what the tool does,
+        // and no straight-line reading survives next to it. (SF Symbols 3 — well under our macOS 14 floor.)
+        case .pencil:    return "scribble.variable"
+        case .line:      return "line.diagonal"         // one straight stroke: literally what it draws
         case .arrow:     return "arrow.up.right"
         case .rectangle: return "rectangle"
         case .ellipse:   return "circle"

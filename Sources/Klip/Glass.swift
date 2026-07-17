@@ -37,28 +37,110 @@ enum GlassMask {
     }
 }
 
+/// The half of the glass recipe every surface shares: the specular sheen, plus the
+/// Reduce-Transparency / Increase-Contrast opaque fallback. Sits over the backdrop
+/// NSVisualEffectView and under the content — floating panels add a rim on top of this,
+/// titled windows don't.
+///
+/// Its layer background is CLEAR while glass is live: any non-clear layer over an
+/// NSVisualEffectView blocks the vibrancy. It only goes opaque as the accessibility floor,
+/// where the glass is meant to be gone anyway.
+private final class GlassSheenView: NSView {
+    private let sheen = CAGradientLayer()
+    /// Runs after every recipe pass with the resolved state, so an owner can drive the parts that
+    /// aren't shared (GlassPanelView's rim) off the same (dark, reduce) resolution.
+    var onRecipe: ((_ dark: Bool, _ reduce: Bool) -> Void)?
+
+    init(cornerRadius: CGFloat) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = cornerRadius
+        layer?.cornerCurve = .continuous
+        // Specular sheen — the "mirror" band: a soft diagonal highlight from the top-left, like
+        // light reflecting off the glass (Liquid Glass's Highlight layer). This is what makes the
+        // surface read as glass even over plain white content, where blur alone shows nothing.
+        // Directional and edge-weighted — NOT a flat white veil (which would just raise the floor).
+        sheen.type = .axial
+        sheen.startPoint = CGPoint(x: 0, y: 1)      // top-left (macOS layer coords: y-up)
+        sheen.endPoint = CGPoint(x: 0.65, y: 0.1)   // fades out ~2/3 across, light at ≈ -60°
+        sheen.cornerRadius = cornerRadius
+        sheen.cornerCurve = .continuous
+        sheen.masksToBounds = true
+        layer?.addSublayer(sheen)
+
+        // NSWorkspace posts this on its OWN notification center, not on `.default`.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(applyRecipe),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: NSWorkspace.shared)
+        applyRecipe()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// Decoration must never intercept clicks: the sheen sits above the backdrop and, in the panel,
+    /// the content sits above it — but the rim above that would still swallow presses without this
+    /// (a dead Cancel button). Same rule everywhere.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func layout() {
+        super.layout()
+        sheen.frame = bounds
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyRecipe()
+    }
+
+    /// The measured CoreUI recipe (see references/apple-glass/DESIGN-BRIEF.md §3.2).
+    @objc func applyRecipe() {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+            || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+
+        if reduce {
+            // System materials go fully opaque here; so do we (the accessibility floor).
+            sheen.isHidden = true
+            layer?.backgroundColor = NSColor(white: dark ? 0.12 : 0.8784, alpha: 1).cgColor
+        } else {
+            // NO extra tint: the system material already applies Apple's full recipe (floor +
+            // darken ceiling + saturation) internally. Measured in the glass lab: raw .popover+mask
+            // converges to the same value as a REAL Finder menu over the same backdrop (Δ≈-9 vs
+            // +15, both toward ~188); adding the CoreUI tint on top double-applies it and lands
+            // ~20 too dark.
+            layer?.backgroundColor = NSColor.clear.cgColor
+            sheen.isHidden = false
+            sheen.colors = dark
+                ? [NSColor(white: 1, alpha: 0.10).cgColor,
+                   NSColor(white: 1, alpha: 0.03).cgColor,
+                   NSColor.clear.cgColor]
+                : [NSColor(white: 1, alpha: 0.28).cgColor,
+                   NSColor(white: 1, alpha: 0.08).cgColor,
+                   NSColor.clear.cgColor]
+            sheen.locations = [0, 0.3, 0.6]
+        }
+        onRecipe?(dark, reduce)
+    }
+}
+
 /// A floating glass surface implementing Apple's real material recipe (references/apple-glass):
 ///
 ///   backdrop  — NSVisualEffectView (.popover, .behindWindow, .active) rounded via maskImage
-///   tint      — the luminance CEILING: near-white grey composited with darkenBlendMode in light
-///               (min(backdrop, tint) clamps highlights), near-black with lightenBlendMode in dark.
-///               Apple's light materials always darken, never whiten — a white wash has no ceiling
-///               and blows out over bright content.
-///   content   — hosted above the tint (fills + vibrancy only; never a second effect view)
+///   sheen     — GlassSheenView: the specular highlight + the accessibility opaque fallback
+///   content   — hosted above the sheen (fills + vibrancy only; never a second effect view)
 ///   rim       — where glass is actually defined: concentric strokes, light-catching edge.
 ///
 /// Adapts to the effective appearance (light/dark) and goes fully opaque under Reduce
 /// Transparency / Increase Contrast, mirroring the system materials' fallback.
 final class GlassPanelView: NSView {
-    /// Decoration that must never intercept clicks: the sheen and rim sit ABOVE the hosted content,
-    /// so without this they'd swallow every press (a dead Cancel button).
+    /// Decoration that must never intercept clicks: the rim sits ABOVE the hosted content,
+    /// so without this it'd swallow every press (a dead Cancel button).
     private final class PassthroughView: NSView {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 
     private let fx = NSVisualEffectView()
-    private let tintView = PassthroughView()
-    private let sheen = CAGradientLayer()
+    private let sheenView: GlassSheenView
     private let rimView = PassthroughView()
     private let rimOuter = CALayer()
     private let rimInner = CALayer()
@@ -67,6 +149,7 @@ final class GlassPanelView: NSView {
 
     init(frame: NSRect, radius: CGFloat, material: NSVisualEffectView.Material = .popover) {
         self.radius = radius
+        self.sheenView = GlassSheenView(cornerRadius: radius)
         super.init(frame: frame)
 
         fx.material = material
@@ -78,23 +161,9 @@ final class GlassPanelView: NSView {
         fx.autoresizingMask = [.width, .height]
         addSubview(fx)
 
-        tintView.wantsLayer = true
-        tintView.frame = bounds
-        tintView.autoresizingMask = [.width, .height]
-        tintView.layer?.cornerRadius = radius
-        tintView.layer?.cornerCurve = .continuous
-        // Specular sheen — the "mirror" band: a soft diagonal highlight from the top-left, like
-        // light reflecting off the glass (Liquid Glass's Highlight layer). This is what makes the
-        // surface read as glass even over plain white content, where blur alone shows nothing.
-        // Directional and edge-weighted — NOT a flat white veil (which would just raise the floor).
-        sheen.type = .axial
-        sheen.startPoint = CGPoint(x: 0, y: 1)      // top-left (macOS layer coords: y-up)
-        sheen.endPoint = CGPoint(x: 0.65, y: 0.1)   // fades out ~2/3 across, light at ≈ -60°
-        sheen.cornerRadius = radius
-        sheen.cornerCurve = .continuous
-        sheen.masksToBounds = true
-        tintView.layer?.addSublayer(sheen)
-        addSubview(tintView)
+        sheenView.frame = bounds
+        sheenView.autoresizingMask = [.width, .height]
+        addSubview(sheenView)
 
         rimView.wantsLayer = true
         rimView.frame = bounds
@@ -107,16 +176,14 @@ final class GlassPanelView: NSView {
         rimView.layer?.addSublayer(rimInner)
         addSubview(rimView)
 
-        applyRecipe()
-
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(accessibilityChanged),
-            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
-            object: NSWorkspace.shared)
+        // The rim is the panel-only half of the recipe; the sheen view already tracks appearance
+        // and accessibility changes, so hang the rim off its pass instead of observing twice.
+        sheenView.onRecipe = { [weak self] dark, reduce in self?.applyRim(dark: dark, reduce: reduce) }
+        sheenView.applyRecipe()
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    /// Installs the hosted content between the tint and the rim.
+    /// Installs the hosted content between the sheen and the rim.
     ///
     /// The content is clipped to the panel's rounded shape: an NSHostingView is a plain rectangle,
     /// so without this its square backing shows past the glass corners as a white box. Clipping the
@@ -142,57 +209,27 @@ final class GlassPanelView: NSView {
         rimOuter.cornerRadius = radius
         rimInner.frame = rimView.bounds.insetBy(dx: 0.5, dy: 0.5)
         rimInner.cornerRadius = max(0, radius - 0.5)
-        sheen.frame = tintView.bounds
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyRecipe()
-    }
-    @objc private func accessibilityChanged() { applyRecipe() }
-
-    /// The measured CoreUI panel recipe (see references/apple-glass/DESIGN-BRIEF.md §3.2).
-    private func applyRecipe() {
-        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-            || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-
+    /// The panel-only half of the recipe, driven by GlassSheenView's pass.
+    private func applyRim(dark: Bool, reduce: Bool) {
+        // The sheen view's opaque fallback already covers the backdrop under Reduce Transparency;
+        // hide it too so no live material bleeds at the mask edge.
+        fx.isHidden = reduce
         if reduce {
-            // System materials go fully opaque here; so do we (the accessibility floor).
-            fx.isHidden = true
-            sheen.isHidden = true
-            tintView.layer?.compositingFilter = nil
-            tintView.layer?.backgroundColor = NSColor(white: dark ? 0.12 : 0.8784, alpha: 1).cgColor
             rimOuter.borderColor = NSColor(white: dark ? 1 : 0, alpha: 1).cgColor
             rimOuter.borderWidth = 1
             rimInner.isHidden = true
             return
         }
 
-        fx.isHidden = false
-        // NO extra tint: the system material already applies Apple's full recipe (floor + darken
-        // ceiling + saturation) internally. Measured in the glass lab: raw .popover+mask converges
-        // to the same value as a REAL Finder menu over the same backdrop (Δ≈-9 vs +15, both toward
-        // ~188); adding the CoreUI tint on top double-applies it and lands ~20 too dark.
-        tintView.layer?.compositingFilter = nil
-        tintView.layer?.backgroundColor = NSColor.clear.cgColor
-        sheen.isHidden = false
         rimOuter.borderWidth = 0.5
+        rimInner.isHidden = false
         if dark {
-            sheen.colors = [NSColor(white: 1, alpha: 0.10).cgColor,
-                            NSColor(white: 1, alpha: 0.03).cgColor,
-                            NSColor.clear.cgColor]
-            sheen.locations = [0, 0.3, 0.6]
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.8).cgColor
-            rimInner.isHidden = false
             rimInner.borderColor = NSColor(white: 1, alpha: 0.2).cgColor
         } else {
-            sheen.colors = [NSColor(white: 1, alpha: 0.28).cgColor,
-                            NSColor(white: 1, alpha: 0.08).cgColor,
-                            NSColor.clear.cgColor]
-            sheen.locations = [0, 0.3, 0.6]
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.10).cgColor   // faint contour so the edge reads over white content
-            rimInner.isHidden = false
             rimInner.borderColor = NSColor(white: 1, alpha: 0.5).cgColor    // specular inner edge (light catching the glass)
         }
     }
@@ -206,16 +243,36 @@ enum Glass {
     /// Replaces the window's content view with a glass background hosting `root`, and makes
     /// the titlebar transparent over it. SwiftUI content keeps respecting the titlebar via
     /// the hosting view's safe area.
+    ///
+    /// Same recipe as GlassPanelView, minus two parts that windows don't need:
+    ///   - NO rim. The window frame already draws its own edge and shadow; a second stroke just
+    ///     inside it would double the line instead of defining it.
+    ///   - NO maskImage / corner work. These are TITLED windows — the frame clips the corners.
+    ///     (Borderless panels must round the material via maskImage; see GlassMask.)
     static func install<V: View>(_ root: V, in window: NSWindow,
                                  material: NSVisualEffectView.Material = .underWindowBackground) {
         let fx = NSVisualEffectView()
         fx.material = material
         fx.blendingMode = .behindWindow
-        fx.state = .followsWindowActiveState
+        // .active, not .followsWindowActiveState: the panels never grey out on deactivation, and a
+        // background that flips to inactive grey next to them reads as a bug, not as a state.
+        fx.state = .active
+
+        // Sheen + accessibility fallback, shared with GlassPanelView. Below the content, as there.
+        // It goes opaque under Reduce Transparency and covers `fx` edge to edge, so `fx` itself
+        // needs no hiding here (unlike the panel, where the two are siblings).
+        let sheen = GlassSheenView(cornerRadius: 0)
+        sheen.translatesAutoresizingMaskIntoConstraints = false
+        fx.addSubview(sheen)
+
         let host = NSHostingView(rootView: root)
         host.translatesAutoresizingMaskIntoConstraints = false
         fx.addSubview(host)
         NSLayoutConstraint.activate([
+            sheen.leadingAnchor.constraint(equalTo: fx.leadingAnchor),
+            sheen.trailingAnchor.constraint(equalTo: fx.trailingAnchor),
+            sheen.topAnchor.constraint(equalTo: fx.topAnchor),
+            sheen.bottomAnchor.constraint(equalTo: fx.bottomAnchor),
             host.leadingAnchor.constraint(equalTo: fx.leadingAnchor),
             host.trailingAnchor.constraint(equalTo: fx.trailingAnchor),
             host.topAnchor.constraint(equalTo: fx.topAnchor),

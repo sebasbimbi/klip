@@ -1,4 +1,8 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.10
+// 5.10 (not 6.0) on purpose: it is the floor for swift-testing while keeping the Swift 5 language
+// mode. Tools 6.0 would switch the package to Swift 6 strict concurrency, which this AppKit app is
+// not ready for. swift-testing (not XCTest) because XCTest ships only with Xcode, and Klip builds
+// on the Command Line Tools alone — see build.sh.
 import PackageDescription
 
 let package = Package(
@@ -24,6 +28,9 @@ let package = Package(
                 .linkedFramework("Security"),
                 .linkedFramework("UniformTypeIdentifiers")
             ]
-        )
+        ),
+        // Pure-logic only: no UI, no disk, no network. Everything else in Klip needs a running
+        // NSApplication or the user's real ~/Library, which a test target has no business touching.
+        .testTarget(name: "KlipTests", dependencies: ["Klip"], path: "Tests/KlipTests")
     ]
 )

@@ -1,4 +1,4 @@
-# Claude Code: configuración local personal (no compartir en git)
+# Claude Code: personal local config (not shared in git)
 .claude/settings.local.json
 
 # macOS
@@ -9,5 +9,14 @@
 .swiftpm/
 # Package.resolved is committed to pin dependency versions (WhisperKit etc.) for reproducible builds.
 
-# Artefacto compilado (se genera con ./build.sh)
+# Build artifact (produced by ./build.sh)
 *.app/
+
+# Locally installed skills (npx skills) — not part of the product
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Third-party reference images (Apple and others): studied, never republished
+references/apple-glass/web/*.png
+references/apple-glass/web/*.jpg

@@ -419,6 +419,13 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             uploadResults[i].failed = false; uploadResults[i].errorKey = nil
             onVoiceNoteRetrying?(row.id, row.allowAutoCopy)
             transcribeInBackground(id: row.id, url: src, languageOverride: row.language)   // video: demuxes the audio track again
+        } else {
+            // Neither the stored audio nor the original video is on disk any more (moved/deleted/ejected
+            // volume): the retry can never succeed. Say so instead of returning silently, and drop the
+            // stale refs so the row stops offering a retry button that does nothing. Stays .failed.
+            uploadResults[i].errorKey = "upload.sourceMissing"
+            uploadResults[i].audioFileName = nil
+            uploadResults[i].sourceURL = nil
         }
     }
 
