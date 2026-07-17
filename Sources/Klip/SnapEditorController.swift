@@ -81,7 +81,11 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
     func present() {
         let imgSize = canvas.bounds.size
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
-        let minBarWidth: CGFloat = 1220  // minimum width so the toolbar doesn't overlap itself (11 tools + info cluster)
+        // Build the toolbar ONCE (it populates the button/shortcut/swatch state) and ask it what it
+        // ACTUALLY needs, instead of the old hard-coded 1220 — a conservative guess that made a small
+        // capture open in a huge window padded with dead checkerboard. +24 for breathing room.
+        let toolbar = buildToolbar(width: 2000)
+        let minBarWidth = min(toolbar.fittingSize.width + 24, screen.width)
         let maxW = screen.width * 0.9, maxH = screen.height * 0.85 - 46
         let scale = min(1, min(maxW / imgSize.width, maxH / imgSize.height))
         // Clamp to the screen so the trailing Copy/Save/Close cluster never opens off-screen on
@@ -119,7 +123,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
                                                object: scroll)
         content.addSubview(scroll)
 
-        let toolbar = buildToolbar(width: contentW)
+        // (built once above, to measure the window's real minimum width)
         toolbar.frame = NSRect(x: 0, y: contentH - 46, width: contentW, height: 46)
         toolbar.autoresizingMask = [.width, .minYMargin]
         content.addSubview(toolbar)
