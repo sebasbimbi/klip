@@ -184,7 +184,8 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             let key = Self.toolKey(tool)
             b.keyEquivalent = key
             b.keyEquivalentModifierMask = []
-            b.toolTip = "\(tool.tooltip) (\(key.uppercased()))"
+            // Name + shortcut, then what it actually does — hovering should teach the tool.
+            b.toolTip = "\(tool.tooltip) (\(key.uppercased()))\n\(tool.hint)"
             keyEquivControls.append((b, key, []))
             toolButtons[tool] = b
             leading.addArrangedSubview(b)
@@ -352,6 +353,15 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             let on = (t == tool)
             (b as? HoverToolButton)?.isSelectedTool = on   // solid accent chip lives in the button
             b.contentTintColor = on ? .white : .secondaryLabelColor   // white glyph on the accent fill
+            // The highlighter and the pencil are both pen-shaped and sit side by side — at 15pt they
+            // read as the same tool. Apple's multicolor variant gives the highlighter its yellow nib,
+            // so it's identifiable at a glance (dropped while selected: white on accent wins).
+            if t == .marker {
+                b.image = NSImage(systemSymbolName: t.symbol, accessibilityDescription: t.tooltip)?
+                    .withSymbolConfiguration(on
+                        ? .init(pointSize: 15, weight: .regular)
+                        : .init(pointSize: 15, weight: .regular).applying(.preferringMulticolor()))
+            }
         }
         refreshColorSwatches()                                // the marker shows highlighter tones
         // Only re-apply the DEFAULT color when the PALETTE changes type (normal↔marker). Between normal
@@ -473,7 +483,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
         b.image = NSImage(systemSymbolName: tool.symbol, accessibilityDescription: tool.tooltip)?
             .withSymbolConfiguration(cfg)
-        b.toolTip = tool.tooltip
+        b.toolTip = "\(tool.tooltip)\n\(tool.hint)"
         b.tag = SnapTool.allCases.firstIndex(of: tool) ?? 0
         b.translatesAutoresizingMaskIntoConstraints = false
         return b

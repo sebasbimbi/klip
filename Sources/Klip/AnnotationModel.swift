@@ -21,6 +21,24 @@ enum SnapTool: String, CaseIterable {
         }
     }
 
+    /// One line saying what the tool DOES — the tool's name alone doesn't teach anything
+    /// (especially "highlighter" vs "pencil"). Shown under the name in the toolbar tooltip.
+    var hint: String {
+        switch self {
+        case .select:    return L10n.t("tool.hint.select")
+        case .pencil:    return L10n.t("tool.hint.pencil")
+        case .line:      return L10n.t("tool.hint.line")
+        case .arrow:     return L10n.t("tool.hint.arrow")
+        case .rectangle: return L10n.t("tool.hint.rect")
+        case .ellipse:   return L10n.t("tool.hint.ellipse")
+        case .marker:    return L10n.t("tool.hint.marker")
+        case .text:      return L10n.t("tool.hint.text")
+        case .blur:      return L10n.t("tool.hint.blur")
+        case .spotlight: return L10n.t("tool.hint.spotlight")
+        case .counter:   return L10n.t("tool.hint.counter")
+        }
+    }
+
     var tooltip: String {
         switch self {
         case .select:    return L10n.t("tool.select")

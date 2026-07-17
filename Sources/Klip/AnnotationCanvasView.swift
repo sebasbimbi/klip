@@ -378,12 +378,22 @@ final class AnnotationCanvasView: NSView {
     func setBlurLevelCoalesced(_ level: CGFloat) {
         if blurCoalescingArmed {
             blurCoalescingArmed = false
-            if selectedAnnotationTool == .blur { pushUndo() }   // one snapshot for the whole slide
+            // One snapshot for the whole slide, if anything is actually going to change.
+            if selectedAnnotationTool == .blur || annotations.contains(where: { $0.tool == .blur }) {
+                pushUndo()
+            }
         }
         currentBlurLevel = level
         if let id = selectedID, let idx = annotations.firstIndex(where: { $0.id == id }),
            annotations[idx].tool == .blur {
-            annotations[idx].blurLevel = level   // no pushUndo: already snapshotted at slide start
+            annotations[idx].blurLevel = level   // a blur is selected → tune just that one
+        } else {
+            // Nothing selected: the slider reads as "how blurred things are", so re-render every
+            // blur already on the canvas — otherwise the strength you pick only affects the NEXT
+            // one you draw, and the control looks broken.
+            for i in annotations.indices where annotations[i].tool == .blur {
+                annotations[i].blurLevel = level
+            }
         }
         needsDisplay = true
     }

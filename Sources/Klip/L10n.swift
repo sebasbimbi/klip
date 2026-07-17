@@ -339,6 +339,17 @@ enum L10n {
         "capture.failed": "La captura falló",
         "empty.clear": "Limpiar filtros",
         "upload.skipped": "%d archivo(s) no compatibles omitidos",
+        "tool.hint.select": "Mueve o borra lo que ya dibujaste",
+        "tool.hint.pencil": "Dibuja a mano alzada",
+        "tool.hint.line": "Traza una línea recta",
+        "tool.hint.arrow": "Señala algo — arrastra de la base a la punta",
+        "tool.hint.rect": "Encuadra con un rectángulo",
+        "tool.hint.ellipse": "Encuadra con un círculo",
+        "tool.hint.marker": "Resalta texto con un trazo translúcido",
+        "tool.hint.text": "Añade una etiqueta de texto",
+        "tool.hint.blur": "Pixela datos privados — ajusta la intensidad con el control",
+        "tool.hint.spotlight": "Oscurece todo menos esta zona",
+        "tool.hint.counter": "Numera pasos: 1, 2, 3…",
     ]
 
     private static let en: [String: String] = [
@@ -661,6 +672,17 @@ enum L10n {
         "capture.failed": "Capture failed",
         "empty.clear": "Clear filters",
         "upload.skipped": "%d unsupported file(s) skipped",
+        "tool.hint.select": "Move or delete anything you've drawn",
+        "tool.hint.pencil": "Draw freehand",
+        "tool.hint.line": "Draw a straight line",
+        "tool.hint.arrow": "Point at something — drag from the base to the tip",
+        "tool.hint.rect": "Outline a box",
+        "tool.hint.ellipse": "Outline a circle",
+        "tool.hint.marker": "Highlight text with a translucent stroke",
+        "tool.hint.text": "Add a text label",
+        "tool.hint.blur": "Pixelate private info — set the strength with the slider",
+        "tool.hint.spotlight": "Dim everything except this area",
+        "tool.hint.counter": "Stamp numbered steps: 1, 2, 3…",
     ]
 
     // The translations below (fr/de/it/pt/zh/ja) are filled in by the translation workflow; any
@@ -986,6 +1008,17 @@ enum L10n {
         "capture.failed": "Échec de la capture",
         "empty.clear": "Effacer les filtres",
         "upload.skipped": "%d fichier(s) non pris en charge ignorés",
+        "tool.hint.select": "Déplace ou supprime ce que tu as dessiné",
+        "tool.hint.pencil": "Dessine à main levée",
+        "tool.hint.line": "Trace une ligne droite",
+        "tool.hint.arrow": "Pointe un élément — glisse de la base vers la pointe",
+        "tool.hint.rect": "Encadre avec un rectangle",
+        "tool.hint.ellipse": "Encadre avec un cercle",
+        "tool.hint.marker": "Surligne le texte d'un trait translucide",
+        "tool.hint.text": "Ajoute une étiquette de texte",
+        "tool.hint.blur": "Pixellise les infos privées — règle l'intensité avec le curseur",
+        "tool.hint.spotlight": "Assombrit tout sauf cette zone",
+        "tool.hint.counter": "Numérote les étapes : 1, 2, 3…",
     ]
 
     private static let de: [String: String] = [
@@ -1309,6 +1342,17 @@ enum L10n {
         "capture.failed": "Aufnahme fehlgeschlagen",
         "empty.clear": "Filter zurücksetzen",
         "upload.skipped": "%d nicht unterstützte Datei(en) übersprungen",
+        "tool.hint.select": "Gezeichnetes bewegen oder löschen",
+        "tool.hint.pencil": "Freihand zeichnen",
+        "tool.hint.line": "Gerade Linie ziehen",
+        "tool.hint.arrow": "Auf etwas zeigen — von der Basis zur Spitze ziehen",
+        "tool.hint.rect": "Mit einem Rechteck umrahmen",
+        "tool.hint.ellipse": "Mit einem Kreis umrahmen",
+        "tool.hint.marker": "Text mit einem transparenten Strich hervorheben",
+        "tool.hint.text": "Textbeschriftung hinzufügen",
+        "tool.hint.blur": "Private Daten verpixeln — Stärke über den Regler",
+        "tool.hint.spotlight": "Alles außer diesem Bereich abdunkeln",
+        "tool.hint.counter": "Schritte nummerieren: 1, 2, 3…",
     ]
 
     private static let it: [String: String] = [
@@ -1632,6 +1676,17 @@ enum L10n {
         "capture.failed": "Cattura non riuscita",
         "empty.clear": "Cancella filtri",
         "upload.skipped": "%d file non supportati ignorati",
+        "tool.hint.select": "Sposta o elimina ciò che hai disegnato",
+        "tool.hint.pencil": "Disegna a mano libera",
+        "tool.hint.line": "Traccia una linea retta",
+        "tool.hint.arrow": "Indica qualcosa — trascina dalla base alla punta",
+        "tool.hint.rect": "Inquadra con un rettangolo",
+        "tool.hint.ellipse": "Inquadra con un cerchio",
+        "tool.hint.marker": "Evidenzia il testo con un tratto traslucido",
+        "tool.hint.text": "Aggiungi un'etichetta di testo",
+        "tool.hint.blur": "Pixela dati privati — regola l'intensità con il cursore",
+        "tool.hint.spotlight": "Oscura tutto tranne quest'area",
+        "tool.hint.counter": "Numera i passaggi: 1, 2, 3…",
     ]
 
     private static let pt: [String: String] = [
@@ -1955,6 +2010,17 @@ enum L10n {
         "capture.failed": "Falha na captura",
         "empty.clear": "Limpar filtros",
         "upload.skipped": "%d arquivo(s) não suportados ignorados",
+        "tool.hint.select": "Move ou apaga o que já desenhaste",
+        "tool.hint.pencil": "Desenha à mão livre",
+        "tool.hint.line": "Traça uma linha reta",
+        "tool.hint.arrow": "Aponta para algo — arrasta da base até à ponta",
+        "tool.hint.rect": "Enquadra com um retângulo",
+        "tool.hint.ellipse": "Enquadra com um círculo",
+        "tool.hint.marker": "Destaca texto com um traço translúcido",
+        "tool.hint.text": "Adiciona uma etiqueta de texto",
+        "tool.hint.blur": "Pixela dados privados — ajusta a intensidade no controlo",
+        "tool.hint.spotlight": "Escurece tudo menos esta zona",
+        "tool.hint.counter": "Numera passos: 1, 2, 3…",
     ]
 
     private static let zh: [String: String] = [
@@ -2278,6 +2344,17 @@ enum L10n {
         "capture.failed": "截图失败",
         "empty.clear": "清除筛选",
         "upload.skipped": "已跳过 %d 个不支持的文件",
+        "tool.hint.select": "移动或删除已绘制的内容",
+        "tool.hint.pencil": "自由绘制",
+        "tool.hint.line": "绘制直线",
+        "tool.hint.arrow": "指向某处 — 从起点拖到箭头尖",
+        "tool.hint.rect": "用矩形框选",
+        "tool.hint.ellipse": "用圆形框选",
+        "tool.hint.marker": "用半透明笔触高亮文字",
+        "tool.hint.text": "添加文字标注",
+        "tool.hint.blur": "像素化隐私信息 — 用滑块调节强度",
+        "tool.hint.spotlight": "除此区域外全部变暗",
+        "tool.hint.counter": "标注编号步骤：1、2、3…",
     ]
 
     private static let ja: [String: String] = [
@@ -2601,5 +2678,16 @@ enum L10n {
         "capture.failed": "キャプチャに失敗しました",
         "empty.clear": "フィルタをクリア",
         "upload.skipped": "未対応ファイル%d件をスキップしました",
+        "tool.hint.select": "描いたものを移動・削除",
+        "tool.hint.pencil": "フリーハンドで描く",
+        "tool.hint.line": "直線を引く",
+        "tool.hint.arrow": "何かを指す — 基点から先端へドラッグ",
+        "tool.hint.rect": "長方形で囲む",
+        "tool.hint.ellipse": "円で囲む",
+        "tool.hint.marker": "半透明の線でテキストを強調",
+        "tool.hint.text": "テキストラベルを追加",
+        "tool.hint.blur": "個人情報をモザイク化 — 強さはスライダで調整",
+        "tool.hint.spotlight": "この範囲以外を暗くする",
+        "tool.hint.counter": "手順に番号を振る: 1, 2, 3…",
     ]
 }
