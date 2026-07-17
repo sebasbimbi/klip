@@ -607,7 +607,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let af = item.audioFileName { AudioPlayer.shared.toggle(fileName: af) }
             return
         }
-        manager.copyToPasteboard(item)   // lands on the pasteboard, ready to paste
+        // Nothing written (e.g. the image's file is gone): don't fall through to ⌘V, which would paste
+        // whatever stale content was already on the clipboard. Same guard as PanelController.pick.
+        guard manager.copyToPasteboard(item) else { NSSound.beep(); return }
         // Auto-paste like the panel does. No target: the menu closing already restored focus to the
         // previous app, so just send ⌘V. Never auto-paste credentials — same policy as PanelController.pick.
         if item.isCredential != true, Settings.shared.autoPaste, Paster.hasAccessibilityPermission {

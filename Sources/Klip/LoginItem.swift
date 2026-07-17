@@ -63,7 +63,10 @@ final class LoginItem {
 
     @discardableResult
     func toggle() -> Result<Bool, LoginItemError> {
-        let target = !isEnabled
+        // Flip from the state the UI actually SHOWS (isEnabledOrPending), not strict isEnabled.
+        // In .requiresApproval the control reads ON, so a click must unregister to turn it OFF;
+        // keying off isEnabled would compute target=true and re-register — a dead control.
+        let target = !isEnabledOrPending
         do {
             try setEnabled(target)
             return .success(isEnabled)

@@ -48,9 +48,12 @@ enum RichText {
         for s in spans {
             let trimmed = s.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, s.bold || s.italic else { out += s.text; continue }
-            // Keep surrounding spaces OUTSIDE the markers (WhatsApp/Markdown ignore "* x *").
-            let lead = String(s.text.prefix(while: { $0 == " " }))
-            let trail = String(s.text.reversed().prefix(while: { $0 == " " }).reversed())
+            // Keep surrounding whitespace OUTSIDE the markers (WhatsApp/Markdown ignore "* x *").
+            // Must include \n/\t, not just spaces: AppKit tucks a block element's trailing newline
+            // INSIDE the bold run (a heading's "Heading\n"), so a spaces-only restore would drop it
+            // and glue the heading to the next line ("**Heading**Body").
+            let lead = String(s.text.prefix(while: { $0.isWhitespace }))
+            let trail = String(s.text.reversed().prefix(while: { $0.isWhitespace }).reversed())
             let marker = s.bold && s.italic ? "***" : (s.bold ? "**" : "*")
             out += lead + marker + trimmed + marker + trail
         }

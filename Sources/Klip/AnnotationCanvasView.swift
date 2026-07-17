@@ -4,7 +4,7 @@ import AppKit
 /// in-place text (a temporary NSTextField — supports accents), universal select/move/delete of
 /// any annotation (.select tool), blur/spotlight/counter rendering, and for text: re-editing
 /// and resizing. Flattens everything to a full-resolution image.
-final class AnnotationCanvasView: NSView {
+final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     private let baseImage: NSImage
     /// Base capture as CGImage, resolved once: the blur tool pixelates regions of it.
     private lazy var baseCG: CGImage? = baseImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
@@ -244,6 +244,10 @@ final class AnnotationCanvasView: NSView {
         field.stringValue = existing?.text ?? ""
         field.target = self
         field.action = #selector(textFieldCommitted(_:))
+        // Return fires the action; but Esc (abortEditing), click-away and focus loss end editing WITHOUT
+        // firing it — and only commitActiveText re-enables the toolbar's key equivalents. Route every
+        // end-of-editing through the delegate so ⌘C/⌘S/⌘Z/Esc + the tool keys can't get stranded off.
+        field.delegate = self
         addSubview(field)
         window?.makeFirstResponder(field)
         activeTextField = field
@@ -253,6 +257,13 @@ final class AnnotationCanvasView: NSView {
     }
 
     @objc private func textFieldCommitted(_ sender: NSTextField) { commitActiveText() }
+
+    /// Fires on EVERY end-of-editing — Return, Esc-abort, click-away, focus loss. commitActiveText is
+    /// idempotent (it nils activeTextField first, so the Return path's action + this both land safely),
+    /// so this is the single choke point that guarantees the toolbar key equivalents get restored.
+    /// On Esc, abortEditing has already reverted the field to its original value, so committing it is a
+    /// clean cancel: empty for a new text (adds nothing), the original for a re-edit (keeps it).
+    func controlTextDidEndEditing(_ obj: Notification) { commitActiveText() }
 
     /// True while the in-place field holds real (non-whitespace) uncommitted text — the editor's
     /// close path treats it as unsaved work (trimmed, matching commitActiveText's semantics).

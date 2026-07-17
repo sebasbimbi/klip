@@ -475,7 +475,10 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                     if mediaURL == url, let id,
                        !url.path.hasPrefix(storage.audioBaseURL.path),
                        (try? await AVURLAsset(url: url).loadTracks(withMediaType: .audio))?.isEmpty == false,
-                       let stored = storage.importAudio(from: url) {
+                       // Real byte copy when the source is on another volume: offload it like the sibling
+                       // path at transcribeFiles, so an audio-in-movie-container from an external drive
+                       // doesn't freeze the UI on the main actor.
+                       let stored = await Task.detached(priority: .userInitiated) { Storage.shared.importAudio(from: url) }.value {
                         onVoiceNoteAudioStored?(id, stored)
                         // Also remember it on the upload row so a failed row retries from the stored audio.
                         if let j = uploadResults.firstIndex(where: { $0.id == id }) { uploadResults[j].audioFileName = stored }
