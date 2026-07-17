@@ -160,6 +160,7 @@ struct PreferencesView: View {
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
                 Toggle(L10n.t("prefs.cleanpaste"), isOn: $settings.cleanCapture)
                 Toggle(L10n.t("prefs.autopaste"), isOn: $settings.autoPaste)
+                Toggle(L10n.t("prefs.sounds"), isOn: $settings.soundEffects)
                 if settings.autoPaste && !accessibilityGranted {
                     // Calm info row: caption-sized icon + secondary text instead of a shouting warning.
                     HStack(alignment: .firstTextBaseline, spacing: 6) {

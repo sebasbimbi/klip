@@ -319,7 +319,7 @@ final class PanelController: NSObject, NSWindowDelegate {
             if let af = item.audioFileName { AudioPlayer.shared.toggle(fileName: af) }
             return
         }
-        guard manager.copyToPasteboard(item) else { NSSound.beep(); return }   // nothing written (e.g. image file gone): don't paste the stale clipboard
+        guard manager.copyToPasteboard(item) else { SoundFX.error(); return }   // nothing written (e.g. image file gone): don't paste the stale clipboard
         let target = previousApp
         hide(restoreFocus: false)
         if item.isCredential == true { target?.activate() }   // don't auto-paste secrets: just copy + restore focus
@@ -374,7 +374,8 @@ final class PanelController: NSObject, NSWindowDelegate {
         let base = item.name?.isEmpty == false ? item.name : nil   // nil → timestamped default
         guard let data = t.data(using: .utf8),
               let url = try? Storage.shared.exportToDownloads(data, ext: "txt", base: base)
-        else { NSSound.beep(); return }
+        else { SoundFX.error(); return }
+        SoundFX.play(.save)
         ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
                       actionTitle: L10n.t("toast.reveal")) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -400,11 +401,12 @@ final class PanelController: NSObject, NSWindowDelegate {
                 // Fast numeric name (user request): "Klip-483920.pdf" — no dialog, nothing to type.
                 guard let url = try? Storage.shared.exportToDownloads(result.data, ext: "pdf",
                                                                       base: "Klip-\(Int(Date().timeIntervalSince1970) % 1_000_000)")
-                else { NSSound.beep(); return }
+                else { SoundFX.error(); return }
                 // Partial export: surface the skipped-items note in the toast instead of the filename.
                 let detail = result.exported < items.count
                     ? String(format: L10n.t("export.partial"), result.exported, items.count)
                     : url.lastPathComponent
+                SoundFX.play(.save)
                 ToastHUD.show(L10n.t("toast.imageSaved"), detail: detail,
                               actionTitle: L10n.t("toast.reveal")) {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -719,7 +721,8 @@ final class PanelController: NSObject, NSWindowDelegate {
         guard item.kind == .image, let fn = item.imageFileName,
               let img = Storage.shared.loadImage(fileName: fn),
               let png = Storage.shared.pngData(from: img) else { return }
-        guard let url = try? Storage.shared.exportPNGToDownloads(png) else { NSSound.beep(); return }
+        guard let url = try? Storage.shared.exportPNGToDownloads(png) else { SoundFX.error(); return }
+        SoundFX.play(.save)
         ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
                       actionTitle: L10n.t("toast.reveal")) {
             NSWorkspace.shared.activateFileViewerSelecting([url])

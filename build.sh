@@ -32,6 +32,13 @@ if [ -f "Resources/AppIcon.png" ]; then
     iconutil -c icns "$ICONSET" -o "$BUNDLE/Contents/Resources/AppIcon.icns"
 fi
 
+# Interface sounds (see Tools/bake-sounds.mjs). SoundFX loads them from Contents/Resources/Sounds.
+if [ -d "Resources/Sounds" ]; then
+    echo "→ Copying sounds…"
+    mkdir -p "$BUNDLE/Contents/Resources/Sounds"
+    cp Resources/Sounds/*.wav "$BUNDLE/Contents/Resources/Sounds/"
+fi
+
 echo "→ Signing ad-hoc (retries for synced folders that re-add metadata)…"
 SIGNED=0
 for attempt in 1 2 3; do

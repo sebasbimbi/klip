@@ -212,6 +212,7 @@ final class ClipboardManager: ObservableObject {
                                        isCredential: isCred ? true : nil), at: 0)
         }
         trimAndSave()
+        SoundFX.play(.copy)   // a copy landed in history (external ⌘C, or an OCR/import add)
     }
 
     private func addImage(_ image: NSImage, source: CaptureSource, remote: Bool) {
@@ -223,6 +224,7 @@ final class ClipboardManager: ObservableObject {
                                    sourceName: source.name, sourceBundleID: source.bundleID,
                                    isRemote: remote ? true : nil), at: 0)
         trimAndSave()
+        SoundFX.play(.copy)
     }
 
     /// Inserts an annotated capture (Klip Snap) into the persistent history and optionally leaves it
@@ -238,12 +240,13 @@ final class ClipboardManager: ObservableObject {
             items.insert(item, at: 0)   // only add a history row if the file was actually saved
             trimAndSave()
         } else {
-            NSSound.beep()
+            SoundFX.error()
         }
         if copyToClipboard {            // still deliver the image to the clipboard even if saving failed
             let pb = NSPasteboard.general
             pb.clearContents(); pb.writeObjects([image])
             lastChangeCount = pb.changeCount   // already handled here: don't re-capture it as a new item
+            SoundFX.play(.copy)
         }
         return item.id
     }
@@ -338,11 +341,12 @@ final class ClipboardManager: ObservableObject {
         let item = items[idx]
         trimAndSave()
         if !clean.isEmpty, !isCred, canPaste {   // never auto-paste a detected secret
+            // The popup closed on stop and the user is waiting in another app: a soft cue says
+            // "the transcript is on your clipboard now" without any window. Played BEFORE the
+            // pasteboard write so the success chime swallows the copy tick (see SoundFX.play).
+            SoundFX.play(.success)
             copyToPasteboard(item)     // only if nothing changed the pasteboard
             rebaselineVoiceGuards()    // OUR own paste is not a user clobber: keep sibling notes auto-pasteable
-            // The popup closed on stop and the user is waiting in another app: a soft cue says
-            // "the transcript is on your clipboard now" without any window.
-            NSSound(named: "Pop")?.play()
             ToastHUD.show(L10n.t("toast.transcriptCopied"), detail: clean)
         }
     }
@@ -359,7 +363,7 @@ final class ClipboardManager: ObservableObject {
     /// silently deleting it, so the user knows what happened and can recover or remove it.
     func failVoiceNote(id: UUID) {
         voicePasteGuards.removeValue(forKey: id)
-        NSSound.beep()   // the popup is long gone: without a cue the user pastes stale clipboard content
+        SoundFX.error()   // the popup is long gone: without a cue the user pastes stale clipboard content
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].text = nil
         items[idx].transcribing = false
@@ -496,6 +500,7 @@ final class ClipboardManager: ObservableObject {
         voicePasteGuards.removeValue(forKey: item.id)
         items.removeAll { $0.id == item.id }
         storage.saveItems(items)
+        SoundFX.play(.delete)
     }
 
     /// Replaces the in-memory history after importing a backup.
@@ -518,11 +523,13 @@ final class ClipboardManager: ObservableObject {
         }
         items.removeAll()
         storage.saveItems(items)
+        SoundFX.play(.delete)
     }
 
     func togglePin(_ item: ClipboardItem) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         items[idx].pinned.toggle()
+        SoundFX.play(items[idx].pinned ? .toggleOn : .toggleOff)
         trimAndSave()   // re-evaluate trimming on unpin (it may exceed maxItems)
     }
 

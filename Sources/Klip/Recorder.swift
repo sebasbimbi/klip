@@ -131,6 +131,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 startRequested = false
                 startMeterTimer()
                 installDeviceListener()
+                SoundFX.play(.recordStart)
             } catch {
                 state = .error(error.localizedDescription); startRequested = false
             }
@@ -144,6 +145,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         finishing = true
         stopMeterTimer()
         removeDeviceListener()
+        SoundFX.play(.recordStop)
         rec.stop()   // fires audioRecorderDidFinishRecording
     }
 
@@ -232,7 +234,7 @@ final class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         silentTicks += 1
         if silentTicks == warnTicks {
             silenceWarning = true
-            NSSound.beep()
+            SoundFX.warning()
         } else if silentTicks >= stopTicks {
             stop()   // stop due to inactivity: finish and transcribe (already on MainActor via the meter timer)
         }
