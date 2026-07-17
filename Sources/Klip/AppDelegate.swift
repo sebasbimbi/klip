@@ -7,7 +7,8 @@ import UniformTypeIdentifiers
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
-    private let recentsMenu = NSMenu()
+    /// Rebuilt by buildMenu() on every call — see the note there on why it can't be one shared menu.
+    private var recentsMenu = NSMenu()
     private static let recentsDF: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale.current; f.dateFormat = "dd MMM HH:mm"; return f
     }()
@@ -99,8 +100,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         setupHotKeys()
         maybeEnableLoginOnce()
-        // On-device is the default: pre-load (and, if first run, download) the model now so the first
-        // voice note transcribes immediately instead of waiting on a cold model load/download.
+        // On-device is the default: warm the model into memory now so the first voice note doesn't pay
+        // the cold pipeline load. This does NOT download — prewarm() bails unless the weights are already
+        // on disk, and a first-run download stays lazy on the first voice note (see LocalTranscriber).
         if Settings.shared.aiProvider == "local" {
             let m = Settings.shared.localModel
             Task.detached(priority: .utility) { await LocalTranscriber.shared.prewarm(model: m) }
@@ -215,6 +217,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         combo: Settings.shared.uploadCombo)
         menu.addItem(.separator())
         let recents = NSMenuItem(title: L10n.t("menu.recents"), action: nil, keyEquivalent: "")
+        // A FRESH menu each rebuild: an NSMenu can be the submenu of exactly one item, and the menu
+        // built on the previous call is still alive (statusItem.menu holds it until the end of this
+        // method). Re-attaching one shared instance throws NSInternalInconsistencyException — which
+        // AppKit swallows at the top level, silently truncating whatever called us.
+        // Safe because a rebuild never lands while a menu is open: every caller reaches us via
+        // RunLoop.main or the main queue, both starved during NSEventTrackingRunLoopMode. Schedule one
+        // in .common modes and the OPEN Recents submenu is orphaned — menuNeedsUpdate's identity check
+        // below rejects it and it silently populates nothing.
+        recentsMenu = NSMenu()
         recentsMenu.delegate = self
         recents.submenu = recentsMenu
         menu.addItem(recents)
