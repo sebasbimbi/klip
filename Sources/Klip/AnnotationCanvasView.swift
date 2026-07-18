@@ -1006,12 +1006,25 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
         super.keyUp(with: event)
     }
 
-    /// No keyUp ever arrives if focus leaves mid-hold (the text field taking over, the window
-    /// deactivating): drop the pan so the hand cursor can't strand itself over the canvas.
+    /// No keyUp ever arrives if focus leaves mid-hold (the text field taking over): drop the pan so the
+    /// hand cursor can't strand itself over the canvas.
     override func resignFirstResponder() -> Bool {
         setSpaceHeld(false)
         return super.resignFirstResponder()
     }
+
+    /// The other half of that: ⌘-Tab away mid-hold and the Space keyUp goes to the app that took over,
+    /// while WE keep first responder (a window doesn't resign its responder just for stopping being key)
+    /// — so resignFirstResponder above never runs and the pan would stay armed on return.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
+        guard let window else { return }
+        NotificationCenter.default.addObserver(self, selector: #selector(windowResignedKey),
+                                               name: NSWindow.didResignKeyNotification, object: window)
+    }
+
+    @objc private func windowResignedKey(_ note: Notification) { setSpaceHeld(false) }
 
     /// Layered Esc, mirroring the panel's: dismiss the most transient thing first and only reach the
     /// editor's discard confirmation once the canvas itself has nothing left to close. Esc is no

@@ -356,7 +356,9 @@ struct HistoryView: View {
                 batchButton("doc.richtext", "PDF") { onCombinePDF(batchItems) }
                 batchButton("doc.zipper", "ZIP") { onExportZip(batchItems) }
                 batchButton("folder.badge.plus", L10n.t("sel.collection")) { onAssignCollection(batchItems) }
-                Button(L10n.t("sel.done")) { selecting = false; selectedBatch = [] }
+                // Through toggleSelecting(), not an inline reset: it is the one place that also drops
+                // batchAnchor, so a later Shift-click can't extend from a row checked in a past session.
+                Button(L10n.t("sel.done")) { toggleSelecting() }
                     .buttonStyle(.link).font(.system(size: 13))
             }
             .padding(.horizontal, RowMetrics.inset).padding(.vertical, 8)
@@ -537,6 +539,9 @@ struct ItemRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovering = false
     @State private var revealed = false
+    /// Counts the reveals started from the rotor action, so a pending re-mask can tell whether it still
+    /// owns the row (same shape as `copyGeneration` below).
+    @State private var revealToken = 0
     /// Counts every copy click. Rapid clicks must each get their own bounce + tick, and each pending
     /// revert must be able to tell whether it still owns the icon — a Bool can't express either.
     @State private var copyGeneration = 0
@@ -633,6 +638,12 @@ struct ItemRow: View {
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(isRowSelected ? Color.accentColor.opacity(0.20)
                   : (hovering ? Color.primary.opacity(0.06) : Color.clear)))
+        // In batch mode the fill belongs to the CHECK, so the keyboard cursor needs a mark of its own —
+        // otherwise Return and the arrows act on a row nothing on screen points at. A ring, not a fill:
+        // it reads as distinct from "checked", and .opacity keeps it out of the layout either way.
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .strokeBorder(Color.accentColor, lineWidth: 1.5)
+            .opacity(selecting && isSelected ? 1 : 0))
         .contentShape(Rectangle())
         .contextMenu {
             // Right-click mirrors the hover actions: copy + star, then everything the ⋯ menu offers.
@@ -652,6 +663,7 @@ struct ItemRow: View {
         .modifier(RowDrag(enabled: canDrag, provider: { self.makeDragProvider() }, onStart: onDragSession))
         .onChange(of: resetToken) { _, _ in revealed = false }   // re-mask when reopening the panel
         .onChange(of: hovering) { _, h in if !h { revealed = false } }   // re-mask once the pointer leaves the row (covers search/filter/scroll)
+        .onChange(of: isSelected) { _, s in if !s { revealed = false } }   // the keyboard's equivalent of the pointer leaving
     }
 
     /// Modifier flags decide the click's meaning, Finder-style: Cmd opens batch mode on this row, Shift
@@ -737,16 +749,10 @@ struct ItemRow: View {
     /// closures as `actions` — the two paths must never be able to offer different things.
     @ViewBuilder private func typeActions<V: View>(_ content: V) -> some View {
         if item.isVoiceNote == true {
-            if voiceAudioFile != nil, !hasText, !isTranscribing {
-                content.accessibilityAction(named: Text(L10n.t("voice.retry"))) { onRetryTranscription(item) }
-            } else if hasText {
-                content.accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
-            } else {
-                content
-            }
+            voiceActions(content)
         } else if isCredential {
             content
-                .accessibilityAction(named: Text(L10n.t("row.reveal"))) { revealed.toggle() }
+                .accessibilityAction(named: Text(L10n.t("row.reveal"))) { revealForVoiceOver() }
                 .accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
         } else if item.kind == .image {
             content
@@ -755,6 +761,48 @@ struct ItemRow: View {
                 .accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
         } else {
             content.accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
+        }
+    }
+
+    /// Voice rows, split out because playback has to be mirrored on BOTH shapes the row takes: the
+    /// leading play button (no transcript yet) and the strip's play button (transcribed). The row is one
+    /// collapsed accessibility element, so `VoicePlayButton` isn't in the tree — without this the only
+    /// thing a voice note can do under VoiceOver is copy.
+    @ViewBuilder private func voiceActions<V: View>(_ content: V) -> some View {
+        if let af = voiceAudioFile {
+            if hasText {
+                playAction(content, af)
+                    .accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
+            } else if !isTranscribing {
+                playAction(content, af)
+                    .accessibilityAction(named: Text(L10n.t("voice.retry"))) { onRetryTranscription(item) }
+            } else {
+                playAction(content, af)
+            }
+        } else if hasText {
+            content.accessibilityAction(named: Text(L10n.t("row.copyonly"))) { manager.copyToPasteboard(item) }
+        } else {
+            content
+        }
+    }
+
+    /// The same entry point `VoicePlayButton` taps, so the two paths can't drift apart.
+    private func playAction<V: View>(_ content: V, _ fileName: String) -> some View {
+        content.accessibilityAction(named: Text(L10n.t("voice.play"))) {
+            AudioPlayer.shared.toggle(fileName: fileName)
+        }
+    }
+
+    /// The eye button is safe because the reveal dies when the pointer leaves the row; a rotor action has
+    /// no pointer to leave, so a bare toggle would leave the token on screen until the panel is reopened.
+    /// Reveal for a bounded window and re-mask ourselves.
+    private func revealForVoiceOver() {
+        revealed = true
+        revealToken &+= 1
+        let token = revealToken
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            guard revealToken == token else { return }   // a newer reveal owns the row now
+            revealed = false
         }
     }
 
@@ -925,8 +973,10 @@ struct ItemRow: View {
                 shownCopyGeneration = 0
             }
         }
-        // Under Reduce Motion the value never changes, so the bounce never fires (the tick still swaps).
-        .symbolEffect(.bounce, value: reduceMotion ? 0 : copyGeneration)
+        // The MODIFIER is gated, not the value: folding the setting into the tracked value makes the
+        // value itself move when Reduce Motion is toggled mid-session, firing the very bounce it
+        // suppresses. The tick still swaps either way.
+        .modifier(CopyBounce(active: !reduceMotion, generation: copyGeneration))
     }
 
     private func iconButton(_ symbol: String, _ help: String, _ action: @escaping () -> Void) -> some View {
@@ -1003,6 +1053,17 @@ struct ItemRow: View {
         f.dateFormat = format
         dfCache[cacheKey] = f
         return f
+    }
+}
+
+/// Bounces the copy glyph on every copy, unless Reduce Motion is on — in which case the effect is not
+/// attached at all, so the generation it tracks stays stable across a settings change.
+private struct CopyBounce: ViewModifier {
+    let active: Bool
+    let generation: Int
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if active { content.symbolEffect(.bounce, value: generation) } else { content }
     }
 }
 

@@ -271,9 +271,10 @@ final class PanelController: NSObject, NSWindowDelegate {
             return nil
         }
 
-        // Batch mode keeps the full keyboard, minus anything that pastes or closes: that would throw away
-        // the batch the user is assembling. Arrows move the cursor, Return checks the row under it, and
-        // ⌘⌫ / ⌘⇧F still act on that row (neither leaves the panel).
+        // Batch mode keeps the full keyboard, minus anything that pastes, closes or destroys: the first
+        // two would throw away the batch the user is assembling, the last acts irreversibly on a cursor
+        // the batch UI only marks with a ring. Arrows move the cursor, Return checks the row under it,
+        // and ⌘⇧F still stars it.
 
         // ⌘↩ → copies the selected text item as a code block (the vibe-coder's star action), keyboard only.
         if flags == .command, event.keyCode == 36, !selection.selecting,   // it hides the panel: not while batching
@@ -283,7 +284,9 @@ final class PanelController: NSObject, NSWindowDelegate {
         }
         // ⌘⌫ → delete the selected item (confirming first if it has media, like the row's menu).
         // Deferred: don't start a modal alert loop inside the event-monitor callback.
-        if flags == .command, event.keyCode == 51,
+        // Not while batching: a text clip is deleted with no confirmation, and batch mode draws the
+        // cursor as a bare focus ring — too thin a target for something irreversible.
+        if flags == .command, event.keyCode == 51, !selection.selecting,
            let id = selection.selectedID, let item = manager.items.first(where: { $0.id == id }) {
             DispatchQueue.main.async { [weak self] in self?.confirmDelete(item) }
             return nil

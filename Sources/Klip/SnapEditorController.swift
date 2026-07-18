@@ -64,6 +64,19 @@ private final class CheckerScrollView: NSScrollView {
 /// canvas. This is the one ancestor every control in the window does share.
 private final class EditorContentView: NSView {
     weak var escapeResponder: AnnotationCanvasView?
+
+    /// Esc gets here as a plain keyDown bubbling up the responder chain, NOT as cancelOperation: AppKit
+    /// only routes that through the text input system, which a plain NSView never invokes — the same
+    /// reason the canvas intercepts keyCode 53 itself. Everything else falls through untouched.
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53, let canvas = escapeResponder {
+            canvas.cancelOperation(nil)
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    /// Belt and braces for a responder that DOES route cancelOperation (a field editor in the chain).
     override func cancelOperation(_ sender: Any?) { escapeResponder?.cancelOperation(sender) }
 }
 
@@ -724,10 +737,10 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
             updateZoomLabel()
             return
         }
-        beginLiveZoomTracking()   // so the percentage counts along with the animation
+        let session = beginLiveZoomTracking()   // so the percentage counts along with the animation
         Motion.run(Motion.morph, { _ in
             scroll.animator().magnification = target
-        }, completion: { [weak self] in self?.endLiveZoomTracking() })
+        }, completion: { [weak self] in self?.endLiveZoomTracking(session: session) })
     }
 
     @objc private func liveMagnifyStarted(_ note: Notification) { beginLiveZoomTracking() }
@@ -736,16 +749,26 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
     /// True while the clip view's per-frame bounds changes are feeding the percentage label.
     private var trackingLiveZoom = false
+    /// Bumped on every begin, so whoever asked LAST owns the session: a pinch that starts during the
+    /// button-zoom animation takes ownership, and the animation's completion (which carries the older
+    /// number) no longer tears the observer out from under the still-running gesture.
+    private var liveZoomSession = 0
 
-    private func beginLiveZoomTracking() {
-        guard !trackingLiveZoom, let clip = scrollView?.contentView else { return }
+    @discardableResult
+    private func beginLiveZoomTracking() -> Int {
+        liveZoomSession &+= 1
+        guard !trackingLiveZoom, let clip = scrollView?.contentView else { return liveZoomSession }
         trackingLiveZoom = true
         clip.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsChanged),
                                                name: NSView.boundsDidChangeNotification, object: clip)
+        return liveZoomSession
     }
 
-    private func endLiveZoomTracking() {
+    /// `session` nil = end unconditionally (the pinch's own didEndLiveMagnify); a number ends it only
+    /// if that session is still the current one.
+    private func endLiveZoomTracking(session: Int? = nil) {
+        if let session, session != liveZoomSession { return }
         if trackingLiveZoom, let clip = scrollView?.contentView {
             NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification,
                                                       object: clip)
