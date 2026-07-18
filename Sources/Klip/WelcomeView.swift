@@ -37,7 +37,7 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 8) {
                 row(0, "doc.on.clipboard", L10n.t("welcome.history.title"), L10n.t("welcome.history.body"))
                 row(1, "lock.shield", L10n.t("welcome.privacy.title"), L10n.t("welcome.privacy.body"))
-                row(2, "keyboard", L10n.t("welcome.shortcuts.title"), shortcutsLine)
+                row(2, "keyboard", L10n.t("welcome.shortcuts.title")) { shortcutsRows }
                 row(3, "mic", L10n.t("welcome.voice.title"), L10n.t("welcome.voice.body"))
             }
 
@@ -136,18 +136,41 @@ struct WelcomeView: View {
         axGranted = Paster.hasAccessibilityPermission
     }
 
-    private var shortcutsLine: String {
-        // One labeled line per shortcut (same labels as the menu/guide) instead of bare chords.
-        [(settings.combo, "menu.show"),
-         (settings.voiceCombo, "rec.record"),
-         (settings.captureCombo, "capture.annotate"),
-         (settings.textCaptureCombo, "menu.captureText"),
-         (settings.uploadCombo, "act.upload"),
-         (settings.meetingCombo, "meeting.record")]
-            .map { "\($0.displayString)  \(L10n.t($1))" }.joined(separator: "\n")
+    // id derived from the label (stable across body passes and shortcut rebinds).
+    private struct ShortcutHint: Identifiable { let keys: String; let label: String; var id: String { label } }
+
+    /// Onboarding shows only the four shortcuts a first-run user needs; the full set lives in the
+    /// guide. Labels are the menu/guide ones, so a shortcut is never named two different things.
+    private var shortcutHints: [ShortcutHint] {
+        [ShortcutHint(keys: settings.combo.displayString, label: L10n.t("menu.show")),
+         ShortcutHint(keys: settings.captureCombo.displayString, label: L10n.t("capture.annotate")),
+         ShortcutHint(keys: settings.voiceCombo.displayString, label: L10n.t("rec.record")),
+         ShortcutHint(keys: settings.textCaptureCombo.displayString, label: L10n.t("menu.captureText"))]
+    }
+
+    /// Chip + label rows on the guide's column metric. The chord widths vary per binding, so the
+    /// labels only line up against a fixed-width chip — padding them with spaces cannot.
+    private var shortcutsRows: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(shortcutHints) { hint in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    KeyChip(keys: hint.keys, width: KeyChip.columnWidth)
+                    Text(hint.label).font(.system(size: 13)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     private func row(_ index: Int, _ icon: String, _ title: String, _ body: String) -> some View {
+        row(index, icon, title) {
+            Text(body).font(.system(size: 13)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func row<Detail: View>(_ index: Int, _ icon: String, _ title: String,
+                                   @ViewBuilder detail: () -> Detail) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 18))
@@ -156,8 +179,7 @@ struct WelcomeView: View {
                 .frame(width: 26, alignment: .center)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 13, weight: .semibold))
-                Text(body).font(.system(size: 13)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                detail()
             }
             Spacer(minLength: 0)
         }

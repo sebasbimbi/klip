@@ -14,6 +14,30 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// The one keyboard-shortcut chip in the app. Guide, Welcome and the panel's empty state all render
+/// their hints through this, so the same chord never appears in two different shapes.
+///
+/// Monospaced because chords are glyph soup (⌘⇧⌃): a proportional font sets them at uneven widths
+/// and the column stops lining up.
+struct KeyChip: View {
+    let keys: String
+    /// Fixed chip width when the chips form a column next to their labels; nil hugs the chord.
+    var width: CGFloat? = nil
+
+    /// Shared column width, so a chip column reads the same in every window that draws one.
+    static let columnWidth: CGFloat = 90
+
+    var body: some View {
+        Text(keys)
+            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+            .frame(width: width, alignment: .leading)
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
+    }
+}
+
 /// Shared helpers for real behind-window vibrancy ("glass").
 @MainActor
 enum GlassMask {
@@ -143,7 +167,12 @@ final class GlassPanelView: NSView {
     private let sheenView: GlassSheenView
     private let rimView = PassthroughView()
     private let rimOuter = CALayer()
-    private let rimInner = CALayer()
+    /// The specular inner edge. A gradient, not a uniform border: the light direction is fixed while
+    /// the bezel normal turns through the perimeter, so brightness must fall off from the lit corner
+    /// to the shaded one (DESIGN.md §3.5 / checklist #5). A uniform stroke is the wrong *shape*.
+    private let rimInner = CAGradientLayer()
+    /// Confines `rimInner` to a 1pt rounded-rect stroke — the gradient itself has no geometry.
+    private let rimInnerMask = CAShapeLayer()
     private let radius: CGFloat
     private weak var content: NSView?
 
@@ -169,9 +198,15 @@ final class GlassPanelView: NSView {
         rimView.frame = bounds
         rimView.autoresizingMask = [.width, .height]
         rimOuter.borderWidth = 0.5
-        rimInner.borderWidth = 1
         rimOuter.cornerCurve = .continuous
-        rimInner.cornerCurve = .continuous
+        // Same light direction as the sheen (≈ -60°), so the two read as one lighting model.
+        rimInner.type = .axial
+        rimInner.startPoint = CGPoint(x: 0, y: 1)
+        rimInner.endPoint = CGPoint(x: 0.65, y: 0.1)
+        rimInnerMask.fillColor = nil                       // stroke only: the ring, not the fill
+        rimInnerMask.strokeColor = NSColor.black.cgColor   // opaque = the part of the gradient kept
+        rimInnerMask.lineWidth = 1
+        rimInner.mask = rimInnerMask
         rimView.layer?.addSublayer(rimOuter)
         rimView.layer?.addSublayer(rimInner)
         addSubview(rimView)
@@ -208,7 +243,17 @@ final class GlassPanelView: NSView {
         rimOuter.frame = rimView.bounds
         rimOuter.cornerRadius = radius
         rimInner.frame = rimView.bounds.insetBy(dx: 0.5, dy: 0.5)
-        rimInner.cornerRadius = max(0, radius - 0.5)
+        // CAShapeLayer strokes centred ON the path, so the path sits half a stroke inside the
+        // gradient's bounds — otherwise the outer half of the 1pt edge falls outside and is clipped.
+        rimInnerMask.frame = rimInner.bounds
+        // insetBy returns a NULL rect once the inset exceeds half the side, which CGPath can't use —
+        // a panel narrower than the rim simply has no inner edge to draw.
+        let strokePath = rimInner.bounds.insetBy(dx: 0.5, dy: 0.5)
+        let maskRadius = max(0, radius - 1)
+        rimInnerMask.path = strokePath.isNull || strokePath.isEmpty
+            ? nil
+            : CGPath(roundedRect: strokePath, cornerWidth: maskRadius, cornerHeight: maskRadius,
+                     transform: nil)
     }
 
     /// The panel-only half of the recipe, driven by GlassSheenView's pass.
@@ -225,12 +270,16 @@ final class GlassPanelView: NSView {
 
         rimOuter.borderWidth = 0.5
         rimInner.isHidden = false
+        // Lit end → shaded end. The bright stop is well above the old uniform value and the dim one
+        // well below it, so the perimeter reads as lit from one side rather than glowing all round.
         if dark {
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.8).cgColor
-            rimInner.borderColor = NSColor(white: 1, alpha: 0.2).cgColor
+            rimInner.colors = [NSColor(white: 1, alpha: 0.35).cgColor,
+                               NSColor(white: 1, alpha: 0.08).cgColor]
         } else {
             rimOuter.borderColor = NSColor(white: 0, alpha: 0.10).cgColor   // faint contour so the edge reads over white content
-            rimInner.borderColor = NSColor(white: 1, alpha: 0.5).cgColor    // specular inner edge (light catching the glass)
+            rimInner.colors = [NSColor(white: 1, alpha: 0.65).cgColor,
+                               NSColor(white: 1, alpha: 0.25).cgColor]
         }
     }
 }

@@ -85,14 +85,8 @@ struct GuideView: View {
             sectionHeader(title, icon: icon)
             ForEach(rows) { r in
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    // kbd-style chip: fixed width keeps the two columns aligned.
-                    Text(r.keys)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .frame(width: 90, alignment: .leading)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary))
-                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
+                    // Fixed width keeps the two columns aligned.
+                    KeyChip(keys: r.keys, width: KeyChip.columnWidth)
                     Text(r.what).font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }

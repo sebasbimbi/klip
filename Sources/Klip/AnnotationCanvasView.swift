@@ -35,6 +35,16 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     private var undoStack: [[Annotation]] = []
     private var redoStack: [[Annotation]] = []
     private var preMoveSnapshot: [Annotation]?
+    /// Live resize, sharing `preMoveSnapshot` with the move path: a resize is re-derived from the
+    /// grab snapshot on every event (never accumulated), which is what lets ⇧/⌥ be pressed and
+    /// released mid-drag, and what keeps ONE completed resize equal to ONE undo step.
+    private var resizingID: UUID?
+    private var resizeKind: HandleKind?
+    /// Press point → the handle's true geometry point. The selection box is padded outward, so
+    /// resizing straight against the pointer would snap the edge by that padding the instant it's grabbed.
+    private var resizeGrabOffset = CGPoint.zero
+    private var lastResizePoint = CGPoint.zero
+    private var resizedDuringDrag = false
     /// Fired when in-place text editing starts (true) / ends (false), so the editor can disable its
     /// ⌘C/⌘Z/⌘S/⌘±/⌘0 key equivalents while the user types into the field (otherwise they hijack
     /// editing). Esc is not among them: it belongs to the field editor while typing, and to the
@@ -111,6 +121,7 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     /// this (plus `invalidateCursorRects`) from its tool-change choke point.
     func toolDidChange() {
         updateTrackingAreas()
+        needsDisplay = true   // the resize handles are drawn for .select only, so they come and go with the tool
         // A tool switched by its letter shortcut leaves the pointer parked, so nothing re-enters the
         // cursor rect: apply the new cursor now if the pointer is already over the canvas.
         guard let window else { return }
@@ -120,8 +131,15 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     }
 
     /// Open hand over something grabbable, closed hand while dragging it — the standard macOS
-    /// affordance for "this moves". Plain arrow over empty canvas.
+    /// affordance for "this moves". Plain arrow over empty canvas. Resize cursors take precedence:
+    /// the handles sit on top of the annotation, so the hand would otherwise mask them.
     private func updateSelectCursor(at point: CGPoint) {
+        // resizeKind first: mid-drag the geometry travels under the pointer, and re-hit-testing
+        // would drop the cursor the moment the handle slid out from beneath it.
+        if let kind = resizeKind ?? handleHitTest(point)?.kind {
+            Self.resizeCursor(for: kind).set()
+            return
+        }
         if movingID != nil { NSCursor.closedHand.set(); return }
         let hit = annotations.contains(where: { $0.hitTest(point) })
         (hit ? NSCursor.openHand : NSCursor.arrow).set()
@@ -221,12 +239,225 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     private func drawSelectionHighlight() {
         guard let id = selectedID,
               let ann = annotations.first(where: { $0.id == id }),
-              let box = ann.selectionBounds()?.insetBy(dx: -4, dy: -4) else { return }
+              let box = selectionBox(for: ann) else { return }
+        // Same two-stroke dialect as the capture overlay's marquee: a white hairline underneath
+        // carries the accent dash over dark screenshots, where a bare accent stroke disappears.
+        NSColor.white.withAlphaComponent(0.9).setStroke()
+        let base = NSBezierPath(rect: box)
+        base.lineWidth = 1.5
+        base.stroke()
         NSColor.controlAccentColor.setStroke()
-        let path = NSBezierPath(rect: box)
-        path.lineWidth = 1
-        path.setLineDash([4, 3], count: 2, phase: 0)
-        path.stroke()
+        let dash = NSBezierPath(rect: box)
+        dash.lineWidth = 1.5
+        dash.setLineDash([4, 3], count: 2, phase: 0)
+        dash.stroke()
+        // Handles only under .select: that is the one tool whose hit-testing and hover cursors can
+        // act on them, and an affordance you can see but not grab is worse than none.
+        guard currentTool == .select else { return }
+        for handle in selectionHandles(for: ann) {
+            let r = CGRect(x: handle.point.x - Self.handleSize / 2,
+                           y: handle.point.y - Self.handleSize / 2,
+                           width: Self.handleSize, height: Self.handleSize)
+            let path = NSBezierPath(rect: r)
+            NSColor.white.setFill()
+            path.fill()
+            NSColor.controlAccentColor.setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        }
+    }
+
+    // MARK: - Resize handles
+
+    /// A grab point of the selection. `box` names which edges of the selection box the handle owns
+    /// (−1 / 0 / +1 per axis), so one rescale routine covers corners and edge midpoints alike;
+    /// `endpoint` names an index into a line's or arrow's two points.
+    private enum HandleKind: Equatable {
+        case box(x: Int, y: Int)
+        case endpoint(Int)
+    }
+
+    private struct Handle {
+        let kind: HandleKind
+        /// Where the square is drawn and hit-tested — on the PADDED selection box.
+        let point: CGPoint
+        /// The point it actually moves, on the annotation's own bounds (see `resizeGrabOffset`).
+        let geometry: CGPoint
+    }
+
+    private static let handleSize: CGFloat = 6
+    private static let handleHitSlop: CGFloat = 3
+    /// Gap between an annotation and its selection box.
+    private static let selectionPadding: CGFloat = 4
+    /// Below this the edge-midpoint handles are dropped: on a small box they crowd the corners and
+    /// blanket the body, leaving no bare pixels to grab the annotation by and move it.
+    private static let minEdgeHandleExtent: CGFloat = 24
+
+    private func selectionBox(for ann: Annotation) -> CGRect? {
+        ann.selectionBounds()?.insetBy(dx: -Self.selectionPadding, dy: -Self.selectionPadding)
+    }
+
+    private static func boxPoint(_ r: CGRect, _ xe: Int, _ ye: Int) -> CGPoint {
+        CGPoint(x: xe < 0 ? r.minX : xe > 0 ? r.maxX : r.midX,
+                y: ye < 0 ? r.minY : ye > 0 ? r.maxY : r.midY)
+    }
+
+    /// Grab points of a selected annotation. Corners come FIRST so that on a small box — where the
+    /// hit slop makes them overlap the edge handles — a corner still wins the grab.
+    /// Freehand strokes and counters have no handles: a pencil stroke has no two defining points to
+    /// rescale, and a counter's size is its stroke width, which the toolbar already owns.
+    private func selectionHandles(for ann: Annotation) -> [Handle] {
+        switch ann.tool {
+        case .line, .arrow:
+            guard ann.points.count > 1 else { return [] }
+            return [Handle(kind: .endpoint(0), point: ann.start, geometry: ann.start),
+                    Handle(kind: .endpoint(ann.points.count - 1), point: ann.end, geometry: ann.end)]
+        case .rectangle, .ellipse, .blur, .spotlight, .text:
+            guard let geom = ann.selectionBounds(), let box = selectionBox(for: ann) else { return [] }
+            var out: [Handle] = []
+            for (xe, ye) in [(-1, -1), (1, -1), (1, 1), (-1, 1)] {
+                out.append(Handle(kind: .box(x: xe, y: ye),
+                                  point: Self.boxPoint(box, xe, ye), geometry: Self.boxPoint(geom, xe, ye)))
+            }
+            guard ann.tool != .text else { return out }   // text scales by font size: corners only
+            for (xe, ye) in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+                if xe != 0, geom.height < Self.minEdgeHandleExtent { continue }
+                if ye != 0, geom.width < Self.minEdgeHandleExtent { continue }
+                out.append(Handle(kind: .box(x: xe, y: ye),
+                                  point: Self.boxPoint(box, xe, ye), geometry: Self.boxPoint(geom, xe, ye)))
+            }
+            return out
+        case .select, .pencil, .marker, .counter:
+            return []
+        }
+    }
+
+    private func handleHitTest(_ p: CGPoint) -> Handle? {
+        guard currentTool == .select, activeTextField == nil, let id = selectedID,
+              let ann = annotations.first(where: { $0.id == id }) else { return nil }
+        let reach = Self.handleSize / 2 + Self.handleHitSlop
+        return selectionHandles(for: ann).first {
+            abs(p.x - $0.point.x) <= reach && abs(p.y - $0.point.y) <= reach
+        }
+    }
+
+    private func beginResize(_ handle: Handle, at p: CGPoint) {
+        guard let id = selectedID else { return }
+        resizingID = id
+        resizeKind = handle.kind
+        resizeGrabOffset = CGPoint(x: handle.geometry.x - p.x, y: handle.geometry.y - p.y)
+        lastResizePoint = p
+        resizedDuringDrag = false
+        preMoveSnapshot = annotations   // one snapshot per gesture, pushed on mouseUp only if it moved
+        Self.resizeCursor(for: handle.kind).set()
+    }
+
+    /// Re-derives the resized annotation from the grab snapshot — from `mouseDragged` and from
+    /// `flagsChanged`, exactly like `updateMove`, so ⇧/⌥ take effect with no pointer movement.
+    private func updateResize() {
+        guard let resizingID, let kind = resizeKind,
+              let idx = annotations.firstIndex(where: { $0.id == resizingID }),
+              let base = preMoveSnapshot?.first(where: { $0.id == resizingID }) else { return }
+        let p = CGPoint(x: lastResizePoint.x + resizeGrabOffset.x,
+                        y: lastResizePoint.y + resizeGrabOffset.y)
+        var updated = base
+        switch kind {
+        case .endpoint(let i):
+            resizeEndpoint(&updated, index: i, to: p)
+        case .box(let xe, let ye):
+            if base.tool == .text { resizeText(&updated, x: xe, y: ye, to: p) }
+            else { resizeBox(&updated, x: xe, y: ye, to: p) }
+        }
+        if updated.points != base.points || updated.fontSize != base.fontSize { resizedDuringDrag = true }
+        annotations[idx] = updated
+        Self.resizeCursor(for: kind).set()   // cursor rects can re-assert if the pointer leaves mid-drag
+        needsDisplay = true
+    }
+
+    /// Rescales a rect-family annotation by moving the grabbed edge(s). Rectangle, ellipse, blur and
+    /// spotlight all render from the NORMALIZED `dragRect`, so rebuilding the defining pair as the
+    /// new rect's opposite corners loses nothing — including when the drag flips the shape inside out.
+    private func resizeBox(_ ann: inout Annotation, x xe: Int, y ye: Int, to p: CGPoint) {
+        guard let base = ann.selectionBounds() else { return }
+        // ⌥ = the shape grows from its own center, mirroring the press-point-is-the-center dialect
+        // `updateDraft` uses while the shape is being drawn.
+        // An edge handle owns ONE axis: the other's anchor is never read, since only the free axis
+        // is rebuilt below.
+        let anchorX = optionHeld ? base.midX : (xe > 0 ? base.minX : base.maxX)
+        let anchorY = optionHeld ? base.midY : (ye > 0 ? base.minY : base.maxY)
+        var dx = p.x - anchorX
+        var dy = p.y - anchorY
+        if shiftHeld, xe != 0, ye != 0 {
+            // ⇧ = square, the same "smaller extent wins" rule as when the shape was drawn.
+            let side = min(abs(dx), abs(dy))
+            dx = dx < 0 ? -side : side
+            dy = dy < 0 ? -side : side
+        }
+        var r = base
+        if xe != 0 {
+            r.origin.x = optionHeld ? anchorX - abs(dx) : min(anchorX, anchorX + dx)
+            r.size.width = optionHeld ? abs(dx) * 2 : abs(dx)
+        }
+        if ye != 0 {
+            r.origin.y = optionHeld ? anchorY - abs(dy) : min(anchorY, anchorY + dy)
+            r.size.height = optionHeld ? abs(dy) * 2 : abs(dy)
+        }
+        ann.points = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY)]
+    }
+
+    /// Moves one endpoint of a line/arrow. ⇧ snaps the direction to 45° (never to a square: for these
+    /// two the ANGLE is the point); ⌥ mirrors around the midpoint, so the segment grows from center.
+    private func resizeEndpoint(_ ann: inout Annotation, index: Int, to p: CGPoint) {
+        guard ann.points.count > 1, ann.points.indices.contains(index) else { return }
+        let otherIndex = index == 0 ? ann.points.count - 1 : 0
+        let other = ann.points[otherIndex]
+        let held = ann.points[index]
+        let anchor = optionHeld ? CGPoint(x: (held.x + other.x) / 2, y: (held.y + other.y) / 2) : other
+        var dx = p.x - anchor.x
+        var dy = p.y - anchor.y
+        if shiftHeld {
+            let step = CGFloat.pi / 4
+            let length = hypot(dx, dy)
+            let angle = (atan2(dy, dx) / step).rounded() * step
+            dx = cos(angle) * length
+            dy = sin(angle) * length
+        }
+        var pts = ann.points
+        pts[index] = CGPoint(x: anchor.x + dx, y: anchor.y + dy)
+        if optionHeld { pts[otherIndex] = CGPoint(x: anchor.x - dx, y: anchor.y - dy) }
+        ann.points = pts
+    }
+
+    /// Text has no box to stretch — its extent IS its font size, so a corner drag maps the distance
+    /// from the held corner onto the size (uniform by construction, which is why ⇧ has nothing to
+    /// constrain here). The origin is then re-derived so the anchor corner stays exactly where it was.
+    private func resizeText(_ ann: inout Annotation, x xe: Int, y ye: Int, to p: CGPoint) {
+        guard let base = ann.textBounds(), base.width > 0.5, base.height > 0.5 else { return }
+        // Fraction of the box the anchor sits at: the opposite corner, or (⌥) the center.
+        let fx: CGFloat = optionHeld ? 0.5 : (xe > 0 ? 0 : 1)
+        let fy: CGFloat = optionHeld ? 0.5 : (ye > 0 ? 0 : 1)
+        let anchor = CGPoint(x: base.minX + base.width * fx, y: base.minY + base.height * fy)
+        let grabbed = Self.boxPoint(base, xe, ye)
+        let reach = hypot(grabbed.x - anchor.x, grabbed.y - anchor.y)
+        guard reach > 0.5 else { return }
+        let scale = hypot(p.x - anchor.x, p.y - anchor.y) / reach
+        ann.fontSize = max(10, min(120, ann.fontSize * scale))   // same clamp as setFontSize
+        guard let grown = ann.textBounds() else { return }
+        ann.points = [CGPoint(x: anchor.x - grown.width * fx, y: anchor.y - grown.height * fy)]
+    }
+
+    /// Standard macOS resize feedback. AppKit ships only the straight up/down and left/right cursors
+    /// below macOS 15 — the diagonal ones arrive with `frameResize(position:directions:)` — so older
+    /// systems get the crosshair rather than a cursor pointing along the wrong axis.
+    private static func resizeCursor(for kind: HandleKind) -> NSCursor {
+        guard case .box(let xe, let ye) = kind else { return .crosshair }   // endpoint: place a point
+        if xe == 0 { return .resizeUpDown }
+        if ye == 0 { return .resizeLeftRight }
+        guard #available(macOS 15.0, *) else { return .crosshair }
+        let position: NSCursor.FrameResizePosition = ye > 0
+            ? (xe > 0 ? .topRight : .topLeft)
+            : (xe > 0 ? .bottomRight : .bottomLeft)
+        return .frameResize(position: position, directions: .all)
     }
 
     // MARK: - Mouse
@@ -241,6 +472,13 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
             panAnchor = event.locationInWindow
             window?.invalidateCursorRects(for: self)
             NSCursor.closedHand.set()
+            return
+        }
+
+        // Handles before bodies: they straddle the annotation's own outline, so a body hit-test
+        // running first would swallow every grab and turn a resize into a move.
+        if let handle = handleHitTest(p) {
+            beginResize(handle, at: p)
             return
         }
 
@@ -343,6 +581,12 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
             return
         }
 
+        if resizingID != nil {
+            lastResizePoint = p
+            updateResize()
+            return
+        }
+
         // Move the grabbed annotation (works for single-point text/counters and multi-point strokes).
         if movingID != nil {
             lastMovePoint = p
@@ -421,7 +665,9 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     override func flagsChanged(with event: NSEvent) {
         shiftHeld = event.modifierFlags.contains(.shift)
         optionHeld = event.modifierFlags.contains(.option)
-        if movingID != nil { updateMove() } else { updateDraft() }
+        if resizingID != nil { updateResize() }
+        else if movingID != nil { updateMove() }
+        else { updateDraft() }
         super.flagsChanged(with: event)
     }
 
@@ -434,6 +680,12 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
         }
         draftAnchor = nil
         lastDraftPoint = nil
+        if resizingID != nil {
+            if resizedDuringDrag, let snap = preMoveSnapshot { pushUndo(snap) }   // ONE undo per completed resize
+            resizingID = nil; resizeKind = nil; preMoveSnapshot = nil; resizedDuringDrag = false
+            updateSelectCursor(at: convert(event.locationInWindow, from: nil))
+            return
+        }
         if movingID != nil {
             if movedDuringDrag, let snap = preMoveSnapshot { pushUndo(snap) }   // ONE undo per completed drag
             movingID = nil; preMoveSnapshot = nil; movedDuringDrag = false

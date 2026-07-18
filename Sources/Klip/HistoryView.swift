@@ -438,8 +438,11 @@ struct HistoryView: View {
                 Text(L10n.t("empty.title")).font(.title3.weight(.semibold))
                 Text(L10n.t("empty.sub")).font(.system(size: 13)).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                HStack(spacing: 12) {
+                // Stacked, not a row: a third hint plus a long localized label (de/pt) overflows the
+                // 480pt panel side by side. Column-aligned chips, same metric as the guide.
+                VStack(alignment: .leading, spacing: 6) {
                     kbdHint(settings.combo.displayString, L10n.t("hint.open"))
+                    kbdHint(settings.captureCombo.displayString, L10n.t("capture.annotate"))
                     kbdHint(settings.voiceCombo.displayString, L10n.t("rec.record"))
                 }
                 .padding(.top, 2)
@@ -462,11 +465,8 @@ struct HistoryView: View {
     }
 
     private func kbdHint(_ keys: String, _ label: String) -> some View {
-        HStack(spacing: 5) {
-            Text(keys).font(.system(size: 11, weight: .semibold, design: .rounded))
-                .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.08)))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.12)))
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            KeyChip(keys: keys, width: KeyChip.columnWidth)
             Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
