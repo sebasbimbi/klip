@@ -363,7 +363,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         // Zoom out / percentage / zoom in. These carry ⌘− / ⌘0 / ⌘+, so unlike the pixel-size label
         // they are ACTIONS and never join `infoViews` — a hidden NSButton stops answering its key
         // equivalent, and a small capture (which hides the readout) is exactly when zoom matters.
-        let zoomOut = makeActionButton(symbol: "minus.magnifyingglass", tip: "⌘−",
+        let zoomOut = makeActionButton(symbol: "minus.magnifyingglass", tip: L10n.t("editor.zoom.out"),
                                        action: #selector(zoomOutTapped))
         zoomOut.keyEquivalent = "-"; zoomOut.keyEquivalentModifierMask = [.command]
         pinChip(zoomOut)
@@ -390,7 +390,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
 
         // ⌘+ is physically ⌘⇧= on the keyboards this ships to, so the mask has to say so — same shape
         // as Redo's ⇧⌘Z above.
-        let zoomIn = makeActionButton(symbol: "plus.magnifyingglass", tip: "⌘+",
+        let zoomIn = makeActionButton(symbol: "plus.magnifyingglass", tip: L10n.t("editor.zoom.in"),
                                       action: #selector(zoomInTapped))
         zoomIn.keyEquivalent = "+"; zoomIn.keyEquivalentModifierMask = [.command, .shift]
         pinChip(zoomIn)

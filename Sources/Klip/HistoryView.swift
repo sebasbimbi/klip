@@ -731,7 +731,9 @@ struct ItemRow: View {
         } else {
             typeActions(labelledRow(content))
                 .accessibilityAddTraits(.isButton)
-                .accessibilityHint(Text(L10n.t("a11y.hint.row")))
+                // Credentials are copy-only by design (pick() never auto-pastes a secret), so the
+                // generic "copies and pastes" hint would promise the wrong thing.
+                .accessibilityHint(Text(L10n.t(isCredential ? "a11y.hint.cred" : "a11y.hint.row")))
                 .accessibilityAction(named: Text(L10n.t(item.pinned ? "row.unpin" : "row.pin"))) { manager.togglePin(item) }
                 .accessibilityAction(named: Text(L10n.t("row.rename"))) { onRename(item) }
                 .accessibilityAction(named: Text(L10n.t("row.delete"))) { onDelete(item) }

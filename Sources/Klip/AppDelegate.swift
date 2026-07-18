@@ -473,7 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // doesn't block launch).
         if hotKey == nil || voiceHotKey == nil {
             // Here the combo is owned by ANOTHER app, not by a Klip shortcut → dedicated wording.
-            Task { @MainActor in NSSound.beep(); self.showAlert(L10n.t("hotkey.dead.title"), L10n.t("hotkey.dead.info")) }
+            Task { @MainActor in SoundFX.error(); self.showAlert(L10n.t("hotkey.dead.title"), L10n.t("hotkey.dead.info")) }
         }
         // Reflect any startup remaps in the menu's shortcut labels.
         buildMenu()
