@@ -47,7 +47,7 @@ final class SnapController {
                 self.promptForPermission()
             } catch {
                 self.inProgress = false
-                NSSound.beep()
+                SoundFX.error()
                 ToastHUD.show(L10n.t("capture.failed"))
             }
         }
@@ -67,6 +67,7 @@ final class SnapController {
                     ToastHUD.show(L10n.t("toast.copied"))
                     self.onCaptured?()
                 } else {
+                    SoundFX.play(.pop)   // region captured → editor opening
                     self.openEditor(with: image)
                 }
             case .text:     self.extractText(from: image)
@@ -79,12 +80,12 @@ final class SnapController {
     /// OCR the selected region OFF the main thread, then put the text on the clipboard + into history.
     @MainActor
     private func extractText(from image: NSImage) {
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { NSSound.beep(); return }
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { SoundFX.error(); return }
         Task { @MainActor [weak self] in
             let text = await Task.detached { OCR.recognizeText(in: cg) }.value   // OCR off the main thread
             guard let self else { return }
             guard self.manager.addCapturedText(text) else {   // nothing recognized: say so — a bare beep
-                NSSound.beep()                                    // can't be told apart from "the feature broke"
+                SoundFX.error()                                   // can't be told apart from "the feature broke"
                 ToastHUD.show(L10n.t("snap.notext.title"), detail: L10n.t("snap.notext.info"))
                 return
             }

@@ -107,6 +107,7 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
             activity.touch()
             isRecording = true
             startTimer()
+            SoundFX.play(.recordStart)
         }
     }
 
@@ -114,6 +115,7 @@ final class MeetingRecorder: NSObject, ObservableObject, SCStreamDelegate, AVAud
         guard isRecording, !stopping else { return }
         stopping = true
         finishing = true
+        SoundFX.play(.recordStop)
         timer?.invalidate(); timer = nil
         let duration = elapsed
         let systemOK = await teardownStreams()

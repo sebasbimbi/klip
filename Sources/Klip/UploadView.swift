@@ -200,15 +200,15 @@ struct UploadView: View {
                 dropRejected = false
                 if media.count < urls.count {
                     // Mixed drop: the supported files proceed, but don't silently swallow the rest.
-                    NSSound.beep()
                     MainActor.assumeIsolated {
+                        SoundFX.warning()
                         ToastHUD.show(String(format: L10n.t("upload.skipped"), urls.count - media.count))
                     }
                 }
                 onFiles(media, effectiveLanguage)
             } else if !urls.isEmpty {
                 // Everything dropped was unsupported: don't swallow it silently.
-                NSSound.beep()
+                MainActor.assumeIsolated { SoundFX.error() }
                 dropRejected = true
             }
         }

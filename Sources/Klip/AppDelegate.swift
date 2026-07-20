@@ -93,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .store(in: &cancellables)
         MeetingRecorder.sweepOrphanedTempFiles()   // clear unfinalized tracks from a crashed run
         manager.start()
+        SoundFX.activate()   // copy tick for every pasteboard write made through the app
         // Zero-real-estate copy confirmation (Shottr-style): flash the menu-bar icon to a checkmark
         // whenever anything lands on the pasteboard through Klip.
         NotificationCenter.default.addObserver(forName: .klipDidCopy, object: nil, queue: .main) { [weak self] _ in
@@ -609,7 +610,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // Nothing written (e.g. the image's file is gone): don't fall through to ⌘V, which would paste
         // whatever stale content was already on the clipboard. Same guard as PanelController.pick.
-        guard manager.copyToPasteboard(item) else { NSSound.beep(); return }
+        guard manager.copyToPasteboard(item) else { SoundFX.error(); return }
         // Auto-paste like the panel does. No target: the menu closing already restored focus to the
         // previous app, so just send ⌘V. Never auto-paste credentials — same policy as PanelController.pick.
         if item.isCredential != true, Settings.shared.autoPaste, Paster.hasAccessibilityPermission {

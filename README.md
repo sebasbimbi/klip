@@ -216,6 +216,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 | `SecretStore.swift` | API keys in local `0600` files (`openai.key`, `gemini.key`). |
 | `Paster.swift` / `LoginItem.swift` | Auto-paste and launch-at-login. |
 | `Markdownify.swift` | Markdown conversion and export (local). |
+| `SoundFX.swift` | Interface sounds, rendered from the [raphaelsalaja/audio](https://github.com/raphaelsalaja/audio) kits (see `Tools/bake-sounds.mjs`). |
 
 ## 🗺️ Roadmap
 
@@ -227,7 +228,7 @@ Open **Preferences** (`⌘,` from the Klip menu):
 - [ ] Favorites sync · optional sync between Macs.
 - [ ] Developer ID signing + notarization for warning-free distribution.
 
-**Already available:** text+image history · native capture + annotation (Klip Snap: select/move, blur, spotlight, counters, undo/redo, zoom) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language · **meeting notes** (mic+system, Me/Them, on-device), saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages.
+**Already available:** text+image history · native capture + annotation (Klip Snap: select/move, blur, spotlight, counters, undo/redo, zoom) · **fast OCR capture** (`⌥⇧F`) · OCR · **on-device** voice notes (WhisperKit) plus OpenAI/Gemini, **upload audio & video** with per-file language · **meeting notes** (mic+system, Me/Them, on-device), saved audio and retry · copy as code block / **for WhatsApp / for email** · **always-paste-clean** · **encrypted credentials (AES-256-GCM)** · **links filter** · multi-select + combine into PDF/ZIP · collections · name and search · color swatch · Markdown · export/import · stable signing · 8 UI languages · subtle interface sounds (can be turned off).
 
 ## 🤝 Contributing
 
@@ -240,3 +241,5 @@ Created and maintained by **Martin Velasco O.** — [@tamibot](https://github.co
 ## 📄 License
 
 [MIT](LICENSE) © 2026 Martin Velasco O. — use it, modify it and share it freely.
+
+Interface sounds are rendered from the sound kits of [raphaelsalaja/audio](https://github.com/raphaelsalaja/audio) (MIT © 2026 Raphael Salaja).

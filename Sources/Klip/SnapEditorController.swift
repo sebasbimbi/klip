@@ -667,6 +667,7 @@ final class SnapEditorController: NSObject, NSWindowDelegate {
         do {
             let url = try Storage.shared.exportPNGToDownloads(png)
             MainActor.assumeIsolated {   // @objc button action: always on the main thread
+                SoundFX.play(.save)
                 ToastHUD.show(L10n.t("toast.imageSaved"), detail: url.lastPathComponent,
                               actionTitle: L10n.t("toast.reveal")) {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
