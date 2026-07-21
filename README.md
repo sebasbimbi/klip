@@ -7,7 +7,7 @@ Everything you copy while building with AI — code, errors, screenshots, prompt
 
 Text & image history · **native capture + annotation** · **fast OCR capture** · **voice & video → text** · **meeting notes (mic + system audio, no bot)** (on-device, or OpenAI/Gemini) · **copy as code block / for WhatsApp / for email** · **always-paste-clean** · **encrypted credential manager**. Lives in the menu bar: light, fast and private.
 
-🆓 Free & open source (MIT) · 🔒 No telemetry · 🍎 Native Swift (no Electron)
+🆓 Free & open source (Apache 2.0) · 🔒 No telemetry · 🍎 Native Swift (no Electron)
 
 **🌐 [tamibot.github.io/klip](https://tamibot.github.io/klip/)**
 
@@ -240,6 +240,6 @@ Created and maintained by **Martin Velasco O.** — [@tamibot](https://github.co
 
 ## 📄 License
 
-[MIT](LICENSE) © 2026 Martin Velasco O. — use it, modify it and share it freely.
+[Apache 2.0](LICENSE) © 2026 Martin Velasco O. — use it, modify it and share it freely.
 
 Interface sounds are rendered from the sound kits of [raphaelsalaja/audio](https://github.com/raphaelsalaja/audio) (MIT © 2026 Raphael Salaja).
