@@ -98,7 +98,8 @@ final class PanelController: NSObject, NSWindowDelegate {
             onCaptureAnnotate: { [weak self] in self?.onCaptureAnnotate?() },
             onCombinePDF: { [weak self] items in self?.combineSelectedToPDF(items) },
             onExportZip: { [weak self] items in self?.exportSelectedZip(items) },
-            onAssignCollection: { [weak self] items in self?.assignSelectedToCollection(items) }
+            onAssignCollection: { [weak self] items in self?.assignSelectedToCollection(items) },
+            onDragSession: { [weak self] in self?.beginDragSession() }
         )
 
         let panel = KeyablePanel(
@@ -132,6 +133,29 @@ final class PanelController: NSObject, NSWindowDelegate {
     /// True while the close fade-out runs (the panel is still technically visible but going away).
     private var fadingOut = false
 
+    /// True while a row is being dragged out of the panel. The panel is `.transient` and auto-hides the
+    /// moment focus goes elsewhere — which is exactly what a drop into Finder does — and tearing the
+    /// source window down mid-drag kills the drag image, so both auto-hide paths stand down until the
+    /// drop lands.
+    private var dragSessionActive = false
+
+    /// Called by a row as its drag starts. SwiftUI's `.onDrag` has no end callback, so the mouse button
+    /// is the end signal: while the drag runs it is held, and it can only come up on drop or cancel.
+    func beginDragSession() {
+        guard !dragSessionActive else { return }
+        dragSessionActive = true
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+        watchDragSession(ticksLeft: 600)   // ~60s ceiling: the flag can never latch on and wedge the panel open
+    }
+
+    private func watchDragSession(ticksLeft: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self, self.dragSessionActive else { return }
+            guard NSEvent.pressedMouseButtons & 1 != 0, ticksLeft > 0 else { self.dragSessionActive = false; return }
+            self.watchDragSession(ticksLeft: ticksLeft - 1)
+        }
+    }
+
     func toggle() {
         if isModalActive { return }   // don't open/close the panel while a save/export sheet is open behind it
         (panel.isVisible && !fadingOut) ? hide() : show()   // mid fade-out counts as closed
@@ -143,6 +167,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         previousApp = NSWorkspace.shared.frontmostApplication
         positionPanel()
 
+        // The status item stays lit for as long as the panel is up, so the menu bar shows where the
+        // panel came from (AppKit only highlights it for a menu it owns).
+        (NSApp.delegate as? AppDelegate)?.setStatusItemHighlighted(true)
+
         // Plain fade-in — no positional slide (the text must not move as the panel appears).
         panel.alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)
@@ -153,26 +181,23 @@ final class PanelController: NSObject, NSWindowDelegate {
         selection.openToken &+= 1                 // triggers the search/focus reset in the view
         if recordingPanel?.isVisible != true { recorder.reset() }  // don't close the voice popup if it's open
 
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.13
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1
-        }
+        Motion.run(Motion.appear) { _ in panel.animator().alphaValue = 1 }
 
         installMonitors()
     }
 
     func hide(restoreFocus: Bool = true) {
         removeMonitors()
+        // Every hide path funnels through here, including the early-out below: drop the highlight
+        // first so the status item can never stay lit with no panel on screen.
+        (NSApp.delegate as? AppDelegate)?.setStatusItemHighlighted(false)
         AudioPlayer.shared.stop()   // don't leave audio playing when the panel closes
         if restoreFocus { previousApp?.activate() }   // restore focus first; the fade is purely visual
         guard panel.isVisible, !fadingOut else { return }
         fadingOut = true
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        Motion.run(Motion.dismiss, { _ in
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        }, completion: { [weak self] in
             MainActor.assumeIsolated {   // AppKit animation completions run on the main thread
                 guard let self, self.fadingOut else { return }   // reopened mid-fade: leave it on screen
                 self.fadingOut = false
@@ -182,17 +207,13 @@ final class PanelController: NSObject, NSWindowDelegate {
     }
 
     /// Orders a window front via `orderFront` and fades it in when it's newly appearing
-    /// (same 0.13s easeOut the history panel uses). Already-visible windows are left alone.
+    /// (the same appear fade the history panel uses). Already-visible windows are left alone.
     private func fadeInPresenting(_ window: NSWindow, orderFront: () -> Void) {
         let appearing = !window.isVisible
         if appearing { window.alphaValue = 0 }
         orderFront()
         guard appearing else { return }
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.13
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            window.animator().alphaValue = 1
-        }
+        Motion.run(Motion.appear) { _ in window.animator().alphaValue = 1 }
     }
 
     // MARK: - Monitors (keyboard + outside click)
@@ -208,7 +229,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, !self.isModalActive, !self.isRenaming, !self.recorder.isRecording,
-                  !self.auxWindowVisible else { return }   // don't close while a child window is on screen
+                  !self.auxWindowVisible, !self.dragSessionActive else { return }   // don't close while a child window is on screen or a drag is in flight
             self.hide(restoreFocus: false)
         }
     }
@@ -250,21 +271,22 @@ final class PanelController: NSObject, NSWindowDelegate {
             return nil
         }
 
-        // In batch multi-select mode the keyboard does NOT paste/close (it would break the batch in progress):
-        // arrows only navigate; ⌘1-9 / Return don't pick. The mouse still toggles (onToggleCheck).
-        // Batch mode (multi-select) is driven by the mouse (checkboxes). Don't move a keyboard cursor here
-        // with no visible highlight — it only confused; let the keys pass through (search typing, list scrolling).
-        if selection.selecting { return event }
+        // Batch mode keeps the full keyboard, minus anything that pastes, closes or destroys: the first
+        // two would throw away the batch the user is assembling, the last acts irreversibly on a cursor
+        // the batch UI only marks with a ring. Arrows move the cursor, Return checks the row under it,
+        // and ⌘⇧F still stars it.
 
         // ⌘↩ → copies the selected text item as a code block (the vibe-coder's star action), keyboard only.
-        if flags == .command, event.keyCode == 36,
+        if flags == .command, event.keyCode == 36, !selection.selecting,   // it hides the panel: not while batching
            let id = selection.selectedID, let item = manager.items.first(where: { $0.id == id }),
            item.kind == .text, item.isCredential != true, !(item.text?.isEmpty ?? true) {   // never auto-paste a secret
             copyAsCode(of: item); return nil
         }
         // ⌘⌫ → delete the selected item (confirming first if it has media, like the row's menu).
         // Deferred: don't start a modal alert loop inside the event-monitor callback.
-        if flags == .command, event.keyCode == 51,
+        // Not while batching: a text clip is deleted with no confirmation, and batch mode draws the
+        // cursor as a bare focus ring — too thin a target for something irreversible.
+        if flags == .command, event.keyCode == 51, !selection.selecting,
            let id = selection.selectedID, let item = manager.items.first(where: { $0.id == id }) {
             DispatchQueue.main.async { [weak self] in self?.confirmDelete(item) }
             return nil
@@ -279,7 +301,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         switch event.keyCode {
         case 125: selection.moveDown(); return nil    // ↓
         case 126: selection.moveUp();   return nil    // ↑
-        case 36, 76: pickSelected();    return nil    // Return / Enter
+        case 36, 76:                                  // Return / Enter
+            // In batch mode Return is the keyboard's checkbox; the view owns the batch set, so it toggles.
+            if selection.selecting { selection.toggleCheckToken &+= 1 } else { pickSelected() }
+            return nil
         default: return event
         }
     }
@@ -446,6 +471,7 @@ final class PanelController: NSObject, NSWindowDelegate {
                     let detail = exportable < items.count
                         ? String(format: L10n.t("export.partial"), exportable, items.count)
                         : url.lastPathComponent
+                    SoundFX.play(.save)   // same cue as the PDF sibling: two batch buttons, one sound
                     ToastHUD.show(L10n.t("toast.imageSaved"), detail: detail,
                                   actionTitle: L10n.t("toast.reveal")) {
                         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -573,7 +599,15 @@ final class PanelController: NSObject, NSWindowDelegate {
             Glass.install(WelcomeView(onStart: { [weak self] in
                 Settings.shared.hasSeenWelcome = true
                 self?.welcomeWindow?.orderOut(nil)
+                // Klip has no Dock icon: closing the only window would leave the app looking gone.
+                // Hand the user straight to the panel under the status item (its first-run empty state).
+                self?.show()
             }), in: w)
+            // The content is width-fixed and grows to fit its (localized) text: take the height from
+            // the hosting view, never a literal — a short rect lays the logo/primary button off-window.
+            if let fitting = w.contentView?.fittingSize, fitting.width > 0, fitting.height > 0 {
+                w.setContentSize(fitting)
+            }
             w.center()
             welcomeWindow = w
         }
@@ -747,10 +781,12 @@ final class PanelController: NSObject, NSWindowDelegate {
     // MARK: - NSWindowDelegate (fallback to close when focus is lost)
 
     func windowDidResignKey(_ notification: Notification) {
-        guard !isModalActive, !isRenaming, !recorder.isRecording, !auxWindowVisible else { return }
+        guard !isModalActive, !isRenaming, !recorder.isRecording, !auxWindowVisible,
+              !dragSessionActive else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self, self.panel.isVisible, !self.isModalActive, !self.isRenaming,
-                  !self.recorder.isRecording, !self.auxWindowVisible, !self.panel.isKeyWindow else { return }
+                  !self.recorder.isRecording, !self.auxWindowVisible, !self.dragSessionActive,
+                  !self.panel.isKeyWindow else { return }
             self.hide(restoreFocus: false)
         }
     }
