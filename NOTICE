@@ -1,0 +1,19 @@
+Klip
+Copyright 2026 Martin Velasco O. (Proper)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+A copy of the License is provided in the LICENSE file and at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This product includes software developed by Martin Velasco O.
+(https://github.com/tamibot/klip), with AI assistance.
+
+------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------
+
+Interface sounds are rendered from the sound kits of raphaelsalaja/audio
+(https://github.com/raphaelsalaja/audio), Copyright 2026 Raphael Salaja,
+licensed under the MIT License.
